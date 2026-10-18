@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dungeon Combater</title>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <div id="hurt"></div>
+  <div id="hud">
+    <div class="panel top-left">
+      <p id="room-name" class="room">Stone Gate</p>
+      <p id="undead-count" class="sub">Undead here: 0</p>
+      <p id="pace-readout" class="sub">Pace ×1.00</p>
+    </div>
+    <div id="compass" class="compass" aria-label="Compass. The arrow points north, and the dungeon continues that way.">
+      <span class="compass-mark" aria-hidden="true"></span>
+      <div id="compass-rose" class="compass-rose">
+        <span class="compass-n">N</span>
+        <span class="compass-arrow"></span>
+      </div>
+    </div>
+    <div class="panel top-right">
+      <label class="slider">
+        <span class="slider-title">Undead haste</span>
+        <span class="slider-scale"><span>Slight</span><span>Frantic</span></span>
+        <input id="pace-slider" type="range" min="0" max="1" step="0.01" value="0.5" aria-label="Undead haste" />
+      </label>
+      <label class="slider">
+        <span class="slider-title">Experience</span>
+        <span class="slider-scale"><span>Slow</span><span>Fast</span></span>
+        <input id="xp-slider" type="range" min="0" max="1" step="0.01" value="0.5" aria-label="Experience gain" />
+      </label>
+    </div>
+    <div class="panel bottom-left">
+      <p id="level-text">Level 1 · Sword 18</p>
+      <div class="bar health"><div id="health-fill"></div></div>
+      <p id="health-text" class="sub">100 / 100</p>
+      <div class="bar xp"><div id="xp-fill"></div></div>
+      <p id="xp-text" class="sub">0 / 0 XP</p>
+    </div>
+    <p id="hint" class="hint">WASD move · Mouse look · Left click or K attack · Right click block · Esc frees the mouse · Xbox: sticks, RT attack, LT block, Start pauses</p>
+    <div id="crosshair" class="crosshair" aria-hidden="true"><span></span><span></span></div>
+    <p id="pause-label" class="pause" hidden>Paused</p>
+  </div>
+  <div id="overlay" class="overlay">
+    <div class="card">
+      <h1>Dungeon Combater</h1>
+      <p id="overlay-text">Each descent builds a new dungeon of about ten thousand square feet. Rooms, passages, and doors are never the same twice.</p>
+      <p id="overlay-prompt" class="prompt">Click to enter</p>
+    </div>
+  </div>
+  <div id="banner" hidden>
+    <div class="card">
+      <h2 id="banner-title">Game over</h2>
+      <p id="banner-text"></p>
+      <button id="restart" type="button">Descend again</button>
+    </div>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
