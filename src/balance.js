@@ -35,9 +35,10 @@ export const SKELETON_RECOVER = 1.15;
 export const SKELETON_MIN_WINDUP = 0.22;
 export const SKELETON_MIN_RECOVER = 0.28;
 export const SKELETON_RADIUS = 0.7;
-export const LEASH_DISTANCE = 8;
 export const SKELETON_WEAPONS = ['sword', 'mace', 'hammer', 'bow'];
 export const BOW_RANGE = 26;
+// A skeleton that has a clear line to the player this close (a doorway, a long passage) notices them.
+export const SKELETON_SIGHT_RANGE = 26;
 
 export function skeletonWeapon(index) {
   const n = Number.isFinite(index) ? Math.abs(Math.floor(index)) : 0;

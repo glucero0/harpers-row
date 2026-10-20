@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { applySubsurfaceScattering } from './subsurface.js';
 
 function canvasTexture(size, draw, colorSpace) {
   const canvas = document.createElement('canvas');
@@ -122,16 +123,120 @@ function drawMetal(ctx, width, height) {
   }
 }
 
-function drawBone(ctx, width, height) {
-  ctx.fillStyle = '#d9d1c2';
-  ctx.fillRect(0, 0, width, height);
-  for (let i = 0; i < 80; i += 1) {
-    const shade = 150 + Math.random() * 80;
-    ctx.fillStyle = `rgba(${shade}, ${shade - 8}, ${shade - 20}, 0.45)`;
-    ctx.beginPath();
-    ctx.arc(Math.random() * width, Math.random() * height, 1 + Math.random() * 3, 0, Math.PI * 2);
-    ctx.fill();
+function hash2(ix, iy) {
+  let n = Math.imul(ix, 374761393) + Math.imul(iy, 668265263);
+  n = Math.imul(n ^ (n >>> 13), 1274126177);
+  n ^= n >>> 16;
+  return (n >>> 0) / 4294967295;
+}
+
+function fade(t) {
+  return t * t * t * (t * (t * 6 - 15) + 10);
+}
+
+function valueNoise(x, y) {
+  const x0 = Math.floor(x);
+  const y0 = Math.floor(y);
+  const tx = fade(x - x0);
+  const ty = fade(y - y0);
+  const v00 = hash2(x0, y0);
+  const v10 = hash2(x0 + 1, y0);
+  const v01 = hash2(x0, y0 + 1);
+  const v11 = hash2(x0 + 1, y0 + 1);
+  const a = v00 + (v10 - v00) * tx;
+  const b = v01 + (v11 - v01) * tx;
+  return a + (b - a) * ty;
+}
+
+function fbm(x, y, octaves) {
+  let value = 0;
+  let amplitude = 0.5;
+  let frequency = 1;
+  let total = 0;
+  for (let octave = 0; octave < octaves; octave += 1) {
+    value += amplitude * valueNoise(x * frequency, y * frequency);
+    total += amplitude;
+    amplitude *= 0.5;
+    frequency *= 2;
   }
+  return value / total;
+}
+
+function smoothstep(edge0, edge1, x) {
+  const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+}
+
+function mix(a, b, t) {
+  return a + (b - a) * t;
+}
+
+const BONE_PARCHMENT = [0xdc, 0xd2, 0xb8];
+const BONE_SOOT = [0xbf, 0xb5, 0x9b];
+const BONE_PIT = [0x6a, 0x61, 0x50];
+
+function boneSurfaces(size) {
+  const color = new Uint8ClampedArray(size * size * 4);
+  const bump = new Uint8ClampedArray(size * size * 4);
+  const ao = new Uint8ClampedArray(size * size * 4);
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const u = x / size;
+      const v = y / size;
+      const warpX = fbm(u * 3 + 4.2, v * 3 + 1.7, 3);
+      const warpY = fbm(u * 3 + 8.8, v * 3 + 2.4, 3);
+      const nx = u * 7.5 + warpX * 1.35;
+      const ny = v * 7.5 + warpY * 1.35;
+      const stain = fbm(u * 2.1 + 1.2, v * 2.1 + 0.4, 4);
+      const pores = smoothstep(0.68, 0.86, fbm(nx * 1.8 + 12, ny * 1.8 + 3, 4));
+      const grain = valueNoise(nx * 3.4 + 20, ny * 3.4 + 9);
+      const crack = 1 - smoothstep(0.012, 0.04, Math.abs(grain - 0.63));
+      const grit = fbm(nx * 5.5, ny * 5.5, 2);
+      const crevice = Math.min(1, pores * 0.8 + crack);
+      let red = mix(BONE_PARCHMENT[0], BONE_SOOT[0], stain);
+      let green = mix(BONE_PARCHMENT[1], BONE_SOOT[1], stain);
+      let blue = mix(BONE_PARCHMENT[2], BONE_SOOT[2], stain);
+      red = mix(red, BONE_PIT[0], crevice);
+      green = mix(green, BONE_PIT[1], crevice);
+      blue = mix(blue, BONE_PIT[2], crevice);
+      const gritShade = (grit - 0.5) * 16;
+      red += gritShade;
+      green += gritShade * 0.92;
+      blue += gritShade * 0.75;
+      const height = 0.58 + (grit - 0.5) * 0.2 + (stain - 0.5) * 0.08 - pores * 0.36 - crack * 0.72;
+      const occlusion = 1 - pores * 0.55 - crack * 0.82;
+      const index = (y * size + x) * 4;
+      color[index] = red;
+      color[index + 1] = green;
+      color[index + 2] = blue;
+      color[index + 3] = 255;
+      const bumpByte = Math.min(255, Math.max(0, Math.round(height * 255)));
+      bump[index] = bumpByte;
+      bump[index + 1] = bumpByte;
+      bump[index + 2] = bumpByte;
+      bump[index + 3] = 255;
+      const aoByte = Math.min(255, Math.max(0, Math.round(occlusion * 255)));
+      ao[index] = aoByte;
+      ao[index + 1] = aoByte;
+      ao[index + 2] = aoByte;
+      ao[index + 3] = 255;
+    }
+  }
+  return { color, bump, ao };
+}
+
+function imageTexture(pixels, size, colorSpace) {
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  canvas.getContext('2d').putImageData(new ImageData(pixels, size, size), 0, 0);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = colorSpace;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.anisotropy = 8;
+  texture.needsUpdate = true;
+  return texture;
 }
 
 function textured(map, repeatX, repeatY, params) {
@@ -164,7 +269,11 @@ export function createMaterials() {
   const rockMap = canvasTexture(512, drawRock, colorSpace);
   const rockBump = canvasTexture(512, drawRockBump, THREE.NoColorSpace);
   const metalMap = canvasTexture(256, drawMetal, colorSpace);
-  const boneMap = canvasTexture(256, drawBone, colorSpace);
+  const boneSize = 256;
+  const boneField = boneSurfaces(boneSize);
+  const boneMap = imageTexture(boneField.color, boneSize, colorSpace);
+  const boneBump = imageTexture(boneField.bump, boneSize, THREE.NoColorSpace);
+  const boneAo = imageTexture(boneField.ao, boneSize, THREE.NoColorSpace);
 
   const wall = {
     stone: sharedSurface(stoneMap, 0xc8c2b8, 0.9, 0.04),
@@ -218,20 +327,73 @@ export function createMaterials() {
   }));
   const flame = share(new THREE.MeshBasicMaterial({ color: 0xffb15a }));
   const eye = share(new THREE.MeshBasicMaterial({ color: 0xb6ff7a }));
-  const socket = share(new THREE.MeshStandardMaterial({ color: 0x1a1814, roughness: 1 }));
+  const socket = share(new THREE.MeshStandardMaterial({ color: 0x070605, roughness: 1, metalness: 0 }));
 
-  const bone = share(new THREE.MeshStandardMaterial({
+  const bone = share(new THREE.MeshPhysicalMaterial({
     map: boneMap,
-    color: 0xe7dfd0,
-    roughness: 0.8,
-    metalness: 0.02,
+    color: 0xffffff,
+    roughness: 0.92,
+    metalness: 0,
+    bumpMap: boneBump,
+    bumpScale: 0.1,
+    aoMap: boneAo,
+    aoMapIntensity: 1.15,
+    specularIntensity: 0.07,
+    specularColor: 0x8a8172,
   }));
+  const boneScatter = {
+    color: new THREE.Color(0xd8c09a),
+    thickness: 0.28,
+    power: 2.4,
+    scale: 2,
+    distortion: 0.22,
+  };
+  bone.flatShading = false;
+  applySubsurfaceScattering(bone, boneScatter);
   const boneHot = bone.clone();
-  boneHot.emissive.setHex(0xfff4df);
-  boneHot.emissiveIntensity = 0.7;
+  boneHot.emissive.setHex(0xff6a4a);
+  boneHot.emissiveIntensity = 0.55;
   boneHot.userData.shared = true;
+  applySubsurfaceScattering(boneHot, {
+    color: boneScatter.color.clone(),
+    thickness: boneScatter.thickness,
+    power: boneScatter.power,
+    scale: boneScatter.scale,
+    distortion: boneScatter.distortion,
+  });
+  const boneFlash = bone.clone();
+  boneFlash.userData.shared = true;
+  applySubsurfaceScattering(boneFlash, {
+    color: boneScatter.color.clone(),
+    thickness: boneScatter.thickness,
+    power: boneScatter.power,
+    scale: boneScatter.scale,
+    distortion: boneScatter.distortion,
+    flashAmount: 1,
+  });
+
+  // A private, transparent twin of a material, so one skeleton's bones can fade without touching the
+  // shared ones. The twin owns no textures (it reuses the originals), so only the material is disposed.
+  function fadeVariant(source) {
+    const twin = source.clone();
+    twin.userData = { shared: true };
+    if (source.userData.sssUniforms) {
+      applySubsurfaceScattering(twin, {
+        color: boneScatter.color.clone(),
+        thickness: boneScatter.thickness,
+        power: boneScatter.power,
+        scale: boneScatter.scale,
+        distortion: boneScatter.distortion,
+        flashAmount: source.userData.sssUniforms.flash_amount.value,
+      });
+    }
+    twin.transparent = true;
+    twin.opacity = 1;
+    return twin;
+  }
 
   return {
+    fadeVariant,
     surface,
     floor: floorMaterial,
     plank,
@@ -249,5 +411,6 @@ export function createMaterials() {
     socket,
     bone,
     boneHot,
+    boneFlash,
   };
 }

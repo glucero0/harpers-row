@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 import {
-  LEASH_DISTANCE,
   SKELETON_DAMAGE,
   SKELETON_HP,
   SKELETON_MOVE_SPEED,
   SKELETON_RADIUS,
+  SKELETON_SIGHT_RANGE,
   SKELETON_WANDER_FACTOR,
   attackRecover,
   attackWindup,
@@ -12,15 +12,19 @@ import {
   skeletonAttackRange,
   skeletonWeapon,
 } from './balance.js';
-import { closestOnSegment, distanceToPolygon, lineOfSight, pointInPolygon, randomPointInPolygon, resolveBody } from './geometry.js';
+import { closestOnSegment, lineOfSight, pointInPolygon, randomPointInPolygon, resolveBody } from './geometry.js';
 import { audio } from './audio.js';
 
 function addPart(parent, geometry, material, x, y, z, isBone = false) {
   const mesh = new THREE.Mesh(geometry, material);
   mesh.position.set(x, y, z);
-  mesh.castShadow = false;
-  mesh.receiveShadow = false;
-  if (isBone) mesh.userData.bone = true;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  if (isBone) {
+    mesh.userData.bone = true;
+    const uv = geometry.getAttribute('uv');
+    if (uv && !geometry.getAttribute('uv2')) geometry.setAttribute('uv2', uv);
+  }
   parent.add(mesh);
   return mesh;
 }
@@ -31,92 +35,311 @@ function paintBones(root, material) {
   });
 }
 
-function addFist(wrist, bone) {
+const clamp01 = (value) => Math.min(1, Math.max(0, value));
+const easeInQuad = (t) => t * t;
+const easeOutQuad = (t) => 1 - (1 - t) * (1 - t);
+const easeInOutQuad = (t) => (t < 0.5 ? 2 * t * t : 1 - ((-2 * t + 2) ** 2) / 2);
+
+// Melee arm keyframes: shoulder xyz, elbow, wrist, plus torso pitch (tx) and twist (ty).
+// A negative elbow value folds the forearm up toward the shoulder, which is a real flex.
+const MELEE_READY = { sx: -0.9, sy: 0.1, sz: 0.3, ex: -0.8, wx: 0.9, tx: 0, ty: 0 };
+const MELEE_WINDUP = { sx: -1.6, sy: 0, sz: 1.1, ex: -1.3, wx: 0.4, tx: -0.1, ty: 0.4 };
+const MELEE_CONTACT = { sx: -1.6, sy: -0.2, sz: -0.3, ex: -0.1, wx: 1.7, tx: 0.18, ty: -0.3 };
+const MELEE_FOLLOW = { sx: -1.25, sy: -0.45, sz: -0.5, ex: -0.05, wx: 1.7, tx: 0.28, ty: -0.42 };
+const OFFHAND_IDLE = { sx: 0.05, sy: 0, sz: -0.2, ex: -0.3, wx: 0, tx: 0, ty: 0 };
+const OFFHAND_BRACE = { sx: -0.35, sy: 0, sz: -0.6, ex: -0.55, wx: 0, tx: 0, ty: 0 };
+const POSE_KEYS = ['sx', 'sy', 'sz', 'ex', 'wx', 'tx', 'ty'];
+const WINDUP_DRAW = 0.68;
+const FOLLOW_SHARE = 0.24;
+const LEG_LENGTH = 2.48;
+const SKULL_RADIUS = 0.34;
+const SKULL_REST_Y = 1.43;
+
+// Archer keyframes. The skeleton faces +Z. The bow rides in the arm on the +X side (the skeleton's
+// anatomical left) and the other arm draws the string. Aim and draw poses were solved with inverse
+// kinematics against the real bone lengths: the torso turns 40 degrees so the drawing shoulder
+// swings back, the bow hand sits on the eye line with a 15 degree elbow bend, and the drawing hand
+// reaches the string, pulls straight back to the jaw (elbow flexed 105 degrees, out and high), and
+// on release snaps back past the ear.
+const BOW_TWIST = -0.7;
+const BOW_CARRY = { sx: -0.3, sy: 0, sz: 0.3, ex: -0.5, wx: 0, tx: 0, ty: 0 };
+const BOW_AIM = { sx: -0.92, sy: -0.9, sz: 1, ex: -0.26, wx: 0, tx: 0, ty: BOW_TWIST };
+const BOW_KICK = { sx: -1.02, sy: -1.01, sz: 1.07, ex: -0.2, wx: 0, tx: 0, ty: BOW_TWIST };
+const DRAW_CARRY = { sx: 0.05, sy: 0, sz: -0.28, ex: -0.3, wx: 0, tx: 0, ty: 0 };
+const DRAW_PATH = [
+  { sx: -0.39, sy: 1.97, sz: -1.57, ex: -0.66, wx: 0, tx: 0, ty: 0 },
+  { sx: -0.42, sy: 1.84, sz: -1.59, ex: -1.05, wx: 0, tx: 0, ty: 0 },
+  { sx: -0.46, sy: 1.73, sz: -1.62, ex: -1.34, wx: 0, tx: 0, ty: 0 },
+  { sx: -0.5, sy: 1.62, sz: -1.67, ex: -1.59, wx: 0, tx: 0, ty: 0 },
+  { sx: -0.56, sy: 1.51, sz: -1.73, ex: -1.84, wx: 0, tx: 0, ty: 0 },
+];
+const DRAW_RELEASE = { sx: -0.92, sy: 0.6, sz: -1.79, ex: -2.43, wx: 0, tx: 0, ty: 0 };
+const BOW_REACH_END = 0.38;
+const BOW_ANCHOR_AT = 0.9;
+const BOW_KICK_SECONDS = 0.16;
+
+// Bone debris. The skeleton stands about 4.8 units tall, so a metre is about 3.2 units.
+const METER = 3.2;
+const DOOR_LINEUP = 1.6;
+const DOOR_PAST = 1.8;
+const DOOR_MARGIN = 1.1;
+const SCATTER = 0.5 * METER;
+const DEBRIS_GRAVITY = 9.8 * METER;
+const DEBRIS_BOUNCE = 0.35;
+const DEBRIS_MAX_BOUNCES = 2;
+const DEBRIS_MIN_IMPACT = 0.8 * METER;
+const DEBRIS_REST_ENERGY = 0.06;
+const DEBRIS_RADIUS = 0.25;
+const DEBRIS_FADE_SECONDS = 2.5;
+const FLOOR_Y = 0;
+
+function makePose(source) {
+  return { ...source };
+}
+
+function zeroVelocity() {
+  return { sx: 0, sy: 0, sz: 0, ex: 0, wx: 0, tx: 0, ty: 0 };
+}
+
+function mixPose(from, to, amount, out) {
+  for (const key of POSE_KEYS) out[key] = from[key] + (to[key] - from[key]) * amount;
+}
+
+function clearVelocity(velocity) {
+  for (const key of POSE_KEYS) velocity[key] = 0;
+}
+
+// Critically damped spring: eases toward the target and settles without a linear snap.
+function springPose(pose, velocity, target, omega, dt) {
+  const step = Math.min(dt, 1 / 30);
+  for (const key of POSE_KEYS) {
+    const accel = omega * omega * (target[key] - pose[key]) - 2 * omega * velocity[key];
+    velocity[key] += accel * step;
+    pose[key] += velocity[key] * step;
+  }
+}
+
+// 0..1: snaps in, holds about 0.12 s, then eases back to the tracking pose.
+function reactAmount(t) {
+  if (t >= 99) return 0;
+  const snap = easeOutQuad(clamp01(t / 0.025));
+  if (t < 0.12) return snap;
+  return 1 - easeInOutQuad(clamp01((t - 0.12) / 0.3));
+}
+
+function strideAmplitude(speed) {
+  return 0.3 + 0.4 * clamp01(speed / 10);
+}
+
+// A rounded triangle wave in [-1, 1]. A plain sine has the foot slide under the body at 1.57x
+// the ground speed mid-stance, so the hip angle uses a flatter ramp that holds a planted foot
+// closer to still (the ground speed matches the body across most of the stance).
+const GAIT_FLATNESS = 0.97;
+const GAIT_NORM = Math.asin(GAIT_FLATNESS);
+function gaitWave(phase) {
+  return Math.asin(GAIT_FLATNESS * Math.sin(phase)) / GAIT_NORM;
+}
+
+const weaponGripOffset = {
+  position: new THREE.Vector3(0, 0, 0),
+  rotation: new THREE.Euler(Math.PI / 2, 0, 0),
+};
+
+function addGripMesh(parent, geometry, material) {
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  parent.add(mesh);
+  return mesh;
+}
+
+function addFist(wrist, bone, side) {
   addPart(wrist, new THREE.BoxGeometry(0.16, 0.14, 0.16), bone, 0, 0, 0, true);
   addPart(wrist, new THREE.BoxGeometry(0.14, 0.1, 0.1), bone, 0, 0.02, 0.1, true);
   addPart(wrist, new THREE.BoxGeometry(0.12, 0.08, 0.08), bone, 0.02, -0.02, 0.12, true);
+  addPart(wrist, new THREE.BoxGeometry(0.1, 0.06, 0.06), bone, 0.11 * side, 0.04, 0.02, true);
 }
 
-function addMelee(wrist, materials, kind) {
+function addHandSocket(wrist, name) {
+  const socket = new THREE.Group();
+  socket.name = name;
+  socket.position.set(0, -0.02, 0.06);
+  wrist.add(socket);
+  return socket;
+}
+
+function seatWeapon(socket) {
   const weapon = new THREE.Group();
-  weapon.position.set(0, 0.02, 0.05);
-  wrist.add(weapon);
+  weapon.name = 'weapon';
+  weapon.position.copy(weaponGripOffset.position);
+  weapon.rotation.copy(weaponGripOffset.rotation);
+  socket.add(weapon);
+  return weapon;
+}
+
+function addMelee(socket, materials, kind) {
+  const weapon = seatWeapon(socket);
   if (kind === 'mace') {
-    addPart(weapon, new THREE.BoxGeometry(0.07, 0.26, 0.07), materials.leather, 0, -0.04, 0);
-    addPart(weapon, new THREE.SphereGeometry(0.16, 8, 6), materials.rust, 0, -0.28, 0);
-    addPart(weapon, new THREE.BoxGeometry(0.3, 0.05, 0.05), materials.metal, 0, -0.28, 0);
-    addPart(weapon, new THREE.BoxGeometry(0.05, 0.05, 0.3), materials.metal, 0, -0.28, 0);
+    const grip = new THREE.BoxGeometry(0.07, 0.3, 0.07);
+    grip.translate(0, 0.09, 0);
+    addGripMesh(weapon, grip, materials.leather);
+    const head = new THREE.SphereGeometry(0.16, 8, 6);
+    head.translate(0, 0.36, 0);
+    addGripMesh(weapon, head, materials.rust);
+    const flangeA = new THREE.BoxGeometry(0.3, 0.05, 0.05);
+    flangeA.translate(0, 0.36, 0);
+    addGripMesh(weapon, flangeA, materials.metal);
+    const flangeB = new THREE.BoxGeometry(0.05, 0.05, 0.3);
+    flangeB.translate(0, 0.36, 0);
+    addGripMesh(weapon, flangeB, materials.metal);
     return;
   }
   if (kind === 'hammer') {
-    addPart(weapon, new THREE.BoxGeometry(0.065, 0.42, 0.065), materials.leather, 0, -0.06, 0);
-    addPart(weapon, new THREE.BoxGeometry(0.16, 0.18, 0.36), materials.rust, 0, -0.36, 0);
-    addPart(weapon, new THREE.BoxGeometry(0.24, 0.12, 0.18), materials.metal, 0, -0.36, 0);
+    const grip = new THREE.BoxGeometry(0.065, 0.36, 0.065);
+    grip.translate(0, 0.1, 0);
+    addGripMesh(weapon, grip, materials.leather);
+    const head = new THREE.BoxGeometry(0.16, 0.18, 0.36);
+    head.translate(0, 0.4, 0);
+    addGripMesh(weapon, head, materials.rust);
+    const face = new THREE.BoxGeometry(0.24, 0.12, 0.18);
+    face.translate(0, 0.4, 0);
+    addGripMesh(weapon, face, materials.metal);
     return;
   }
-  addPart(weapon, new THREE.BoxGeometry(0.07, 0.26, 0.07), materials.leather, 0, -0.02, 0);
-  addPart(weapon, new THREE.BoxGeometry(0.5, 0.07, 0.1), materials.metal, 0, -0.2, 0);
-  addPart(weapon, new THREE.BoxGeometry(0.16, 1.45, 0.05), materials.metal, 0, -0.98, 0);
+  const grip = new THREE.BoxGeometry(0.07, 0.28, 0.07);
+  grip.translate(0, 0.084, 0);
+  addGripMesh(weapon, grip, materials.leather);
+  const guard = new THREE.BoxGeometry(0.46, 0.07, 0.09);
+  guard.translate(0, 0.23, 0);
+  addGripMesh(weapon, guard, materials.metal);
+  const blade = new THREE.BoxGeometry(0.045, 1.4, 0.12);
+  blade.translate(0, 0.96, 0);
+  addGripMesh(weapon, blade, materials.metal);
 }
 
+// Bow local frame: +Y runs along the stave, -Z points at the target, +Z points at the archer. The grip
+// sits at the origin; the limbs arch toward the target and the string rests BOW_BRACE behind the grip.
 const BOW_REACH = 0.92;
+const BOW_BRACE = 0.62;
+const BOW_SHELF = new THREE.Vector3(0, 0.05, 0);
+const ARROW_OVERSHOOT = 0.3;
+const ARROW_LENGTH = 1.9;
+const ARROW_SPEED = 46;
+const ARROW_AIM_HEIGHT = 4.9;
+const ARROW_SHAFT = new THREE.BoxGeometry(0.045, 0.045, 1);
+const ARROW_HEAD = new THREE.ConeGeometry(0.075, 0.2, 5);
+const ARROW_VANE_A = new THREE.BoxGeometry(0.2, 0.012, 0.3);
+const ARROW_VANE_B = new THREE.BoxGeometry(0.012, 0.2, 0.3);
+const FACE_TARGET = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI);
+const AXIS_Z = new THREE.Vector3(0, 0, 1);
+const AXIS_NEG_Z = new THREE.Vector3(0, 0, -1);
+const scratch = {
+  q1: new THREE.Quaternion(),
+  q2: new THREE.Quaternion(),
+  q3: new THREE.Quaternion(),
+  nock: new THREE.Vector3(),
+  dir: new THREE.Vector3(),
+};
 
-function aimBow(bowParts, drawWrist, drawing) {
-  const bow = bowParts.stringU.parent;
-  const nock = new THREE.Vector3(0, 0, 0.05);
-  if (drawing) {
-    bow.updateWorldMatrix(true, false);
-    drawWrist.getWorldPosition(nock);
-    bow.worldToLocal(nock);
-  }
-  placeSegment(bowParts.stringU, bowParts.tipU, nock);
-  placeSegment(bowParts.stringD, bowParts.tipD, nock);
-  bowParts.nocked.visible = drawing;
-  if (!drawing) return;
-  bowParts.nocked.position.copy(nock);
-  const aim = new THREE.Vector3(0, 0, -0.2).sub(nock);
-  if (aim.lengthSq() > 0.001) {
-    bowParts.nocked.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, -1), aim.normalize());
-  }
+// An arrow with its pivot at the middle of the shaft and its head toward -Z.
+function makeArrow(materials) {
+  const group = new THREE.Group();
+  const shaft = new THREE.Mesh(ARROW_SHAFT, materials.leather);
+  const head = new THREE.Mesh(ARROW_HEAD, materials.metal);
+  head.rotation.x = -Math.PI / 2;
+  const vaneA = new THREE.Mesh(ARROW_VANE_A, materials.rust);
+  const vaneB = new THREE.Mesh(ARROW_VANE_B, materials.rust);
+  group.add(shaft, head, vaneA, vaneB);
+  const arrow = { group, shaft, head, vaneA, vaneB, length: ARROW_LENGTH };
+  fitArrow(arrow, ARROW_LENGTH);
+  return arrow;
+}
+
+function fitArrow(arrow, length) {
+  arrow.length = length;
+  arrow.shaft.scale.z = length;
+  arrow.head.position.z = -length / 2 - 0.04;
+  arrow.vaneA.position.z = length / 2 - 0.2;
+  arrow.vaneB.position.z = length / 2 - 0.2;
 }
 
 function placeSegment(mesh, from, to) {
   mesh.position.copy(from).add(to).multiplyScalar(0.5);
-  const dir = to.clone().sub(from);
+  const dir = scratch.dir.copy(to).sub(from);
   const len = dir.length();
   mesh.scale.y = Math.max(0.02, len);
   if (len > 0.001) mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
 }
 
-function addBow(wrist, materials) {
-  const bow = new THREE.Group();
-  bow.position.set(0.02, -0.02, 0.06);
-  bow.rotation.x = -Math.PI / 2;
-  const stave = new THREE.Mesh(new THREE.TorusGeometry(BOW_REACH, 0.04, 6, 18, Math.PI), materials.leather);
-  stave.rotation.z = Math.PI / 2;
-  bow.add(stave);
-  addPart(bow, new THREE.BoxGeometry(0.08, 0.2, 0.08), materials.leather, 0, 0, 0);
+function addBow(socket, materials) {
+  const group = new THREE.Group();
+  group.name = 'bow';
+  const tipU = new THREE.Vector3(0, BOW_REACH, BOW_BRACE);
+  const tipD = new THREE.Vector3(0, -BOW_REACH, BOW_BRACE);
+  const curve = new THREE.QuadraticBezierCurve3(tipU, new THREE.Vector3(0, 0, -BOW_BRACE), tipD);
+  const stave = new THREE.Mesh(new THREE.TubeGeometry(curve, 24, 0.045, 6, false), materials.leather);
+  stave.castShadow = true;
+  group.add(stave);
+  addPart(group, new THREE.BoxGeometry(0.09, 0.26, 0.09), materials.leather, 0, 0, 0);
   const stringU = new THREE.Mesh(new THREE.BoxGeometry(0.018, 1, 0.018), materials.metal);
   const stringD = new THREE.Mesh(new THREE.BoxGeometry(0.018, 1, 0.018), materials.metal);
-  bow.add(stringU);
-  bow.add(stringD);
-  const tipU = new THREE.Vector3(0, BOW_REACH, 0.03);
-  const tipD = new THREE.Vector3(0, -BOW_REACH, 0.03);
-  const rest = new THREE.Vector3(0, 0, 0.05);
+  group.add(stringU, stringD);
+  const rest = new THREE.Vector3(0, 0, BOW_BRACE);
   placeSegment(stringU, tipU, rest);
   placeSegment(stringD, tipD, rest);
-  const nocked = new THREE.Group();
-  const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.03, 1.15), materials.metal);
-  shaft.position.z = -0.58;
-  nocked.add(shaft);
-  const head = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.16, 5), materials.rust);
-  head.rotation.x = -Math.PI / 2;
-  head.position.z = -1.2;
-  nocked.add(head);
-  nocked.visible = false;
-  bow.add(nocked);
-  wrist.add(bow);
-  return { nocked, stringU, stringD, tipU, tipD };
+  const arrow = makeArrow(materials);
+  arrow.group.visible = false;
+  group.add(arrow.group);
+  socket.add(group);
+  return { group, arrow, stringU, stringD, tipU, tipD };
+}
+
+// Keep the stave upright (canted a little toward the draw side) with the limbs arching at the target,
+// whatever the hand is doing. Then draw the string to the drawing hand and lay the arrow along it.
+function rigBow(mesh, aim, nocked) {
+  const bow = mesh.bow;
+  const { q1, q2, q3, nock, dir } = scratch;
+  mesh.armR.socket.getWorldQuaternion(q1);
+  mesh.root.getWorldQuaternion(q2);
+  q1.premultiply(q2.invert());
+  q3.setFromAxisAngle(AXIS_Z, 0.05 + 0.28 * aim).multiply(FACE_TARGET);
+  bow.group.quaternion.copy(q1).invert().multiply(q3);
+  bow.group.updateWorldMatrix(true, false);
+
+  mesh.armL.socket.getWorldPosition(nock);
+  bow.group.worldToLocal(nock);
+  if (nocked) {
+    const pull = clamp01((nock.z - BOW_BRACE) / 0.4);
+    nock.set(nock.x * pull, nock.y * pull, Math.max(BOW_BRACE, nock.z));
+  } else {
+    nock.set(0, 0, BOW_BRACE);
+  }
+  placeSegment(bow.stringU, bow.tipU, nock);
+  placeSegment(bow.stringD, bow.tipD, nock);
+  bow.arrow.group.visible = nocked;
+  if (!nocked) return;
+
+  dir.copy(BOW_SHELF).sub(nock);
+  const reach = dir.length();
+  if (reach < 0.05) return;
+  dir.divideScalar(reach);
+  const length = reach + ARROW_OVERSHOOT;
+  fitArrow(bow.arrow, length);
+  bow.arrow.group.position.copy(nock).addScaledVector(dir, length / 2);
+  bow.arrow.group.quaternion.setFromUnitVectors(AXIS_NEG_Z, dir);
+}
+
+function pieceOf(node, ball = 0) {
+  return {
+    node,
+    ball,
+    home: {
+      parent: node.parent,
+      position: node.position.clone(),
+      quaternion: node.quaternion.clone(),
+      scale: node.scale.clone(),
+    },
+  };
 }
 
 function buildMesh(materials, weapon) {
@@ -129,87 +352,91 @@ function buildMesh(materials, weapon) {
   const spine = new THREE.Group();
   spine.position.y = 3.05;
   fall.add(spine);
-  addPart(spine, new THREE.BoxGeometry(0.22, 0.85, 0.2), bone, 0, 0.45, 0, true);
+  const column = addPart(spine, new THREE.BoxGeometry(0.22, 0.85, 0.2), bone, 0, 0.45, 0, true);
+  const ribs = [];
   for (let rib = 0; rib < 3; rib += 1) {
-    addPart(spine, new THREE.BoxGeometry(0.78, 0.08, 0.34), bone, 0, 0.35 + rib * 0.22, 0.02, true);
+    ribs.push(addPart(spine, new THREE.BoxGeometry(0.78, 0.08, 0.34), bone, 0, 0.35 + rib * 0.22, 0.02, true));
   }
+  addPart(spine, new THREE.BoxGeometry(0.66, 0.42, 0.1), materials.socket, 0, 0.57, 0.11);
 
+  // The skull pivots on its own centre so it rolls like a ball once it comes loose.
   const skull = new THREE.Group();
-  skull.position.set(0, 1.15, 0);
+  skull.position.set(0, SKULL_REST_Y, 0);
   spine.add(skull);
-  addPart(skull, new THREE.SphereGeometry(0.34, 8, 6), bone, 0, 0.28, 0, true);
-  addPart(skull, new THREE.BoxGeometry(0.28, 0.12, 0.22), bone, 0, 0.02, 0.12, true);
-  addPart(skull, new THREE.BoxGeometry(0.1, 0.08, 0.06), materials.socket, -0.12, 0.3, 0.28);
-  addPart(skull, new THREE.BoxGeometry(0.1, 0.08, 0.06), materials.socket, 0.12, 0.3, 0.28);
-  const eyeL = addPart(skull, new THREE.SphereGeometry(0.035, 6, 6), materials.eye, -0.12, 0.3, 0.32);
-  const eyeR = addPart(skull, new THREE.SphereGeometry(0.035, 6, 6), materials.eye, 0.12, 0.3, 0.32);
+  const skullGeometry = new THREE.SphereGeometry(SKULL_RADIUS, 20, 14);
+  skullGeometry.computeVertexNormals();
+  addPart(skull, skullGeometry, bone, 0, 0, 0, true);
+  addPart(skull, new THREE.BoxGeometry(0.28, 0.12, 0.22), bone, 0, -0.26, 0.12, true);
+  addPart(skull, new THREE.BoxGeometry(0.12, 0.1, 0.08), materials.socket, -0.12, 0.02, 0.26);
+  addPart(skull, new THREE.BoxGeometry(0.12, 0.1, 0.08), materials.socket, 0.12, 0.02, 0.26);
+  const eyeL = addPart(skull, new THREE.SphereGeometry(0.035, 6, 6), materials.eye, -0.12, 0.02, 0.32);
+  const eyeR = addPart(skull, new THREE.SphereGeometry(0.035, 6, 6), materials.eye, 0.12, 0.02, 0.32);
 
   function limb(side) {
     const shoulder = new THREE.Group();
+    shoulder.name = side > 0 ? 'SkeletonArm_R' : 'SkeletonArm_L';
     shoulder.position.set(0.48 * side, 0.85, 0);
     spine.add(shoulder);
-    addPart(shoulder, new THREE.BoxGeometry(0.12, 0.95, 0.12), bone, 0, -0.5, 0, true);
+    const upper = addPart(shoulder, new THREE.BoxGeometry(0.12, 0.95, 0.12), bone, 0, -0.5, 0, true);
     const elbow = new THREE.Group();
+    elbow.name = side > 0 ? 'Forearm_R' : 'Forearm_L';
     elbow.position.y = -0.98;
     shoulder.add(elbow);
-    addPart(elbow, new THREE.BoxGeometry(0.1, 0.85, 0.1), bone, 0, -0.42, 0, true);
+    const fore = addPart(elbow, new THREE.BoxGeometry(0.1, 0.85, 0.1), bone, 0, -0.42, 0, true);
     const wrist = new THREE.Group();
+    wrist.name = side > 0 ? 'WristJoint_R' : 'WristJoint_L';
     wrist.position.y = -0.86;
     elbow.add(wrist);
-    addFist(wrist, bone);
-    return { shoulder, elbow, wrist };
+    addFist(wrist, bone, side);
+    const socket = addHandSocket(wrist, side > 0 ? 'HandSocket_R' : 'HandSocket_L');
+    return { shoulder, elbow, wrist, socket, upper, fore };
   }
 
   function leg(side) {
     const hip = new THREE.Group();
     hip.position.set(0.18 * side, 2.9, 0);
     fall.add(hip);
-    addPart(hip, new THREE.BoxGeometry(0.14, 1.25, 0.14), bone, 0, -0.65, 0, true);
+    const thigh = addPart(hip, new THREE.BoxGeometry(0.14, 1.25, 0.14), bone, 0, -0.65, 0, true);
     const knee = new THREE.Group();
     knee.position.y = -1.28;
     hip.add(knee);
-    addPart(knee, new THREE.BoxGeometry(0.12, 1.2, 0.12), bone, 0, -0.6, 0, true);
-    return { hip, knee };
+    const shin = addPart(knee, new THREE.BoxGeometry(0.12, 1.2, 0.12), bone, 0, -0.6, 0, true);
+    return { hip, knee, thigh, shin };
   }
 
   const armL = limb(-1);
   const armR = limb(1);
   const legL = leg(-1);
   const legR = leg(1);
-  let nocked = null;
+
   let bow = null;
+  let held = null;
   if (weapon === 'bow') {
-    bow = addBow(armL.wrist, materials);
-    nocked = bow.nocked;
-    const carry = { sx: 0.45, sy: 0.05, sz: -0.55, ex: 0.55, wx: 0 };
-    armL.shoulder.rotation.set(carry.sx, carry.sy, carry.sz);
-    armL.elbow.rotation.x = carry.ex;
-    armR.shoulder.rotation.set(0.3, 0, -0.25);
-    armR.elbow.rotation.x = 0.4;
+    bow = addBow(armR.socket, materials);
+    held = bow.group;
+    armR.shoulder.rotation.set(BOW_CARRY.sx, BOW_CARRY.sy, BOW_CARRY.sz);
+    armR.elbow.rotation.x = BOW_CARRY.ex;
+    armL.shoulder.rotation.set(DRAW_CARRY.sx, DRAW_CARRY.sy, DRAW_CARRY.sz);
+    armL.elbow.rotation.x = DRAW_CARRY.ex;
   } else {
-    addMelee(armR.wrist, materials, weapon);
-    const raised = meleePose('ready');
-    armR.shoulder.rotation.set(raised.sx, raised.sy, raised.sz);
-    armR.elbow.rotation.x = raised.ex;
-    armR.wrist.rotation.x = raised.wx;
-    armL.shoulder.rotation.set(0.25, 0, -0.22);
-    armL.elbow.rotation.x = 0.45;
+    addMelee(armR.socket, materials, weapon);
+    held = armR.socket.getObjectByName('weapon');
+    armR.shoulder.rotation.set(MELEE_READY.sx, MELEE_READY.sy, MELEE_READY.sz);
+    armR.elbow.rotation.x = MELEE_READY.ex;
+    armR.wrist.rotation.x = MELEE_READY.wx;
+    armL.shoulder.rotation.set(OFFHAND_IDLE.sx, OFFHAND_IDLE.sy, OFFHAND_IDLE.sz);
+    armL.elbow.rotation.x = OFFHAND_IDLE.ex;
   }
-  return { root, fall, spine, skull, eyeL, eyeR, armL, armR, legL, legR, nocked, bow };
-}
 
-function meleePose(state) {
-  if (state === 'windup') return { sx: 1.65, sy: -0.5, sz: 1.05, ex: 2.2, wx: -0.3 };
-  if (state === 'recover') return { sx: 1, sy: -0.8, sz: 0, ex: 0.65, wx: -0.4 };
-  return { sx: 0.8, sy: -0.6, sz: 0.6, ex: 2.2, wx: 0.4 };
-}
-
-function poseArm(arm, pose, dt) {
-  arm.shoulder.rotation.x = approach(arm.shoulder.rotation.x, pose.sx, 7, dt);
-  arm.shoulder.rotation.y = approach(arm.shoulder.rotation.y, pose.sy, 7, dt);
-  arm.shoulder.rotation.z = approach(arm.shoulder.rotation.z, pose.sz, 7, dt);
-  arm.elbow.rotation.x = approach(arm.elbow.rotation.x, pose.ex, 8, dt);
-  arm.wrist.rotation.x = approach(arm.wrist.rotation.x, pose.wx, 8, dt);
+  // Every distinct bone, plus whatever is held, can come apart on death.
+  const pieces = [
+    pelvis, column, ...ribs,
+    armL.upper, armL.fore, armL.wrist, armR.upper, armR.fore, armR.wrist,
+    legL.thigh, legL.shin, legR.thigh, legR.shin,
+  ].map((node) => pieceOf(node));
+  pieces.push(pieceOf(skull, SKULL_RADIUS));
+  if (held) pieces.push(pieceOf(held));
+  return { root, fall, spine, skull, eyeL, eyeR, armL, armR, legL, legR, bow, pieces };
 }
 
 function angleDiff(from, to) {
@@ -219,17 +446,21 @@ function angleDiff(from, to) {
   return diff;
 }
 
-function approach(current, target, speed, dt) {
-  const diff = target - current;
-  const step = Math.max(-speed * dt, Math.min(speed * dt, diff));
-  return current + step;
+const restPose = (weapon) => (weapon === 'bow' ? BOW_CARRY : MELEE_READY);
+const restPoseL = (weapon) => (weapon === 'bow' ? DRAW_CARRY : OFFHAND_IDLE);
+
+// Samples a keyframe path (evenly spaced) at t in 0..1 so the hand follows it in a near-straight line.
+function samplePath(path, t, out) {
+  const scaled = clamp01(t) * (path.length - 1);
+  const index = Math.min(path.length - 2, Math.floor(scaled));
+  mixPose(path[index], path[index + 1], scaled - index, out);
 }
+
+export { weaponGripOffset };
 
 export function createSkeletons(parent, dungeon, materials) {
   const list = [];
   const arrows = [];
-  const arrowGeo = new THREE.BoxGeometry(0.035, 0.035, 0.72);
-  const arrowHeadGeo = new THREE.ConeGeometry(0.055, 0.16, 5);
   let spawnId = 0;
   for (const room of dungeon.rooms) {
     room.spawns.forEach((spawn, slot) => {
@@ -240,6 +471,7 @@ export function createSkeletons(parent, dungeon, materials) {
       list.push({
         id: spawnId,
         room,
+        at: room,
         slot,
         spawnX: spawn[0],
         spawnZ: spawn[1],
@@ -254,9 +486,26 @@ export function createSkeletons(parent, dungeon, materials) {
         wander: { x: spawn[0], z: spawn[1] },
         weapon,
         phase: Math.random() * Math.PI * 2,
-        flash: 0,
-        hot: false,
-        fall: 0,
+        flashFrames: 0,
+        tint: 0,
+        paint: materials.bone,
+        knockX: 0,
+        knockZ: 0,
+        reactT: 99,
+        speed: 0,
+        stride: 0,
+        pose: makePose(restPose(weapon)),
+        vel: zeroVelocity(),
+        poseL: makePose(restPoseL(weapon)),
+        velL: zeroVelocity(),
+        windupTotal: 0.72,
+        recoverTotal: 1.15,
+        windupFrom: makePose(restPose(weapon)),
+        windupFromL: makePose(restPoseL(weapon)),
+        nocked: false,
+        debris: null,
+        fadeSwap: null,
+        shattered: false,
         mesh,
         struck: false,
       });
@@ -278,29 +527,63 @@ export function createSkeletons(parent, dungeon, materials) {
     return doorFromIndex.get(`${fromRoom.index}:${toward}`) || null;
   }
 
+  // Where to walk next to reach `goal` in the space numbered `goalIndex`. Rooms and passages form one
+  // chain joined by doors, so the way is always "through the next door toward the goal". The skeleton
+  // lines up a short way in front of the doorway first, then walks straight through it, so it never
+  // grinds along the door frame. In the goal's own space it walks straight at the goal.
+  const lead = { x: 0, z: 0 };
+  function routeTarget(skeleton, goalIndex, goal) {
+    const space = skeleton.at;
+    if (space.index === goalIndex) return goal;
+    const door = doorToward(space, goalIndex);
+    if (!door) return goal;
+    const next = dungeon.rooms[space.index + (goalIndex > space.index ? 1 : -1)];
+    const midX = (door.a[0] + door.b[0]) / 2;
+    const midZ = (door.a[1] + door.b[1]) / 2;
+    let nx = -(door.b[1] - door.a[1]);
+    let nz = door.b[0] - door.a[0];
+    const length = Math.hypot(nx, nz) || 1;
+    nx /= length;
+    nz /= length;
+    if (nx * (next.rect.x + next.rect.w / 2 - midX) + nz * (next.rect.z + next.rect.d / 2 - midZ) < 0) {
+      nx = -nx;
+      nz = -nz;
+    }
+    // Sideways offset from the doorway's centre. Lined up (or already through) means walk straight on;
+    // otherwise first go to the spot square in front of the door, which is lined up by construction.
+    const along = (skeleton.x - midX) * nx + (skeleton.z - midZ) * nz;
+    const side = Math.abs((skeleton.x - midX) * -nz + (skeleton.z - midZ) * nx);
+    const lined = along > 0 || side < Math.max(0.3, Math.hypot(door.b[0] - door.a[0], door.b[1] - door.a[1]) / 2 - DOOR_MARGIN);
+    const reach = lined ? DOOR_PAST : -DOOR_LINEUP;
+    lead.x = midX + nx * reach;
+    lead.z = midZ + nz * reach;
+    return lead;
+  }
+
   function living() {
     return list.filter((skeleton) => !skeleton.dead);
   }
 
-  function looseArrow(skeleton) {
-    const fx = -Math.sin(skeleton.yaw);
-    const fz = -Math.cos(skeleton.yaw);
-    const mesh = new THREE.Mesh(arrowGeo, materials.metal);
-    const head = new THREE.Mesh(arrowHeadGeo, materials.rust);
-    head.rotation.x = Math.PI / 2;
-    head.position.z = -0.42;
-    mesh.add(head);
-    mesh.position.set(skeleton.x + fx * 0.7, 4.15, skeleton.z + fz * 0.7);
-    mesh.rotation.y = skeleton.yaw;
-    parent.add(mesh);
-    arrows.push({
-      x: mesh.position.x,
-      z: mesh.position.z,
-      vx: fx * 46,
-      vz: fz * 46,
-      age: 0,
-      mesh,
-    });
+  // Looses the arrow from where it sits on the string, flying at the player. It leaves the bow already
+  // pointing at the target and rises or falls so it arrives at chest height.
+  function looseArrow(skeleton, player) {
+    const nocked = skeleton.mesh.bow.arrow;
+    nocked.group.updateWorldMatrix(true, false);
+    const origin = new THREE.Vector3().setFromMatrixPosition(nocked.group.matrixWorld);
+    const dx = player.x - origin.x;
+    const dz = player.z - origin.z;
+    const dist = Math.hypot(dx, dz) || 1;
+    const travel = Math.max(0.05, dist / ARROW_SPEED);
+    const vx = (dx / dist) * ARROW_SPEED;
+    const vz = (dz / dist) * ARROW_SPEED;
+    const vy = (ARROW_AIM_HEIGHT - origin.y) / travel;
+    const flight = makeArrow(materials);
+    fitArrow(flight, nocked.length);
+    flight.group.position.copy(origin);
+    flight.group.quaternion.setFromUnitVectors(AXIS_NEG_Z, new THREE.Vector3(vx, vy, vz).normalize());
+    parent.add(flight.group);
+    arrows.push({ x: origin.x, y: origin.y, z: origin.z, vx, vy, vz, age: 0, mesh: flight.group });
+    skeleton.nocked = false;
     audio.shot();
   }
 
@@ -319,66 +602,435 @@ export function createSkeletons(parent, dungeon, materials) {
       const hit = player.alive && Math.hypot(player.x - closest.x, player.z - closest.z) < 0.9;
       const blocked = !lineOfSight(arrow.x, arrow.z, nextX, nextZ, dungeon.colliders);
       arrow.x = nextX;
+      arrow.y += arrow.vy * dt;
       arrow.z = nextZ;
       arrow.age += dt;
-      arrow.mesh.position.set(arrow.x, 4.15, arrow.z);
+      arrow.mesh.position.set(arrow.x, arrow.y, arrow.z);
       if (hit) {
         if (hurt(SKELETON_DAMAGE)) audio.hurt();
         removeArrow(index);
-      } else if (blocked || arrow.age > 1.4) {
+      } else if (blocked || arrow.age > 1.4 || arrow.y < 0.1) {
         removeArrow(index);
       }
     }
   }
 
-  function damage(skeleton, amount) {
+  // ---- Bone debris -------------------------------------------------------------------------------
+
+  const AXES = [new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1)];
+  const UP = new THREE.Vector3(0, 1, 0);
+  const tmp = new THREE.Vector3();
+  const tmpAxis = new THREE.Vector3();
+  const tmpQuat = new THREE.Quaternion();
+
+  // The bounding box of everything visible under a node, expressed in the node's own space.
+  function localBounds(node) {
+    node.updateWorldMatrix(true, true);
+    const inverse = new THREE.Matrix4().copy(node.matrixWorld).invert();
+    const matrix = new THREE.Matrix4();
+    const part = new THREE.Box3();
+    const box = new THREE.Box3();
+    node.traverseVisible((object) => {
+      if (!object.isMesh) return;
+      if (!object.geometry.boundingBox) object.geometry.computeBoundingBox();
+      matrix.multiplyMatrices(inverse, object.matrixWorld);
+      part.copy(object.geometry.boundingBox).applyMatrix4(matrix);
+      box.union(part);
+    });
+    if (box.isEmpty()) box.set(new THREE.Vector3(-0.1, -0.1, -0.1), new THREE.Vector3(0.1, 0.1, 0.1));
+    return box;
+  }
+
+  function boxCorners(box) {
+    const corners = [];
+    for (const x of [box.min.x, box.max.x]) {
+      for (const y of [box.min.y, box.max.y]) {
+        for (const z of [box.min.z, box.max.z]) corners.push(new THREE.Vector3(x, y, z));
+      }
+    }
+    return corners;
+  }
+
+  // Every bone comes apart: unparent each piece into a debris group at its current world transform,
+  // then throw it away from the blow with its own spin.
+  function shatter(skeleton, dirX, dirZ) {
+    const mesh = skeleton.mesh;
+    mesh.root.updateWorldMatrix(true, true);
+    const group = new THREE.Group();
+    group.name = 'bone-debris';
+    parent.add(group);
+    mesh.eyeL.visible = false;
+    mesh.eyeR.visible = false;
+    if (mesh.bow) mesh.bow.arrow.group.visible = false;
+    for (const spec of mesh.pieces) group.attach(spec.node);
+
+    const impact = new THREE.Vector3(skeleton.x - dirX * 0.6, 3.6, skeleton.z - dirZ * 0.6);
+    const pieces = mesh.pieces.map((spec) => {
+      const node = spec.node;
+      const box = localBounds(node);
+      let radialX = node.position.x - impact.x;
+      let radialZ = node.position.z - impact.z;
+      const radial = Math.hypot(radialX, radialZ);
+      if (radial < 0.05) {
+        const angle = Math.random() * Math.PI * 2;
+        radialX = Math.cos(angle);
+        radialZ = Math.sin(angle);
+      } else {
+        radialX /= radial;
+        radialZ /= radial;
+      }
+      const burst = 0.4 + Math.random() * 0.5;
+      const push = 0.5 + Math.random() * 0.5;
+      const jitter = () => (Math.random() - 0.5) * 2.5;
+      const lift = 1.5 + Math.random() * 2 + (spec.ball ? 0.8 : 0);
+      const spin = () => (Math.random() - 0.5) * 16;
+      return {
+        node,
+        ball: spec.ball,
+        dims: box.getSize(new THREE.Vector3()),
+        corners: boxCorners(box),
+        // Lift uses the full metre scale so the pop reads against gravity; sideways speed is kept
+        // lower so the bones land in a heap rather than across the room.
+        vel: new THREE.Vector3(
+          (radialX * burst + dirX * push + jitter()) * SCATTER,
+          lift * METER,
+          (radialZ * burst + dirZ * push + jitter()) * SCATTER,
+        ),
+        spin: new THREE.Vector3(spin(), spin(), spin()),
+        bounces: 0,
+        mode: 'fly',
+        target: null,
+      };
+    });
+    mesh.root.visible = false;
+    skeleton.shattered = true;
+    skeleton.debris = {
+      group,
+      pieces,
+      age: 0,
+      life: 15 + Math.random() * 5,
+      resting: false,
+      fade: null,
+    };
+  }
+
+  function lowestPoint(piece) {
+    const node = piece.node;
+    if (piece.ball) return node.position.y - piece.ball;
+    let low = Infinity;
+    for (const corner of piece.corners) {
+      tmp.copy(corner).applyQuaternion(node.quaternion);
+      if (tmp.y < low) low = tmp.y;
+    }
+    return node.position.y + low;
+  }
+
+  // The orientation a tumbling bone settles into: lying on its broadest face, a long thin bone on its side.
+  function flatOrientation(piece) {
+    const q = piece.node.quaternion;
+    const size = [piece.dims.x, piece.dims.y, piece.dims.z];
+    const order = [0, 1, 2].sort((a, b) => size[a] - size[b]);
+    let candidates = [0, 1, 2];
+    if (size[order[0]] < 0.6 * size[order[1]]) candidates = [order[0]];
+    else if (size[order[2]] > 1.6 * size[order[1]]) candidates = [order[0], order[1]];
+    let best = candidates[0];
+    let bestUp = -1;
+    for (const index of candidates) {
+      const up = Math.abs(tmpAxis.copy(AXES[index]).applyQuaternion(q).y);
+      if (up > bestUp) {
+        bestUp = up;
+        best = index;
+      }
+    }
+    tmpAxis.copy(AXES[best]).applyQuaternion(q);
+    if (tmpAxis.y < 0) tmpAxis.negate();
+    return tmpQuat.setFromUnitVectors(tmpAxis, UP).multiply(q).clone();
+  }
+
+  function restPiece(piece) {
+    piece.mode = 'rest';
+    piece.vel.set(0, 0, 0);
+    piece.spin.set(0, 0, 0);
+    piece.node.updateMatrix();
+    piece.node.matrixAutoUpdate = false;
+  }
+
+  function stepPiece(piece, step) {
+    const node = piece.node;
+    piece.vel.y -= DEBRIS_GRAVITY * step;
+    node.position.addScaledVector(piece.vel, step);
+    if (piece.mode === 'settle' && piece.target) {
+      node.quaternion.slerp(piece.target, 1 - Math.exp(-12 * step));
+    } else {
+      const speed = piece.spin.length();
+      if (speed > 0.0001) {
+        tmpQuat.setFromAxisAngle(tmpAxis.copy(piece.spin).divideScalar(speed), speed * step);
+        node.quaternion.premultiply(tmpQuat);
+      }
+    }
+
+    let grounded = false;
+    const low = lowestPoint(piece);
+    if (low < FLOOR_Y) {
+      node.position.y += FLOOR_Y - low;
+      if (piece.vel.y < -DEBRIS_MIN_IMPACT && piece.bounces < DEBRIS_MAX_BOUNCES) {
+        piece.vel.y *= -DEBRIS_BOUNCE;
+        piece.vel.x *= 0.6;
+        piece.vel.z *= 0.6;
+        piece.spin.multiplyScalar(0.6);
+        piece.bounces += 1;
+      } else {
+        piece.vel.y = 0;
+        grounded = true;
+      }
+    }
+    if (grounded) {
+      const drag = Math.exp(-(piece.ball ? 3.2 : 9) * step);
+      piece.vel.x *= drag;
+      piece.vel.z *= drag;
+      if (piece.ball) {
+        piece.spin.set(piece.vel.z / piece.ball, 0, -piece.vel.x / piece.ball);
+      } else {
+        piece.spin.multiplyScalar(Math.exp(-10 * step));
+        if (piece.mode === 'fly') {
+          piece.mode = 'settle';
+          piece.target = flatOrientation(piece);
+        }
+      }
+    }
+
+    if (piece.vel.x * piece.vel.x + piece.vel.z * piece.vel.z > 0.01) {
+      const resolved = resolveBody(node.position.x, node.position.z, DEBRIS_RADIUS, dungeon.colliders);
+      if (resolved.x !== node.position.x || resolved.z !== node.position.z) {
+        node.position.x = resolved.x;
+        node.position.z = resolved.z;
+        piece.vel.x *= 0.3;
+        piece.vel.z *= 0.3;
+      }
+    }
+
+    if (!grounded) return;
+    const energy = 0.5 * piece.vel.lengthSq() + 0.025 * piece.spin.lengthSq();
+    const flat = piece.ball || (piece.target && node.quaternion.angleTo(piece.target) < 0.03);
+    if (energy < DEBRIS_REST_ENERGY && flat) restPiece(piece);
+  }
+
+  // Swaps each material for a transparent twin so one skeleton can fade without touching the rest.
+  function beginFade(skeleton) {
+    const swaps = [];
+    const twins = new Map();
+    skeleton.debris.group.traverse((object) => {
+      if (!object.isMesh || !object.material) return;
+      const original = object.material;
+      let twin = twins.get(original);
+      if (!twin) {
+        twin = materials.fadeVariant(original);
+        twins.set(original, twin);
+      }
+      swaps.push([object, original]);
+      object.material = twin;
+    });
+    skeleton.fadeSwap = swaps;
+    skeleton.debris.fade = [...twins.values()];
+  }
+
+  function dropDebris(skeleton) {
+    const debris = skeleton.debris;
+    if (!debris) return;
+    parent.remove(debris.group);
+    if (debris.fade) for (const twin of debris.fade) twin.dispose();
+    skeleton.debris = null;
+  }
+
+  // Dead skeletons cost nothing but this: the bones tumble for a moment, freeze where they land, and
+  // fade out after 15 to 20 seconds.
+  function tickDebris(skeleton, dt) {
+    const debris = skeleton.debris;
+    if (!debris) return;
+    debris.age += dt;
+    if (!debris.resting) {
+      const step = Math.min(dt, 1 / 30);
+      let moving = 0;
+      for (const piece of debris.pieces) {
+        if (piece.mode === 'rest') continue;
+        stepPiece(piece, step);
+        if (piece.mode !== 'rest') moving += 1;
+      }
+      if (moving === 0 || debris.age > 6) {
+        for (const piece of debris.pieces) if (piece.mode !== 'rest') restPiece(piece);
+        debris.resting = true;
+      }
+    }
+    if (debris.age > debris.life) {
+      if (!debris.fade) beginFade(skeleton);
+      const fade = clamp01((debris.age - debris.life) / DEBRIS_FADE_SECONDS);
+      for (const twin of debris.fade) twin.opacity = 1 - fade;
+      if (fade >= 1) dropDebris(skeleton);
+    }
+  }
+
+  function damage(skeleton, amount, dirX = 0, dirZ = 1) {
     if (skeleton.dead) return false;
     skeleton.hp -= amount;
-    skeleton.flash = 0.12;
+    skeleton.flashFrames = 2;
+    skeleton.tint = 0.08;
+    skeleton.reactT = 0;
+    const len = Math.hypot(dirX, dirZ) || 1;
+    skeleton.knockX = (dirX / len) * 12;
+    skeleton.knockZ = (dirZ / len) * 12;
     skeleton.aggro = true;
+    audio.hit();
     if (skeleton.hp > 0) return false;
     skeleton.hp = 0;
     skeleton.dead = true;
     skeleton.state = 'dead';
-    audio.hit();
+    skeleton.knockX = 0;
+    skeleton.knockZ = 0;
+    shatter(skeleton, dirX / len, dirZ / len);
     return true;
   }
 
-  function update(dt, player, hurt, slider, running) {
+
+  function slideKnock(skeleton, dt) {
+    if (!skeleton.knockX && !skeleton.knockZ) return;
+    skeleton.x += skeleton.knockX * dt;
+    skeleton.z += skeleton.knockZ * dt;
+    const resolved = resolveBody(skeleton.x, skeleton.z, SKELETON_RADIUS, dungeon.colliders);
+    skeleton.x = resolved.x;
+    skeleton.z = resolved.z;
+    const decay = Math.exp(-8 * dt);
+    skeleton.knockX *= decay;
+    skeleton.knockZ *= decay;
+    if (skeleton.knockX * skeleton.knockX + skeleton.knockZ * skeleton.knockZ < 0.04) {
+      skeleton.knockX = 0;
+      skeleton.knockZ = 0;
+    }
+  }
+
+  // Two pure white frames on impact, then a pale red tint for 0.08 s of real time.
+  function paintFlash(skeleton, realDt) {
+    const debris = skeleton.debris;
+    // Once the bones are strewn the paint follows them; once they fade, the fade owns the materials.
+    if (skeleton.dead && (!debris || debris.fade)) return;
+    let wanted = materials.bone;
+    if (skeleton.flashFrames > 0) {
+      wanted = materials.boneFlash;
+      skeleton.flashFrames -= 1;
+    } else if (skeleton.tint > 0) {
+      wanted = materials.boneHot;
+      skeleton.tint -= realDt;
+    }
+    if (skeleton.paint !== wanted) {
+      paintBones(debris ? debris.group : skeleton.mesh.root, wanted);
+      skeleton.paint = wanted;
+    }
+  }
+
+  // Draw back deliberately, strike explosively, carry through, then settle with a damped spring.
+  function driveMeleeArms(skeleton, dt) {
+    const pose = skeleton.pose;
+    if (skeleton.state === 'windup') {
+      const u = clamp01(1 - skeleton.timer / skeleton.windupTotal);
+      if (u < WINDUP_DRAW) {
+        mixPose(skeleton.windupFrom, MELEE_WINDUP, easeInOutQuad(u / WINDUP_DRAW), pose);
+      } else {
+        mixPose(MELEE_WINDUP, MELEE_CONTACT, easeInQuad((u - WINDUP_DRAW) / (1 - WINDUP_DRAW)), pose);
+      }
+      clearVelocity(skeleton.vel);
+    } else if (skeleton.state === 'recover'
+      && 1 - skeleton.timer / skeleton.recoverTotal < FOLLOW_SHARE) {
+      const v = clamp01(1 - skeleton.timer / skeleton.recoverTotal);
+      mixPose(MELEE_CONTACT, MELEE_FOLLOW, easeOutQuad(v / FOLLOW_SHARE), pose);
+      clearVelocity(skeleton.vel);
+    } else {
+      springPose(pose, skeleton.vel, MELEE_READY, 9, dt);
+    }
+    const stridePhase = Math.sin(skeleton.phase) * skeleton.stride;
+    const braced = skeleton.state === 'windup';
+    const offhand = braced
+      ? OFFHAND_BRACE
+      : { ...OFFHAND_IDLE, sx: OFFHAND_IDLE.sx - stridePhase * 0.3 };
+    springPose(skeleton.poseL, skeleton.velL, offhand, 8, dt);
+  }
+
+  // Archer: raise the bow and reach for the string, draw straight back to the jaw, hold, then on release
+  // the string hand snaps back past the ear while the bow hand kicks up, and both ease back to carry.
+  function driveBowArms(skeleton, dt) {
+    const bowPose = skeleton.pose;
+    const drawPose = skeleton.poseL;
+    skeleton.nocked = false;
+    if (skeleton.state === 'windup') {
+      const u = clamp01(1 - skeleton.timer / skeleton.windupTotal);
+      if (u < BOW_REACH_END) {
+        const k = easeInOutQuad(u / BOW_REACH_END);
+        mixPose(skeleton.windupFrom, BOW_AIM, k, bowPose);
+        mixPose(skeleton.windupFromL, DRAW_PATH[0], k, drawPose);
+      } else {
+        Object.assign(bowPose, BOW_AIM);
+        const k = easeInOutQuad(clamp01((u - BOW_REACH_END) / (BOW_ANCHOR_AT - BOW_REACH_END)));
+        samplePath(DRAW_PATH, k, drawPose);
+        skeleton.nocked = true;
+      }
+      clearVelocity(skeleton.vel);
+      clearVelocity(skeleton.velL);
+      return;
+    }
+    const sinceShot = skeleton.state === 'recover' ? skeleton.recoverTotal - skeleton.timer : Infinity;
+    if (sinceShot < BOW_KICK_SECONDS) {
+      const k = easeOutQuad(sinceShot / BOW_KICK_SECONDS);
+      mixPose(BOW_AIM, BOW_KICK, k, bowPose);
+      mixPose(DRAW_PATH[DRAW_PATH.length - 1], DRAW_RELEASE, k, drawPose);
+      clearVelocity(skeleton.vel);
+      clearVelocity(skeleton.velL);
+      return;
+    }
+    const stridePhase = Math.sin(skeleton.phase) * skeleton.stride;
+    springPose(bowPose, skeleton.vel, { ...BOW_CARRY, sx: BOW_CARRY.sx - stridePhase * 0.1 }, 6, dt);
+    springPose(drawPose, skeleton.velL, { ...DRAW_CARRY, sx: DRAW_CARRY.sx + stridePhase * 0.3 }, 6, dt);
+  }
+
+  function update(dt, player, hurt, slider, running, realDt = dt) {
     const paceByRoom = new Map(
       dungeon.rooms.map((room) => [room.id, paceMultiplier(room.index, slider, dungeon.rooms.length)]),
     );
     for (const skeleton of list) {
       const pace = paceByRoom.get(skeleton.room.id);
       const mesh = skeleton.mesh;
+      paintFlash(skeleton, realDt);
       if (skeleton.dead) {
-        const away = (skeleton.x - player.x) ** 2 + (skeleton.z - player.z) ** 2;
-        mesh.root.visible = away < 8100;
-        if (!mesh.root.visible) continue;
-        skeleton.fall = Math.min(1.35, skeleton.fall + dt * 2.4);
-        mesh.fall.rotation.z = skeleton.fall;
-        if (skeleton.hot) {
-          paintBones(mesh.root, materials.bone);
-          skeleton.hot = false;
-        }
+        // No AI, no collision, no pose: only the loose bones still move.
+        tickDebris(skeleton, dt);
         continue;
       }
 
-      if (running && player.alive && player.room && player.room.id === skeleton.room.id) skeleton.aggro = true;
-      if (skeleton.aggro && running) {
-        const roomsAway = Math.abs((player.room?.index ?? skeleton.room.index) - skeleton.room.index);
-        const outside = distanceToPolygon(player.x, player.z, skeleton.room.polygon);
-        if (!player.alive || roomsAway > 1 || (player.room?.id !== skeleton.room.id && outside > LEASH_DISTANCE)) {
-          skeleton.aggro = false;
-          skeleton.state = 'wander';
+      const startX = skeleton.x;
+      const startZ = skeleton.z;
+      const home = pointInPolygon(skeleton.x, skeleton.z, skeleton.room.polygon);
+      skeleton.at = home && !skeleton.aggro ? skeleton.room : dungeon.roomAt(skeleton.x, skeleton.z, skeleton.at.id);
+      // Seeing the player is what starts the hunt: standing in the skeleton's room, or a clear line to
+      // them through a doorway or down a passage. Once started it never ends on its own. The only way
+      // out is the player's death, so a skeleton cannot lose interest and wander back to its circuit.
+      if (running && player.alive && !skeleton.aggro) {
+        const sameRoom = player.room && player.room.id === skeleton.room.id;
+        const dx = player.x - skeleton.x;
+        const dz = player.z - skeleton.z;
+        if (sameRoom || (dx * dx + dz * dz < SKELETON_SIGHT_RANGE ** 2
+          && lineOfSight(skeleton.x, skeleton.z, player.x, player.z, dungeon.colliders))) {
+          skeleton.aggro = true;
         }
+      }
+      if (skeleton.aggro && running && !player.alive) {
+        skeleton.aggro = false;
+        skeleton.state = 'wander';
       }
 
       let target = skeleton.wander;
       let moving = false;
+      let watching = false;
       if (!skeleton.aggro) {
-        if (!pointInPolygon(skeleton.x, skeleton.z, skeleton.room.polygon)) {
-          target = { x: skeleton.spawnX, z: skeleton.spawnZ };
+        if (!home) {
+          // Displaced (a knock through a doorway): go back through the doors to the post.
+          target = routeTarget(skeleton, skeleton.room.index, { x: skeleton.spawnX, z: skeleton.spawnZ });
           moving = true;
         } else if (skeleton.state !== 'idle') {
           const dist = Math.hypot(target.x - skeleton.x, target.z - skeleton.z);
@@ -396,21 +1048,16 @@ export function createSkeletons(parent, dungeon, materials) {
           }
         }
       } else if (running) {
-        const sameRoom = player.room?.id === skeleton.room.id;
-        const insideHome = pointInPolygon(skeleton.x, skeleton.z, skeleton.room.polygon);
-        if (!sameRoom && insideHome) {
-          const door = doorToward(skeleton.room, player.room.index);
-          if (door) target = { x: (door.a[0] + door.b[0]) / 2, z: (door.a[1] + door.b[1]) / 2 };
-          else target = { x: player.x, z: player.z };
-        } else {
-          const ring = skeleton.slot * 1.7;
-          target = {
-            x: player.x + Math.cos(ring) * 1.35,
-            z: player.z + Math.sin(ring) * 1.35,
-          };
-        }
+        // Hunting: wherever the player goes, follow. In another space the skeleton takes the doors
+        // toward them; in the same space it closes in (melee) or squares up to shoot (archer).
+        const ring = skeleton.slot * 1.7;
+        target = routeTarget(skeleton, player.room?.index ?? skeleton.at.index, {
+          x: player.x + Math.cos(ring) * 1.35,
+          z: player.z + Math.sin(ring) * 1.35,
+        });
         const dist = Math.hypot(player.x - skeleton.x, player.z - skeleton.z);
         const seen = lineOfSight(skeleton.x, skeleton.z, player.x, player.z, dungeon.colliders);
+        watching = seen;
         const range = skeletonAttackRange(skeleton.weapon);
         if (skeleton.state === 'windup') {
           skeleton.timer -= dt;
@@ -418,18 +1065,22 @@ export function createSkeletons(parent, dungeon, materials) {
           if (dist > range * 1.5 || !seen) skeleton.state = 'chase';
           else if (skeleton.timer <= 0) {
             if (seen && dist <= range + 0.35) {
-              if (skeleton.weapon === 'bow') looseArrow(skeleton);
+              if (skeleton.weapon === 'bow') looseArrow(skeleton, player);
               else if (hurt(SKELETON_DAMAGE)) audio.hurt();
             }
             skeleton.state = 'recover';
-            skeleton.timer = attackRecover(pace);
+            skeleton.recoverTotal = attackRecover(pace);
+            skeleton.timer = skeleton.recoverTotal;
           }
         } else if (skeleton.state === 'recover') {
           skeleton.timer -= dt;
           if (skeleton.timer <= 0) skeleton.state = 'chase';
         } else if (dist <= range && seen) {
           skeleton.state = 'windup';
-          skeleton.timer = attackWindup(pace);
+          skeleton.windupTotal = attackWindup(pace);
+          skeleton.timer = skeleton.windupTotal;
+          Object.assign(skeleton.windupFrom, skeleton.pose);
+          Object.assign(skeleton.windupFromL, skeleton.poseL);
         } else {
           skeleton.state = 'chase';
           moving = true;
@@ -463,11 +1114,22 @@ export function createSkeletons(parent, dungeon, materials) {
         skeleton.z = resolved.z;
       }
 
-      const faceX = (skeleton.aggro ? player.x : target.x) - skeleton.x;
-      const faceZ = (skeleton.aggro ? player.z : target.z) - skeleton.z;
+      // Stride follows the ground actually covered (walls, doors, and crowding included),
+      // so the feet never skate. Knockback slides are excluded on purpose.
+      if (dt > 0.0005) {
+        const measured = Math.hypot(skeleton.x - startX, skeleton.z - startZ) / dt;
+        skeleton.speed += (Math.min(measured, 30) - skeleton.speed) * (1 - Math.exp(-dt * 14));
+      }
+      slideKnock(skeleton, dt);
+
+      // Eyes on the player while there is a line to them; otherwise face the way being walked.
+      const faceX = (watching ? player.x : target.x) - skeleton.x;
+      const faceZ = (watching ? player.z : target.z) - skeleton.z;
       if (faceX * faceX + faceZ * faceZ > 0.05) {
         const desired = Math.atan2(faceX, faceZ);
-        skeleton.yaw += angleDiff(skeleton.yaw, desired) * Math.min(1, dt * (2.2 + pace));
+        // An archer squares up quickly while drawing so the arrow leaves pointing at the target.
+        const turn = skeleton.weapon === 'bow' && skeleton.state === 'windup' ? 9 : 2.2 + pace;
+        skeleton.yaw += angleDiff(skeleton.yaw, desired) * Math.min(1, dt * turn);
       }
       mesh.root.position.set(skeleton.x, 0, skeleton.z);
       mesh.root.rotation.y = skeleton.yaw;
@@ -475,40 +1137,53 @@ export function createSkeletons(parent, dungeon, materials) {
       mesh.root.visible = away < 8100;
       if (!mesh.root.visible) continue;
 
-      const gait = moving ? 1 : 0;
-      skeleton.phase += dt * (4.5 + pace * 1.4) * gait;
-      const swing = Math.sin(skeleton.phase) * gait;
-      mesh.legL.hip.rotation.x = approach(mesh.legL.hip.rotation.x, swing * 0.7, 6, dt);
-      mesh.legR.hip.rotation.x = approach(mesh.legR.hip.rotation.x, -swing * 0.7, 6, dt);
-      mesh.legL.knee.rotation.x = Math.max(0, -swing) * 0.9;
-      mesh.legR.knee.rotation.x = Math.max(0, swing) * 0.9;
-
-      const idle = { sx: 0.35 + swing * 0.2, sy: 0, sz: 0.28, ex: 0.45, wx: 0 };
-      if (skeleton.weapon === 'bow') {
-        const drawing = skeleton.state === 'windup';
-        poseArm(mesh.armL, drawing
-          ? { sx: 1.5, sy: 0, sz: -0.2, ex: 0.1, wx: 0 }
-          : { sx: 0.45, sy: 0.05, sz: -0.55, ex: 0.55, wx: 0 }, dt);
-        poseArm(mesh.armR, drawing
-          ? { sx: 1.4, sy: 0, sz: -1.4, ex: 2.2, wx: 0 }
-          : { sx: 0.3 + swing * 0.15, sy: 0, sz: -0.25, ex: 0.4, wx: 0 }, dt);
-        if (mesh.bow) aimBow(mesh.bow, mesh.armR.wrist, drawing);
-      } else {
-        poseArm(mesh.armR, meleePose(skeleton.state), dt);
-        poseArm(mesh.armL, { ...idle, sz: -0.22, sx: 0.25 - swing * 0.25 }, dt);
+      // Gait: the phase advances at the rate that keeps a planted foot still on the floor.
+      const walking = skeleton.speed > 0.25;
+      skeleton.stride += ((walking ? 1 : 0) - skeleton.stride) * (1 - Math.exp(-dt * 10));
+      const amplitude = strideAmplitude(skeleton.speed);
+      if (walking) {
+        skeleton.phase += dt * (skeleton.speed * Math.PI) / (2 * LEG_LENGTH * amplitude);
       }
-      mesh.spine.position.y = 3.05 + Math.sin(skeleton.phase * 0.5) * 0.02;
+      const swing = gaitWave(skeleton.phase) * skeleton.stride;
+      const react = reactAmount(skeleton.reactT);
+      skeleton.reactT = Math.min(99, skeleton.reactT + dt);
+      const rattle = Math.exp(-skeleton.reactT * 6) * Math.sin(skeleton.reactT * 50);
+      // A leg is planted while it travels backward under the body and the knee folds only while
+      // it swings forward. The body dips at each step so the planted foot stays on the floor.
+      const kneeBend = 1.3 * amplitude * skeleton.stride;
+      const swingCos = Math.cos(skeleton.phase);
+      const hipAngle = swing * amplitude;
+      mesh.legL.hip.rotation.x = hipAngle;
+      mesh.legR.hip.rotation.x = -hipAngle;
+      mesh.legL.knee.rotation.x = Math.max(0, -swingCos) * kneeBend + react * 0.3;
+      mesh.legR.knee.rotation.x = Math.max(0, swingCos) * kneeBend + react * 0.3;
+      mesh.fall.position.y = -LEG_LENGTH * (1 - Math.cos(hipAngle)) * 0.9;
 
-      if (skeleton.flash > 0) {
-        skeleton.flash -= dt;
-        if (!skeleton.hot) {
-          paintBones(mesh.root, materials.boneHot);
-          skeleton.hot = true;
-        }
-      } else if (skeleton.hot) {
-        paintBones(mesh.root, materials.bone);
-        skeleton.hot = false;
-      }
+      // Arm +X carries the weapon (or the bow); arm -X is the off-hand (or the string hand).
+      if (skeleton.weapon === 'bow') driveBowArms(skeleton, dt);
+      else driveMeleeArms(skeleton, dt);
+      const p = skeleton.pose;
+      const q = skeleton.poseL;
+      mesh.armR.shoulder.rotation.set(
+        p.sx + react * 0.35 + rattle * 0.14,
+        p.sy + rattle * 0.06,
+        p.sz - react * 0.15 + rattle * 0.1,
+      );
+      mesh.armR.elbow.rotation.x = p.ex - react * 0.3 + rattle * 0.22;
+      mesh.armR.wrist.rotation.x = p.wx - react * 0.4 + rattle * 0.3;
+      mesh.armL.shoulder.rotation.set(q.sx + react * 0.5 - rattle * 0.14, q.sy, q.sz + rattle * 0.1);
+      mesh.armL.elbow.rotation.x = q.ex - react * 0.3 - rattle * 0.2;
+      mesh.armL.wrist.rotation.x = q.wx;
+      const torsoPitch = p.tx;
+      const torsoTwist = p.ty;
+      // Hit flinch: the spine snaps back about 18 degrees and the head deflects, then both ease home.
+      mesh.spine.rotation.set(torsoPitch - react * 0.31, torsoTwist, react * 0.14 + rattle * 0.05);
+      mesh.spine.position.y = 3.05 - react * 0.08;
+      // An archer turns the torso side-on to draw but keeps the eyes on the target.
+      const headTurn = skeleton.weapon === 'bow' ? -torsoTwist : 0;
+      mesh.skull.rotation.set(-react * 0.35 + rattle * 0.08, headTurn, rattle * 0.05);
+      if (mesh.bow) rigBow(mesh, clamp01(torsoTwist / BOW_TWIST), skeleton.nocked);
+
       const glow = 0.85 + Math.sin(performance.now() * 0.004 + skeleton.phase) * 0.15;
       mesh.eyeL.scale.setScalar(glow);
       mesh.eyeR.scale.setScalar(glow);
@@ -523,15 +1198,49 @@ export function createSkeletons(parent, dungeon, materials) {
       skeleton.hp = SKELETON_HP;
       skeleton.dead = false;
       skeleton.aggro = false;
+      skeleton.at = skeleton.room;
       skeleton.state = 'wander';
       skeleton.timer = 0.5;
-      skeleton.fall = 0;
-      skeleton.flash = 0;
+      skeleton.flashFrames = 0;
+      skeleton.tint = 0;
+      skeleton.knockX = 0;
+      skeleton.knockZ = 0;
+      skeleton.reactT = 99;
+      skeleton.speed = 0;
+      skeleton.stride = 0;
+      skeleton.nocked = false;
+      skeleton.pose = makePose(restPose(skeleton.weapon));
+      skeleton.vel = zeroVelocity();
+      skeleton.poseL = makePose(restPoseL(skeleton.weapon));
+      skeleton.velL = zeroVelocity();
       skeleton.wander = { x: skeleton.spawnX, z: skeleton.spawnZ };
-      skeleton.mesh.fall.rotation.z = 0;
-      skeleton.mesh.root.position.set(skeleton.x, 0, skeleton.z);
-      skeleton.hot = false;
-      paintBones(skeleton.mesh.root, materials.bone);
+      const mesh = skeleton.mesh;
+      if (skeleton.fadeSwap) {
+        for (const [object, original] of skeleton.fadeSwap) object.material = original;
+        skeleton.fadeSwap = null;
+      }
+      dropDebris(skeleton);
+      if (skeleton.shattered) {
+        // Put every bone back where it was built.
+        for (const { node, home } of mesh.pieces) {
+          home.parent.add(node);
+          node.position.copy(home.position);
+          node.quaternion.copy(home.quaternion);
+          node.scale.copy(home.scale);
+          node.matrixAutoUpdate = true;
+        }
+        mesh.root.visible = true;
+        mesh.eyeL.visible = true;
+        mesh.eyeR.visible = true;
+        skeleton.shattered = false;
+      }
+      mesh.skull.rotation.set(0, 0, 0);
+      mesh.spine.rotation.set(0, 0, 0);
+      mesh.fall.position.set(0, 0, 0);
+      mesh.fall.rotation.set(0, 0, 0);
+      mesh.root.position.set(skeleton.x, 0, skeleton.z);
+      paintBones(mesh.root, materials.bone);
+      skeleton.paint = materials.bone;
     }
   }
 

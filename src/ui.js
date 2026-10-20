@@ -66,7 +66,7 @@ export function createUI(onRestart) {
       roomName.textContent = room ? room.name : 'The Gate';
       undeadCount.textContent = `Undead here: ${state.undead}`;
       paceReadout.textContent = `Pace ×${pace.toFixed(2)}`;
-      levelText.textContent = `Level ${state.level} · Sword ${state.damage}`;
+      levelText.textContent = `Level ${state.level} · Mace ${state.damage}`;
       if (state.level > shownLevel) levelText.classList.add('up');
       else levelText.classList.remove('up');
       shownLevel = state.level;
