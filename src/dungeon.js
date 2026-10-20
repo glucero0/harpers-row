@@ -6,9 +6,9 @@ const DOOR_HEIGHT = 7;
 const THICKNESS = 1;
 
 const THEME = {
-  stone: { fog: 0x2a2724, density: 0.018, ambient: 0.34, hemi: 0.5, floor: 0x9a948c, wall: 0xc8c2b8 },
-  wood: { fog: 0x2c221b, density: 0.02, ambient: 0.32, hemi: 0.46, floor: 0xb08968, wall: 0xd7b48a },
-  cave: { fog: 0x12161c, density: 0.04, ambient: 0.2, hemi: 0.3, floor: 0x6e6a66, wall: 0x8a8682 },
+  stone: { fog: 0x2a2724, density: 0.018 },
+  wood: { fog: 0x2c221b, density: 0.02 },
+  cave: { fog: 0x12161c, density: 0.04 },
 };
 
 function canonical(ax, az, bx, bz) {
@@ -100,8 +100,8 @@ function polygonGeometry(polygon, y, upward) {
 }
 
 function settle(mesh) {
-  mesh.castShadow = false;
-  mesh.receiveShadow = false;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
   mesh.updateMatrix();
   mesh.matrixAutoUpdate = false;
   return mesh;
@@ -228,14 +228,6 @@ function buildWalls(root, materials, colliders, rooms, doors) {
   }
 }
 
-function addFlame(materials, y, size) {
-  const flame = new THREE.Mesh(new THREE.SphereGeometry(size, 7, 5), materials.flame);
-  flame.position.y = y;
-  const core = new THREE.Mesh(new THREE.SphereGeometry(size * 0.45, 6, 4), materials.core);
-  core.position.y = y + size * 0.25;
-  return { flame, core };
-}
-
 function addBrazier(scene, materials, x, z) {
   const group = new THREE.Group();
   const base = settle(new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.75, 1.1, 8), materials.brazier));
@@ -244,23 +236,40 @@ function addBrazier(scene, materials, x, z) {
   const bowl = settle(new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.32, 0.28, 8), materials.bowl));
   bowl.position.y = 1.2;
   bowl.updateMatrix();
-  const { flame, core } = addFlame(materials, 1.62, 0.22);
-  group.add(base, bowl, flame, core);
+  group.add(base, bowl);
   group.position.set(x, 0, z);
   scene.add(group);
-  return { x, y: 1.9, z, flame, core, phase: Math.random() * Math.PI * 2, base: 46 };
 }
 
-function addSconce(scene, materials, x, z) {
+// A torch holder bolted to a passage's side wall, halfway along it. Built with local +X pointing out of
+// the wall into the passage, then turned to face the room. It always sits flush on the wall's inner
+// face: nothing in this game may hang in open air.
+const SCONCE_HEIGHT = 6.2;
+
+function addSconce(scene, materials, room) {
+  const { rect } = room;
+  const alongZ = rect.d >= rect.w;
+  const far = room.index % 2 === 1;
+  const face = THICKNESS / 2;
+  // Inward normal of the chosen wall, and the point on its inner face at the passage's midpoint.
+  const nx = alongZ ? (far ? -1 : 1) : 0;
+  const nz = alongZ ? 0 : (far ? -1 : 1);
+  const x = alongZ ? (far ? rect.x + rect.w : rect.x) + nx * face : rect.x + rect.w / 2;
+  const z = alongZ ? rect.z + rect.d / 2 : (far ? rect.z + rect.d : rect.z) + nz * face;
+
   const group = new THREE.Group();
-  const bracket = settle(new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.55, 0.14), materials.brazier));
-  bracket.position.y = 5.7;
-  bracket.updateMatrix();
-  const { flame, core } = addFlame(materials, 6.15, 0.14);
-  group.add(bracket, flame, core);
-  group.position.set(x, 0, z);
+  const plate = settle(new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.1, 0.5), materials.brazier));
+  plate.position.set(0.05, 0, 0);
+  const arm = settle(new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.1, 0.12), materials.brazier));
+  arm.position.set(0.45, -0.1, 0);
+  const cup = settle(new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.13, 0.3, 8), materials.bowl));
+  cup.position.set(0.8, 0.1, 0);
+  const torch = settle(new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.08, 0.85, 8), materials.brazier));
+  torch.position.set(0.8, 0.55, 0);
+  group.add(plate, arm, cup, torch);
+  group.position.set(x, SCONCE_HEIGHT, z);
+  group.rotation.y = Math.atan2(-nz, nx);
   scene.add(group);
-  return { x, y: 5.6, z, flame, core, phase: x * 0.17, base: 28 };
 }
 
 function addRock(scene, materials, x, z) {
@@ -275,7 +284,6 @@ function addRock(scene, materials, x, z) {
 export function createDungeon(scene, materials, layout) {
   const { rooms, doors } = layout;
   const colliders = [];
-  const torches = [];
   const root = new THREE.Group();
   scene.add(root);
 
@@ -299,6 +307,7 @@ export function createDungeon(scene, materials, layout) {
   ground.rotation.x = -Math.PI / 2;
   ground.position.set((minX + maxX) / 2, -0.08, (minZ + maxZ) / 2);
   settle(ground);
+  ground.castShadow = false;
   root.add(ground);
 
   for (const room of rooms) {
@@ -306,6 +315,7 @@ export function createDungeon(scene, materials, layout) {
       polygonGeometry(room.polygon, 0, true),
       materials.floor(room.theme),
     ));
+    floor.castShadow = false;
     root.add(floor);
     const ceiling = settle(new THREE.Mesh(
       polygonGeometry(room.polygon, WALL_HEIGHT, false),
@@ -313,10 +323,10 @@ export function createDungeon(scene, materials, layout) {
     ));
     root.add(ceiling);
     if (room.brazier) {
-      torches.push(addBrazier(root, materials, room.brazier[0], room.brazier[1]));
+      addBrazier(root, materials, room.brazier[0], room.brazier[1]);
       colliders.push({ x: room.brazier[0], z: room.brazier[1], radius: 0.85 });
     } else if (room.sconce) {
-      torches.push(addSconce(root, materials, room.sconce[0], room.sconce[1]));
+      addSconce(root, materials, room);
     }
     for (const [x, z] of room.rocks) {
       addRock(root, materials, x, z);
@@ -326,11 +336,7 @@ export function createDungeon(scene, materials, layout) {
 
   buildWalls(root, materials, colliders, rooms, doors);
 
-  const ambient = new THREE.AmbientLight(0x322c28, 0.32);
-  const hemi = new THREE.HemisphereLight(0x9aabbd, 0x3a2e26, 0.45);
-  const hearth = new THREE.PointLight(0xff8a3d, 46, 36, 1.6);
   const fogColor = new THREE.Color();
-  root.add(ambient, hemi, hearth);
   if (!scene.background) scene.background = new THREE.Color(0x14110e);
   if (!scene.fog) scene.fog = new THREE.FogExp2(0x1a1714, 0.012);
 
@@ -359,33 +365,9 @@ export function createDungeon(scene, materials, layout) {
       disposeTree(root);
       scene.remove(root);
     },
-    update(time, dt, theme, x, z) {
-      let nearest = null;
-      let nearestDist = Infinity;
-      for (const torch of torches) {
-        const dx = torch.x - x;
-        const dz = torch.z - z;
-        const dist = dx * dx + dz * dz;
-        const flicker = 0.82 + Math.sin(time * 9 + torch.phase) * 0.08 + Math.sin(time * 23 + torch.phase) * 0.06;
-        torch.flicker = flicker;
-        if (dist < 6400) {
-          const scale = 0.9 + flicker * 0.18;
-          torch.flame.scale.setScalar(scale);
-          torch.core.scale.setScalar(scale * 0.8);
-        }
-        if (dist < nearestDist) {
-          nearestDist = dist;
-          nearest = torch;
-        }
-      }
-      if (nearest) {
-        hearth.position.set(nearest.x, nearest.y, nearest.z);
-        hearth.intensity = nearest.base * nearest.flicker;
-      }
+    update(_time, dt, theme) {
       const look = THEME[theme] || THEME.stone;
       const blend = 1 - Math.exp(-dt * 2.5);
-      ambient.intensity += (look.ambient - ambient.intensity) * blend;
-      hemi.intensity += (look.hemi - hemi.intensity) * blend;
       const fog = scene.fog;
       fogColor.set(look.fog);
       fog.color.lerp(fogColor, blend);
