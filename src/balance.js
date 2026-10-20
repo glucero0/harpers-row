@@ -24,6 +24,33 @@ export const PLAYER_IFRAMES = 0.4;
 
 export const ARMOR_MITIGATION = 0.15;
 export const BLOCK_REMAINING = 0.25;
+// The raised torch only covers the front. A blow from outside this cone (total width, in degrees)
+// lands as if there were no guard.
+export const GUARD_ARC_DEGREES = 120;
+// How far up the arm must be before the guard counts (0 lowered, 1 fully raised).
+export const GUARD_READY = 0.6;
+// An arrow whose path passes this close to the torch is caught on it.
+export const GUARD_RADIUS = 0.85;
+// The torch snaps up fast so the defence feels instant, and settles back down more gently.
+export const GUARD_RAISE_SECONDS = 0.1;
+export const GUARD_LOWER_SECONDS = 0.18;
+
+// Moves the guard progress (0 lowered .. 1 raised) toward its target at a fixed pace, so a full raise
+// takes GUARD_RAISE_SECONDS and a full lower takes GUARD_LOWER_SECONDS regardless of frame rate.
+export function stepGuardBlend(blend, raising, dt) {
+  const step = Math.max(0, dt) / (raising ? GUARD_RAISE_SECONDS : GUARD_LOWER_SECONDS);
+  const next = raising ? blend + step : blend - step;
+  return Math.min(1, Math.max(0, next));
+}
+
+// Is an attacker at offset (dx, dz) from the player inside the cone the player is facing?
+export function inGuardArc(forwardX, forwardZ, dx, dz, arcDegrees = GUARD_ARC_DEGREES) {
+  const reach = Math.hypot(dx, dz);
+  const facing = Math.hypot(forwardX, forwardZ);
+  if (!(reach > 1e-6) || !(facing > 1e-6)) return true;
+  const cosine = (forwardX * dx + forwardZ * dz) / (reach * facing);
+  return cosine >= Math.cos((arcDegrees / 2) * (Math.PI / 180));
+}
 
 export const SKELETON_HP = 36;
 export const SKELETON_DAMAGE = 14;

@@ -4,10 +4,12 @@ import {
   attackRecover,
   attackWindup,
   clampUnit,
+  inGuardArc,
   mitigatedDamage,
   paceMultiplier,
   skeletonAttackRange,
   skeletonWeapon,
+  stepGuardBlend,
   SKELETON_MIN_RECOVER,
   SKELETON_MIN_WINDUP,
   statsForLevel,
@@ -104,4 +106,32 @@ test('armor softens hits and a block softens most of what remains', () => {
   assert.ok(Math.abs(open - 17) < 1e-9);
   assert.ok(Math.abs(blocked - 4.25) < 1e-9);
   assert.equal(mitigatedDamage(-5, false), 0);
+});
+
+test('the guard only covers the cone in front of the player', () => {
+  // Facing -Z (yaw 0): straight ahead, a little off to the side, and just inside the 60 degree half angle.
+  assert.equal(inGuardArc(0, -1, 0, -3), true);
+  assert.equal(inGuardArc(0, -1, 1, -3), true);
+  assert.equal(inGuardArc(0, -1, Math.sin(0.99), -Math.cos(0.99)), true);
+  // Just outside the cone, then flank and rear.
+  assert.equal(inGuardArc(0, -1, Math.sin(1.1), -Math.cos(1.1)), false);
+  assert.equal(inGuardArc(0, -1, 3, 0), false);
+  assert.equal(inGuardArc(0, -1, 0, 3), false);
+  // A widened arc admits the flank; a degenerate input never leaves the player unguarded by accident.
+  assert.equal(inGuardArc(0, -1, 3, 0, 200), true);
+  assert.equal(inGuardArc(0, -1, 0, 0), true);
+  assert.equal(inGuardArc(0, 0, 1, 1), true);
+});
+
+test('the torch snaps up in a tenth of a second and settles down in under two tenths', () => {
+  let blend = 0;
+  for (let i = 0; i < 6; i += 1) blend = stepGuardBlend(blend, true, 1 / 60);
+  assert.ok(blend > 0.999);
+  assert.ok(Math.abs(stepGuardBlend(0, true, 0.05) - 0.5) < 1e-9);
+  assert.equal(stepGuardBlend(0, true, 0.2), 1);
+  assert.ok(Math.abs(stepGuardBlend(1, false, 0.09) - 0.5) < 1e-9);
+  assert.equal(stepGuardBlend(1, false, 0.5), 0);
+  // Pace does not depend on the frame rate, and a negative step never moves it backwards.
+  assert.ok(Math.abs(stepGuardBlend(stepGuardBlend(0, true, 0.025), true, 0.025) - 0.5) < 1e-9);
+  assert.equal(stepGuardBlend(0.4, true, -1), 0.4);
 });
