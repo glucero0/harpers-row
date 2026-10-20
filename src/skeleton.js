@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import {
+  GUARD_RADIUS,
+  inGuardArc,
   SKELETON_DAMAGE,
   SKELETON_HP,
   SKELETON_MOVE_SPEED,
@@ -12,7 +14,7 @@ import {
   skeletonAttackRange,
   skeletonWeapon,
 } from './balance.js';
-import { closestOnSegment, lineOfSight, pointInPolygon, randomPointInPolygon, resolveBody } from './geometry.js';
+import { closestApproach3, closestOnSegment, lineOfSight, pointInPolygon, randomPointInPolygon, resolveBody } from './geometry.js';
 import { audio } from './audio.js';
 
 function addPart(parent, geometry, material, x, y, z, isBone = false) {
@@ -80,6 +82,20 @@ const BOW_KICK_SECONDS = 0.16;
 
 // Bone debris. The skeleton stands about 4.8 units tall, so a metre is about 3.2 units.
 const METER = 3.2;
+// Aiming a chop at the raised torch (see solveGuardContact): which joints move, how far each may
+// turn, how big the search steps are, and how strongly the pose is held near the ordinary strike.
+const SOLVE_KEYS = ['sx', 'sy', 'sz', 'ex', 'wx'];
+const SOLVE_STEPS = [0.16, 0.07, 0.03];
+const SOLVE_PULL = 0.004;
+const SOLVE_LIMITS = {
+  sx: [-2.8, 0.5],
+  sy: [-1.2, 1.2],
+  sz: [-1.1, 1.4],
+  ex: [-2.4, 0],
+  wx: [-0.5, 2.3],
+};
+const ARROW_REBOUND = 0.3;
+const ARROW_POP = 0.5;
 const DOOR_LINEUP = 1.6;
 const DOOR_PAST = 1.8;
 const DOOR_MARGIN = 1.1;
@@ -436,7 +452,7 @@ function buildMesh(materials, weapon) {
   ].map((node) => pieceOf(node));
   pieces.push(pieceOf(skull, SKULL_RADIUS));
   if (held) pieces.push(pieceOf(held));
-  return { root, fall, spine, skull, eyeL, eyeR, armL, armR, legL, legR, bow, pieces };
+  return { root, fall, spine, skull, eyeL, eyeR, armL, armR, legL, legR, bow, held, pieces };
 }
 
 function angleDiff(from, to) {
@@ -503,6 +519,9 @@ export function createSkeletons(parent, dungeon, materials) {
         windupFrom: makePose(restPose(weapon)),
         windupFromL: makePose(restPoseL(weapon)),
         nocked: false,
+        caught: false,
+        contact: makePose(MELEE_CONTACT),
+        guardMix: 0,
         debris: null,
         fadeSwap: null,
         shattered: false,
@@ -582,7 +601,19 @@ export function createSkeletons(parent, dungeon, materials) {
     flight.group.position.copy(origin);
     flight.group.quaternion.setFromUnitVectors(AXIS_NEG_Z, new THREE.Vector3(vx, vy, vz).normalize());
     parent.add(flight.group);
-    arrows.push({ x: origin.x, y: origin.y, z: origin.z, vx, vy, vz, age: 0, mesh: flight.group });
+    arrows.push({
+      x: origin.x,
+      y: origin.y,
+      z: origin.z,
+      vx,
+      vy,
+      vz,
+      age: 0,
+      // Pivot-to-head distance, used to seat the head on whatever it strikes.
+      half: nocked.length / 2 + 0.14,
+      bounced: false,
+      mesh: flight.group,
+    });
     skeleton.nocked = false;
     audio.shot();
   }
@@ -593,25 +624,73 @@ export function createSkeletons(parent, dungeon, materials) {
     arrows.splice(index, 1);
   }
 
+  // An arrow caught on the torch. It is placed so its head touches the torch, then thrown back off
+  // the guard the way a glancing hit would send it: reflected about a slightly tilted face, slowed,
+  // lifted, and tumbling, so it clearly skips away instead of simply vanishing.
+  const bounceDir = new THREE.Vector3();
+  const bounceNormal = new THREE.Vector3();
+  const bounceSpin = new THREE.Quaternion();
+  function bounceArrow(arrow, player) {
+    bounceDir.set(arrow.vx, arrow.vy, arrow.vz).normalize();
+    const back = arrow.half;
+    arrow.x = player.guardX - bounceDir.x * back;
+    arrow.y = player.guardY - bounceDir.y * back;
+    arrow.z = player.guardZ - bounceDir.z * back;
+    bounceNormal.set(
+      -bounceDir.x + (Math.random() - 0.5) * 0.9,
+      -bounceDir.y + 0.25 + Math.random() * 0.5,
+      -bounceDir.z + (Math.random() - 0.5) * 0.9,
+    ).normalize();
+    const along = arrow.vx * bounceNormal.x + arrow.vy * bounceNormal.y + arrow.vz * bounceNormal.z;
+    arrow.vx = (arrow.vx - 2 * along * bounceNormal.x) * ARROW_REBOUND;
+    arrow.vy = (arrow.vy - 2 * along * bounceNormal.y) * ARROW_REBOUND + ARROW_POP * METER;
+    arrow.vz = (arrow.vz - 2 * along * bounceNormal.z) * ARROW_REBOUND;
+    arrow.bounced = true;
+    arrow.age = 0;
+    arrow.spinAxis = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
+    arrow.spinRate = (10 + Math.random() * 8) * (Math.random() < 0.5 ? -1 : 1);
+    arrow.mesh.position.set(arrow.x, arrow.y, arrow.z);
+  }
+
   function updateArrows(dt, player, hurt) {
     for (let index = arrows.length - 1; index >= 0; index -= 1) {
       const arrow = arrows[index];
+      if (arrow.bounced) arrow.vy -= DEBRIS_GRAVITY * dt;
       const nextX = arrow.x + arrow.vx * dt;
+      const nextY = arrow.y + arrow.vy * dt;
       const nextZ = arrow.z + arrow.vz * dt;
-      const closest = closestOnSegment(player.x, player.z, arrow.x, arrow.z, nextX, nextZ);
-      const hit = player.alive && Math.hypot(player.x - closest.x, player.z - closest.z) < 0.9;
+
+      if (!arrow.bounced && player.alive) {
+        // The torch comes first: it is out in front of the player. Only an arrow flying toward the
+        // player, whose path passes close to the torch, is caught; one that slips by it hits the body.
+        const toGuardX = player.guardX - player.x;
+        const toGuardZ = player.guardZ - player.z;
+        if (player.guardUp && arrow.vx * toGuardX + arrow.vz * toGuardZ < 0
+          && closestApproach3(arrow.x, arrow.y, arrow.z, nextX, nextY, nextZ, player.guardX, player.guardY, player.guardZ).distance <= GUARD_RADIUS
+          && hurt(0, { kind: 'arrow', deflected: true })) {
+          bounceArrow(arrow, player);
+          arrow.mesh.quaternion.setFromUnitVectors(AXIS_NEG_Z, new THREE.Vector3(arrow.vx, arrow.vy, arrow.vz).normalize());
+          continue;
+        }
+        const closest = closestOnSegment(player.x, player.z, arrow.x, arrow.z, nextX, nextZ);
+        if (Math.hypot(player.x - closest.x, player.z - closest.z) < 0.9) {
+          if (hurt(SKELETON_DAMAGE, { kind: 'arrow', x: arrow.x, z: arrow.z }) === 'hit') audio.hurt();
+          removeArrow(index);
+          continue;
+        }
+      }
+
       const blocked = !lineOfSight(arrow.x, arrow.z, nextX, nextZ, dungeon.colliders);
       arrow.x = nextX;
-      arrow.y += arrow.vy * dt;
+      arrow.y = nextY;
       arrow.z = nextZ;
       arrow.age += dt;
       arrow.mesh.position.set(arrow.x, arrow.y, arrow.z);
-      if (hit) {
-        if (hurt(SKELETON_DAMAGE)) audio.hurt();
-        removeArrow(index);
-      } else if (blocked || arrow.age > 1.4 || arrow.y < 0.1) {
-        removeArrow(index);
+      if (arrow.bounced) {
+        bounceSpin.setFromAxisAngle(arrow.spinAxis, arrow.spinRate * dt);
+        arrow.mesh.quaternion.premultiply(bounceSpin);
       }
+      if (blocked || arrow.age > (arrow.bounced ? 1.8 : 1.4) || arrow.y < 0.1) removeArrow(index);
     }
   }
 
@@ -891,6 +970,62 @@ export function createSkeletons(parent, dungeon, materials) {
   }
 
 
+  // Aim the chop at the raised torch. The normal strike ends at chest height, below a torch held up
+  // at eye level, so while the guard is up the strike pose is solved for each frame: the five arm
+  // joints are nudged (coordinate descent, warm-started from last frame) until the weapon touches
+  // the torch, while staying close to the ordinary strike so it still reads as the same chop.
+  const guardBox = new THREE.Box3();
+  const guardPoint = new THREE.Vector3();
+  function weaponGap(mesh, pose) {
+    mesh.spine.rotation.set(pose.tx, pose.ty, 0);
+    mesh.armR.shoulder.rotation.set(pose.sx, pose.sy, pose.sz);
+    mesh.armR.elbow.rotation.x = pose.ex;
+    mesh.armR.wrist.rotation.x = pose.wx;
+    mesh.held.updateWorldMatrix(true, false);
+    guardBox.setFromObject(mesh.held);
+    return guardBox.distanceToPoint(guardPoint);
+  }
+
+  function guardCost(mesh, pose) {
+    const gap = weaponGap(mesh, pose);
+    let drift = 0;
+    for (const key of SOLVE_KEYS) drift += (pose[key] - MELEE_CONTACT[key]) ** 2;
+    return gap * gap + SOLVE_PULL * drift;
+  }
+
+  function solveGuardContact(skeleton, player) {
+    const mesh = skeleton.mesh;
+    if (!mesh.held) return;
+    guardPoint.set(player.guardX, player.guardY, player.guardZ);
+    const pose = skeleton.contact;
+    let best = guardCost(mesh, pose);
+    for (const step of SOLVE_STEPS) {
+      for (const key of SOLVE_KEYS) {
+        const home = pose[key];
+        for (const sign of [1, -1]) {
+          const limit = SOLVE_LIMITS[key];
+          pose[key] = Math.min(limit[1], Math.max(limit[0], home + sign * step));
+          const cost = guardCost(mesh, pose);
+          if (cost < best - 1e-6) {
+            best = cost;
+            break;
+          }
+          pose[key] = home;
+        }
+      }
+    }
+  }
+
+  // A blow that lands on the torch throws the attacker back a step and jolts its spine.
+  function rebound(skeleton, player) {
+    const dx = skeleton.x - player.x;
+    const dz = skeleton.z - player.z;
+    const len = Math.hypot(dx, dz) || 1;
+    skeleton.knockX = (dx / len) * 8;
+    skeleton.knockZ = (dz / len) * 8;
+    skeleton.reactT = 0;
+  }
+
   function slideKnock(skeleton, dt) {
     if (!skeleton.knockX && !skeleton.knockZ) return;
     skeleton.x += skeleton.knockX * dt;
@@ -927,6 +1062,15 @@ export function createSkeletons(parent, dungeon, materials) {
   }
 
   // Draw back deliberately, strike explosively, carry through, then settle with a damped spring.
+  // The pose the chop arrives at: the ordinary strike, or the solved one that lands on the raised
+  // torch, blended by how long the guard has been up during this windup.
+  const contactPose = makePose(MELEE_CONTACT);
+  function contactFor(skeleton) {
+    if (skeleton.guardMix < 0.005) return MELEE_CONTACT;
+    mixPose(MELEE_CONTACT, skeleton.contact, skeleton.guardMix, contactPose);
+    return contactPose;
+  }
+
   function driveMeleeArms(skeleton, dt) {
     const pose = skeleton.pose;
     if (skeleton.state === 'windup') {
@@ -934,13 +1078,13 @@ export function createSkeletons(parent, dungeon, materials) {
       if (u < WINDUP_DRAW) {
         mixPose(skeleton.windupFrom, MELEE_WINDUP, easeInOutQuad(u / WINDUP_DRAW), pose);
       } else {
-        mixPose(MELEE_WINDUP, MELEE_CONTACT, easeInQuad((u - WINDUP_DRAW) / (1 - WINDUP_DRAW)), pose);
+        mixPose(MELEE_WINDUP, contactFor(skeleton), easeInQuad((u - WINDUP_DRAW) / (1 - WINDUP_DRAW)), pose);
       }
       clearVelocity(skeleton.vel);
-    } else if (skeleton.state === 'recover'
+    } else if (skeleton.state === 'recover' && !skeleton.caught
       && 1 - skeleton.timer / skeleton.recoverTotal < FOLLOW_SHARE) {
       const v = clamp01(1 - skeleton.timer / skeleton.recoverTotal);
-      mixPose(MELEE_CONTACT, MELEE_FOLLOW, easeOutQuad(v / FOLLOW_SHARE), pose);
+      mixPose(contactFor(skeleton), MELEE_FOLLOW, easeOutQuad(v / FOLLOW_SHARE), pose);
       clearVelocity(skeleton.vel);
     } else {
       springPose(pose, skeleton.vel, MELEE_READY, 9, dt);
@@ -1064,9 +1208,18 @@ export function createSkeletons(parent, dungeon, materials) {
           moving = dist > range * 1.15;
           if (dist > range * 1.5 || !seen) skeleton.state = 'chase';
           else if (skeleton.timer <= 0) {
+            skeleton.caught = false;
             if (seen && dist <= range + 0.35) {
               if (skeleton.weapon === 'bow') looseArrow(skeleton, player);
-              else if (hurt(SKELETON_DAMAGE)) audio.hurt();
+              else {
+                const result = hurt(SKELETON_DAMAGE, { x: skeleton.x, z: skeleton.z });
+                if (result === 'hit') audio.hurt();
+                else if (result === 'blocked') {
+                  rebound(skeleton, player);
+                  // The weapon stops dead on the torch and springs back from there.
+                  skeleton.caught = true;
+                }
+              }
             }
             skeleton.state = 'recover';
             skeleton.recoverTotal = attackRecover(pace);
@@ -1079,6 +1232,8 @@ export function createSkeletons(parent, dungeon, materials) {
           skeleton.state = 'windup';
           skeleton.windupTotal = attackWindup(pace);
           skeleton.timer = skeleton.windupTotal;
+          skeleton.guardMix = 0;
+          Object.assign(skeleton.contact, MELEE_CONTACT);
           Object.assign(skeleton.windupFrom, skeleton.pose);
           Object.assign(skeleton.windupFromL, skeleton.poseL);
         } else {
@@ -1159,6 +1314,16 @@ export function createSkeletons(parent, dungeon, materials) {
       mesh.legR.knee.rotation.x = Math.max(0, swingCos) * kneeBend + react * 0.3;
       mesh.fall.position.y = -LEG_LENGTH * (1 - Math.cos(hipAngle)) * 0.9;
 
+      // A melee skeleton winding up against a raised torch aims its chop at the torch.
+      if (skeleton.weapon !== 'bow') {
+        const guarding = skeleton.state === 'windup' && player.guardUp
+          && inGuardArc(-Math.sin(player.yaw), -Math.cos(player.yaw), skeleton.x - player.x, skeleton.z - player.z);
+        if (skeleton.state !== 'recover') {
+          skeleton.guardMix += ((guarding ? 1 : 0) - skeleton.guardMix) * Math.min(1, dt * 14);
+        }
+        if (guarding) solveGuardContact(skeleton, player);
+      }
+
       // Arm +X carries the weapon (or the bow); arm -X is the off-hand (or the string hand).
       if (skeleton.weapon === 'bow') driveBowArms(skeleton, dt);
       else driveMeleeArms(skeleton, dt);
@@ -1209,6 +1374,8 @@ export function createSkeletons(parent, dungeon, materials) {
       skeleton.speed = 0;
       skeleton.stride = 0;
       skeleton.nocked = false;
+      skeleton.caught = false;
+      skeleton.guardMix = 0;
       skeleton.pose = makePose(restPose(skeleton.weapon));
       skeleton.vel = zeroVelocity();
       skeleton.poseL = makePose(restPoseL(skeleton.weapon));

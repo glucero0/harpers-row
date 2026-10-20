@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "test": "node --test src/balance.test.js src/layout.test.js"
+    "test": "node --test src/balance.test.js src/geometry.test.js src/layout.test.js"
   },
   "dependencies": {
     "three": "0.186.1"

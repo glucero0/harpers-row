@@ -7,6 +7,18 @@ export function closestOnSegment(px, pz, ax, az, bx, bz) {
   return { x: ax + abx * t, z: az + abz * t, t };
 }
 
+// How close the straight path from A to B comes to the point P, in 3D. `t` (0..1) is where along
+// the path that closest point lies.
+export function closestApproach3(ax, ay, az, bx, by, bz, px, py, pz) {
+  const abx = bx - ax;
+  const aby = by - ay;
+  const abz = bz - az;
+  const len2 = abx * abx + aby * aby + abz * abz;
+  let t = len2 > 0 ? ((px - ax) * abx + (py - ay) * aby + (pz - az) * abz) / len2 : 0;
+  t = Math.max(0, Math.min(1, t));
+  return { distance: Math.hypot(px - (ax + abx * t), py - (ay + aby * t), pz - (az + abz * t)), t };
+}
+
 export function pointInPolygon(x, z, polygon) {
   let inside = false;
   for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {

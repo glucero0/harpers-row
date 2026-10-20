@@ -79,6 +79,12 @@ export const audio = {
   hurt() {
     tone(90, 0.16, 'sawtooth', 0.04);
   },
+  // A blow caught on the torch: a bright strike over a dull wooden knock.
+  guard() {
+    tone(1380, 0.1, 'square', 0.022);
+    tone(2140, 0.07, 'triangle', 0.02);
+    tone(150, 0.1, 'triangle', 0.05);
+  },
   shot() {
     tone(520, 0.05, 'triangle', 0.03);
     tone(180, 0.09, 'square', 0.02);

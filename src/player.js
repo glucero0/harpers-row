@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import {
+  GUARD_READY,
   PLAYER_BLOCK_SPEED_FACTOR,
   PLAYER_EYE_HEIGHT,
   PLAYER_IFRAMES,
@@ -7,8 +8,10 @@ import {
   PLAYER_SPEED,
   SWORD_ARC,
   SWORD_RANGE,
+  inGuardArc,
   mitigatedDamage,
   statsForLevel,
+  stepGuardBlend,
   xpRequired,
   XP_PER_KILL,
 } from './balance.js';
@@ -126,6 +129,24 @@ function swingOffset(weights, key, index) {
     + weights.reach * SWING_POSES.reach[key][index]
     + weights.follow * SWING_POSES.follow[key][index];
 }
+
+// The guard pose: where the left forearm sits (camera space, one unit ahead is straight forward)
+// and how the hand and torch are turned once it is raised. The hand ends up just left of centre,
+// below the crosshair, with the torch standing up in front of the view.
+const GUARD_ARM = { p: [-0.464, -1.1, -0.867], r: [34 * DEG, -11.5 * DEG, 0] };
+const GUARD_HAND = { p: [0, 0, 0], r: [0, 0, 0] };
+// The torch itself leans across the body toward the right shoulder (z) and tips its burning head
+// forward, away from the face (x), once the guard is up.
+const TORCH_REST = { x: -15 * DEG, y: 0, z: -10 * DEG };
+const TORCH_GUARD = { x: -0.25, y: 0, z: -0.65 };
+// The mace stays in the right hand while blocking, eased a touch forward of its ready pose.
+const MACE_COIL_Z = -0.05;
+// A blow on the torch shoves it back toward the camera and a little to the left, holds it there for
+// GUARD_RECOIL_SECONDS, then lets it spring back.
+const GUARD_RECOIL = { x: -0.16, z: 0.24 };
+const GUARD_RECOIL_SECONDS = 0.06;
+const GUARD_RECOIL_RETURN = 18;
+const easeOutCubic = (t) => 1 - (1 - t) ** 3;
 
 const BOB_X = 0.06;
 const BOB_Y = 0.045;
@@ -295,6 +316,14 @@ export function createPlayer(camera, materials, start) {
     swing: 0,
     blocking: false,
     blockBlend: 0,
+    // The raised torch: true once the arm is up, and where the torch sits in the world. Archers read
+    // this to see whether an arrow lands on it.
+    guardUp: false,
+    guardX: 0,
+    guardY: 0,
+    guardZ: 0,
+    guardKick: 0,
+    guardHold: 0,
     iframes: 0,
     alive: true,
     shake: 0,
@@ -390,8 +419,36 @@ export function createPlayer(camera, materials, start) {
 
   function updateTorch(dt) {
     state.torchTime += dt;
-    flickerTorch(hands.torch.light, state.torchTime);
+    hands.torch.impact.update(dt);
+    flickerTorch(hands.torch.light, state.torchTime, hands.torch.impact.flash);
     hands.torch.particles.update(dt);
+  }
+
+  // Where the torch is in the world, refreshed after the pose is set. Archers aim their "did it land
+  // on the torch" test at this point.
+  const tipWorld = new THREE.Vector3();
+  function trackGuard() {
+    state.guardUp = state.alive && state.blocking && state.blockBlend >= GUARD_READY;
+    hands.torch.tip.updateWorldMatrix(true, false);
+    tipWorld.setFromMatrixPosition(hands.torch.tip.matrixWorld);
+    state.guardX = tipWorld.x;
+    state.guardY = tipWorld.y;
+    state.guardZ = tipWorld.z;
+  }
+
+  // A blow lands on the torch: flash and sparks at the contact, a clang, the torch jolting back, and
+  // a small shudder through the view. Melee also freezes the frame for an instant.
+  function guardImpact(power, freeze) {
+    hands.torch.impact.burst(power);
+    flickerTorch(hands.torch.light, state.torchTime, hands.torch.impact.flash);
+    state.guardKick = Math.max(state.guardKick, power);
+    state.guardHold = GUARD_RECOIL_SECONDS;
+    audio.guard();
+    state.trauma = Math.max(state.trauma, 0.45 * power);
+    state.traumaDuration = 0.14;
+    state.traumaX = Math.random() < 0.5 ? -0.8 : 0.8;
+    state.traumaY = -0.2;
+    if (freeze) triggerHitStop();
   }
 
   function seatSocket(socket, dx, dy, dz, rx, ry, rz) {
@@ -422,7 +479,8 @@ export function createPlayer(camera, materials, start) {
     rightArm.position.set(
       rightArmRestP.x + swingOffset(weights, 'p', 0),
       rightArmRestP.y + swingOffset(weights, 'p', 1),
-      rightArmRestP.z + swingOffset(weights, 'p', 2),
+      // The mace never crosses the body for a block: it stays low in the right hand, coiled slightly.
+      rightArmRestP.z + swingOffset(weights, 'p', 2) + MACE_COIL_Z * state.blockBlend * damp,
     );
     rightArm.rotation.set(
       rightArmRestR.x + swingOffset(weights, 'r', 0),
@@ -439,48 +497,67 @@ export function createPlayer(camera, materials, start) {
       ((moving ? headBob * 0.02 : idle * 0.012) * damp) + swingOffset(weights, 's', 2),
     );
 
-    state.blockBlend += ((state.blocking && state.swing <= 0 ? 1 : 0) - state.blockBlend) * Math.min(1, dt * 10);
-    const blend = state.blockBlend;
+    // Guard: while the block button is held the whole left arm comes up out of the corner and plants
+    // the torch in front of the view, and it stays planted there: no walking sway, no idle drift.
+    // blockBlend is linear progress: 0.10 s to raise, 0.18 s to lower. The easing is applied to it.
+    state.blockBlend = stepGuardBlend(state.blockBlend, state.blocking, dt);
+    const raised = easeOutCubic(clamp01(state.blockBlend));
+    const loose = 1 - raised;
+    // After a blow the torch stays shoved back for GUARD_RECOIL_SECONDS, then springs home.
+    if (state.guardHold > 0) {
+      state.guardHold = Math.max(0, state.guardHold - dt);
+    } else {
+      state.guardKick *= Math.exp(-dt * GUARD_RECOIL_RETURN);
+      if (state.guardKick < 0.004) state.guardKick = 0;
+    }
+    const kick = state.guardKick;
     const armSway = moving && reach < 0.05 && follow < 0.05 && cock < 0.05 ? stride * 0.04 : 0;
     const leftArm = leftHandSocket.parent;
     const leftArmRestP = leftArm.userData.restPosition;
     const leftArmRestR = leftArm.userData.restRotation;
-    const open = Math.max(reach, follow);
+    const open = Math.max(reach, follow) * loose;
     leftArm.position.set(
-      leftArmRestP.x - open * 0.08,
-      leftArmRestP.y + open * 0.05,
-      leftArmRestP.z + open * 0.06,
+      leftArmRestP.x - open * 0.08 + (GUARD_ARM.p[0] - leftArmRestP.x) * raised + kick * GUARD_RECOIL.x,
+      leftArmRestP.y + open * 0.05 + (GUARD_ARM.p[1] - leftArmRestP.y) * raised - kick * 0.03,
+      leftArmRestP.z + open * 0.06 + (GUARD_ARM.p[2] - leftArmRestP.z) * raised + kick * GUARD_RECOIL.z,
     );
     leftArm.rotation.set(
-      leftArmRestR.x - open * 0.15,
-      leftArmRestR.y + open * 0.22,
-      leftArmRestR.z + open * 0.12,
+      leftArmRestR.x - open * 0.15 + (GUARD_ARM.r[0] - leftArmRestR.x) * raised + kick * 0.1,
+      leftArmRestR.y + open * 0.22 + (GUARD_ARM.r[1] - leftArmRestR.y) * raised,
+      leftArmRestR.z + open * 0.12 + (GUARD_ARM.r[2] - leftArmRestR.z) * raised,
     );
     seatSocket(
       leftHandSocket,
-      armSway,
-      blend * 0.14,
-      blend * 0.05,
-      -blend * 0.28,
-      blend * 0.08,
-      blend * 0.1,
+      armSway * loose,
+      GUARD_HAND.p[1] * raised,
+      GUARD_HAND.p[2] * raised,
+      GUARD_HAND.r[0] * raised - kick * 0.12,
+      GUARD_HAND.r[1] * raised,
+      GUARD_HAND.r[2] * raised,
     );
 
     // Walking sway: a figure-8 bob on both arms (one lap per two steps), plus a little roll.
     // Turning the view makes the whole rig trail behind and then catch up.
     state.walkBlend += (moveAmount - state.walkBlend) * (1 - Math.exp(-dt * 7));
     state.bobPhase += dt * (6 + state.walkBlend * 6);
-    const walk = state.walkBlend * damp * (1 - blend * 0.6);
+    const walk = state.walkBlend * damp * loose;
     const lap = state.bobPhase;
     const arms = hands.arms;
+    // The raised guard barely trails the view when turning: it is meant to hold still in front.
+    const trail = 1 - raised * 0.75;
     arms.position.set(
-      Math.sin(lap) * BOB_X * walk + state.lagYaw,
-      Math.sin(lap * 2) * BOB_Y * walk - Math.abs(Math.sin(lap)) * 0.012 * walk - state.lagPitch,
+      Math.sin(lap) * BOB_X * walk + state.lagYaw * trail,
+      Math.sin(lap * 2) * BOB_Y * walk - Math.abs(Math.sin(lap)) * 0.012 * walk - state.lagPitch * trail,
       0,
     );
-    arms.rotation.set(-state.lagPitch * 0.8, -state.lagYaw * 0.9, Math.sin(lap) * 0.025 * walk);
+    arms.rotation.set(-state.lagPitch * 0.8 * trail, -state.lagYaw * 0.9 * trail, Math.sin(lap) * 0.025 * walk);
     leftArm.position.x += Math.sin(lap + 1.1) * 0.02 * walk;
     leftArm.position.y += Math.sin(lap * 2 + 1.1) * 0.015 * walk;
+    hands.torch.root.rotation.set(
+      TORCH_REST.x + (TORCH_GUARD.x - TORCH_REST.x) * raised,
+      TORCH_REST.y + (TORCH_GUARD.y - TORCH_REST.y) * raised,
+      TORCH_REST.z + (TORCH_GUARD.z - TORCH_REST.z) * raised,
+    );
 
     legR.hip.rotation.x = 0.12 + stride * 0.62;
     legL.hip.rotation.x = 0.12 - stride * 0.62;
@@ -528,6 +605,7 @@ export function createPlayer(camera, materials, start) {
       state.blocking = false;
       pose(dt, 0);
       placeCamera();
+      trackGuard();
       updateTorch(dt);
       return;
     }
@@ -597,20 +675,37 @@ export function createPlayer(camera, materials, start) {
 
     pose(dt, moveAmount);
     placeCamera();
+    trackGuard();
     updateTorch(dt);
   }
 
-  function hurt(raw) {
-    if (!state.alive || state.iframes > 0) return false;
-    const amount = mitigatedDamage(raw, state.blocking);
+  // A hit on the player. `source` says where it came from: { x, z } for a melee blow, and
+  // { kind: 'arrow', deflected } for an arrow, where `deflected` means its path crossed the torch.
+  // Returns false (ignored), 'blocked' (caught on the torch), or 'hit'.
+  function hurt(raw, source) {
+    if (!state.alive) return false;
+    const arrow = source?.kind === 'arrow';
+    let guarded = false;
+    if (state.blocking && state.blockBlend >= GUARD_READY) {
+      if (arrow) guarded = source.deflected === true;
+      else if (!source) guarded = true;
+      else {
+        guarded = inGuardArc(-Math.sin(state.yaw), -Math.cos(state.yaw), source.x - state.x, source.z - state.z);
+      }
+    }
+    if (guarded) guardImpact(arrow ? 0.7 : 1, !arrow);
+    // An arrow that bounces off the torch is simply gone: no damage and no recovery window used up.
+    if (arrow && guarded) return 'blocked';
+    if (state.iframes > 0) return guarded ? 'blocked' : false;
+    const amount = mitigatedDamage(raw, guarded);
     state.health = Math.max(0, state.health - amount);
     state.iframes = PLAYER_IFRAMES;
-    state.shake = 0.18;
+    state.shake = guarded ? 0.06 : 0.18;
     if (state.health <= 0) {
       state.health = 0;
       state.alive = false;
     }
-    return true;
+    return guarded ? 'blocked' : 'hit';
   }
 
   function reset(nextStart) {
@@ -629,6 +724,9 @@ export function createPlayer(camera, materials, start) {
     state.shake = 0;
     state.trauma = 0;
     state.blocking = false;
+    state.blockBlend = 0;
+    state.guardKick = 0;
+    state.guardHold = 0;
     state.walkBlend = 0;
     state.lagYaw = 0;
     state.lagPitch = 0;
@@ -644,11 +742,13 @@ export function createPlayer(camera, materials, start) {
     applyStats(0.5);
     pose(0, 0);
     placeCamera();
+    trackGuard();
     updateTorch(0);
   }
 
   pose(0, 0);
   placeCamera();
+  trackGuard();
   updateTorch(0);
 
   return {
