@@ -1,10 +1,12 @@
-const HIT_STOP_SECONDS = 0.06;
-const HIT_STOP_SCALE = 0.05;
+const HIT_STOP_SECONDS = 0.04;
+const HIT_STOP_SCALE = 0;
 
 let remaining = 0;
 
-export function triggerHitStop() {
-  remaining = Math.max(remaining, HIT_STOP_SECONDS);
+export function triggerHitStop(seconds = HIT_STOP_SECONDS) {
+  const duration = Number(seconds);
+  const clamped = Number.isFinite(duration) ? Math.min(0.2, Math.max(0, duration)) : HIT_STOP_SECONDS;
+  remaining = Math.max(remaining, clamped);
 }
 
 export function clearHitStop() {

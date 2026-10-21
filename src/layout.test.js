@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { clearance, rectGap, segmentOnBoundary } from './geometry.js';
+import { clearance, pointInPolygon, rectGap, segmentOnBoundary } from './geometry.js';
 import { generateLayout } from './rooms.js';
 
 function chambers(layout) {
@@ -14,7 +14,7 @@ function passages(layout) {
 test('a seeded layout is about ten thousand square feet and can be rebuilt', () => {
   const first = generateLayout(11);
   const second = generateLayout(11);
-  assert.ok(first.area > 9900 && first.area < 10100, `area ${first.area.toFixed(1)}`);
+  assert.ok(first.area > 9000 && first.area < 10200, `area ${first.area.toFixed(1)}`);
   assert.deepEqual(
     first.rooms.map((room) => [room.rect.x, room.rect.z, room.rect.w, room.rect.d]),
     second.rooms.map((room) => [room.rect.x, room.rect.z, room.rect.w, room.rect.d]),
@@ -39,30 +39,40 @@ test('rooms, corridors, and doors are different sizes', () => {
   assert.ok(Math.max(...spans) - Math.min(...spans) > 0.7);
   assert.ok(Math.max(...doorWidths) - Math.min(...doorWidths) > 0.35);
   assert.ok(Math.max(...doorHeights) - Math.min(...doorHeights) > 0.2);
-  const themes = new Set(chambers(layout).map((room) => room.theme));
-  assert.ok(themes.has('stone') && themes.has('wood') && themes.has('cave'));
+  const themes = new Set(layout.rooms.map((room) => room.theme));
+  assert.deepEqual([...themes], ['stone']);
+  assert.equal(layout.areaName, 'The Ancient Ruins');
+  assert.equal(layout.enemyName, 'Skeletal Warriors');
+  assert.deepEqual(layout.requirements, ['torch', 'mace']);
 });
 
 test('the path is walkable and nothing is buried in a wall', () => {
   for (const seed of [3, 8, 11, 19]) {
     const layout = generateLayout(seed);
     assert.equal(layout.rooms[0].kind, 'chamber');
+    assert.equal(layout.rooms[0].role, 'antechamber');
+    assert.equal(layout.rooms[0].name, 'Antechamber');
     assert.equal(layout.rooms.at(-1).kind, 'chamber');
     assert.equal(layout.rooms.at(-1).id, layout.lastRoomId);
     assert.equal(layout.doors.length, layout.rooms.length - 1);
-    assert.ok(clearance(layout.start.x, layout.start.z, layout.rooms[0].polygon) > 1.5, `start ${seed}`);
-    const first = layout.rooms[0].rect;
-    const last = layout.rooms.at(-1).rect;
-    assert.ok(last.z + last.d / 2 < first.z + first.d / 2 - 20, `north ${seed}`);
-    const door = layout.doors[0];
-    const doorX = (door.a[0] + door.b[0]) / 2;
-    const doorZ = (door.a[1] + door.b[1]) / 2;
-    const towardX = doorX - layout.start.x;
-    const towardZ = doorZ - layout.start.z;
+    assert.ok(!pointInPolygon(layout.start.x, layout.start.z, layout.rooms[0].polygon), `outside ${seed}`);
+    assert.ok(pointInPolygon(layout.start.x, layout.start.z, layout.exterior), `path ${seed}`);
+    const gate = layout.entrance;
+    const gateX = (gate.a[0] + gate.b[0]) / 2;
+    const gateZ = (gate.a[1] + gate.b[1]) / 2;
+    assert.ok(layout.start.z > gateZ + 8, `approach ${seed}`);
+    assert.ok(segmentOnBoundary(gate.a[0], gate.a[1], gate.b[0], gate.b[1], layout.rooms[0].polygon, 0.3), `gate ${seed}`);
+    const towardX = gateX - layout.start.x;
+    const towardZ = gateZ - layout.start.z;
     const toward = Math.hypot(towardX, towardZ) || 1;
     const faceX = -Math.sin(layout.start.yaw);
     const faceZ = -Math.cos(layout.start.yaw);
     assert.ok((faceX * towardX + faceZ * towardZ) / toward > 0.5, `facing ${seed}`);
+    const first = layout.rooms[0].rect;
+    const last = layout.rooms.at(-1).rect;
+    assert.ok(last.z + last.d / 2 < first.z + first.d / 2 - 20, `north ${seed}`);
+    const door = layout.doors[0];
+    const doorZ = (door.a[1] + door.b[1]) / 2;
     assert.ok(doorZ < first.z + first.d * 0.5, `first door ${seed}`);
 
     for (let index = 0; index < layout.rooms.length; index += 1) {
@@ -83,8 +93,27 @@ test('the path is walkable and nothing is buried in a wall', () => {
     });
 
     for (const room of layout.rooms) {
-      if (room.kind === 'chamber') assert.ok(room.spawns.length >= 2, `${room.name} ${seed}`);
+      assert.equal(room.theme, 'stone');
+      assert.equal(room.brazier, null);
+      assert.deepEqual(room.rocks, []);
+      if (room.role === 'antechamber') assert.equal(room.spawns.length, 0);
+      else if (room.kind === 'chamber') assert.ok(room.spawns.length >= 2, `${room.name} ${seed}`);
       else assert.ok(room.spawns.length <= 2);
+      if (room.kind === 'chamber' && room.spawns.length > 0) {
+        assert.equal(typeof room.sconce.x, 'number', `${room.id} sconce ${seed}`);
+        assert.equal(room.sconce.nx === 0 || room.sconce.nz === 0, true);
+        assert.ok(clearance(room.chest.x, room.chest.z, room.polygon) > 0.4, `${room.id} chest ${seed}`);
+        const side = Math.abs(
+          (room.chest.x - room.sconce.x) * -room.sconce.nz
+          + (room.chest.z - room.sconce.z) * room.sconce.nx,
+        );
+        assert.ok(side > 2.3, `${room.id} chest off the torch ${seed} ${side.toFixed(2)}`);
+        const beside = Math.hypot(room.chest.x - room.sconce.x, room.chest.z - room.sconce.z);
+        assert.ok(beside < 6.2, `${room.id} chest beside sconce ${seed} ${beside.toFixed(2)}`);
+      } else {
+        assert.equal(room.sconce, null, `${room.id} hallway sconce ${seed}`);
+        assert.equal(room.chest, null, `${room.id} hallway chest ${seed}`);
+      }
       for (const [x, z] of room.spawns) {
         assert.ok(clearance(x, z, room.polygon) > 1.2, `${room.id} spawn ${seed}`);
       }

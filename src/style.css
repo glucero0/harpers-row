@@ -110,8 +110,73 @@ html, body {
 }
 
 .top-left { top: 16px; left: 16px; }
-.top-right { top: 16px; right: 16px; width: 260px; }
+.top-right { top: 16px; right: 16px; width: 280px; }
 .bottom-left { left: 16px; bottom: 16px; width: 280px; }
+
+#area-title {
+  position: absolute;
+  top: 108px;
+  left: 300px;
+  right: 320px;
+  margin: 0;
+  text-align: center;
+  font-size: clamp(36px, 4.8vw, 72px);
+  font-weight: normal;
+  letter-spacing: 0.08em;
+  color: #fff;
+  text-shadow: 0 3px 18px rgba(0, 0, 0, 0.65);
+  pointer-events: none;
+  z-index: 1;
+  transition: opacity 0.8s ease;
+}
+
+#area-title.away { opacity: 0; }
+
+.stat {
+  margin: 0 0 6px;
+  font-size: 16px;
+}
+
+.checklist {
+  right: 16px;
+  bottom: 16px;
+  width: 300px;
+}
+
+.checklist p {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+
+.checklist .label { color: #d9cbb4; }
+
+#check-mark {
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.checklist button {
+  width: 100%;
+  margin-top: 4px;
+}
+
+.checklist button:disabled {
+  color: #d9cbb4;
+  background: #3a322b;
+  border-color: rgba(201, 160, 96, 0.45);
+  cursor: default;
+}
+
+@keyframes requirement-flash {
+  0%, 100% { background: rgba(18, 14, 11, 0.78); border-color: rgba(201, 160, 96, 0.45); }
+  40% { background: rgba(148, 42, 24, 0.95); border-color: #fff; }
+}
+
+.checklist.flash { animation: requirement-flash 0.42s ease-in-out 3; }
 
 .room {
   margin: 0;
@@ -171,7 +236,7 @@ input[type="range"] {
   bottom: 16px;
   transform: translateX(-50%);
   margin: 0;
-  max-width: min(760px, calc(100% - 340px));
+  max-width: min(560px, calc(100% - 640px));
   padding: 8px 12px;
   background: rgba(18, 14, 11, 0.72);
   border: 1px solid rgba(201, 160, 96, 0.3);
@@ -216,8 +281,9 @@ input[type="range"] {
   inset: 0;
   z-index: 2;
   display: grid;
-  place-items: center;
-  background: rgba(8, 6, 5, 0.38);
+  place-items: end center;
+  padding-bottom: 168px;
+  background: rgba(8, 6, 5, 0.28);
 }
 
 #banner { z-index: 5; background: rgba(8, 6, 5, 0.55); }

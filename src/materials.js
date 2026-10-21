@@ -1,5 +1,47 @@
 import * as THREE from 'three';
+import { applyRuinShader, createRuinField } from './ruin-material.js';
 import { applySubsurfaceScattering } from './subsurface.js';
+
+function drawLeather(ctx, width, height) {
+  ctx.fillStyle = '#5c3b2a';
+  ctx.fillRect(0, 0, width, height);
+  for (let row = 0; row < 28; row += 1) {
+    const y = (row / 28) * height;
+    ctx.strokeStyle = `rgba(20, 10, 6, ${0.15 + (row % 3) * 0.05})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(width, y + Math.sin(row * 1.7) * 6);
+    ctx.stroke();
+  }
+  for (let speck = 0; speck < 80; speck += 1) {
+    const x = hash2(speck, 3) * width;
+    const y = hash2(speck, 9) * height;
+    ctx.fillStyle = 'rgba(18, 9, 5, 0.35)';
+    ctx.fillRect(x, y, 3 + hash2(speck, 1) * 8, 2);
+  }
+  ctx.fillStyle = 'rgba(12, 7, 4, 0.45)';
+  ctx.fillRect(0, 0, width, 10);
+  ctx.fillRect(0, height - 12, width, 12);
+}
+
+function drawChain(ctx, width, height) {
+  ctx.fillStyle = '#2a2e32';
+  ctx.fillRect(0, 0, width, height);
+  ctx.strokeStyle = '#7d868e';
+  ctx.lineWidth = 2;
+  const step = 18;
+  for (let y = 0; y < height + step; y += step) {
+    for (let x = 0; x < width + step; x += step) {
+      const ox = (Math.floor(y / step) % 2) * step * 0.5;
+      ctx.beginPath();
+      ctx.ellipse(x + ox, y, 6, 4, 0.4, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+  ctx.fillStyle = 'rgba(8, 8, 8, 0.35)';
+  ctx.fillRect(0, height - 16, width, 16);
+}
 
 function canvasTexture(size, draw, colorSpace) {
   const canvas = document.createElement('canvas');
@@ -15,20 +57,86 @@ function canvasTexture(size, draw, colorSpace) {
   return texture;
 }
 
+function blockTone(col, row) {
+  const n = hash2(col, row);
+  const base = 96 + Math.floor(n * 48);
+  return [base + 18, base + 12, base + 4];
+}
+
+function stoneCourse(x, y, width, height) {
+  const cols = 4;
+  const rows = 6;
+  const brickW = width / cols;
+  const brickH = height / rows;
+  const row = Math.floor(y / brickH) % rows;
+  const stagger = (row % 2) * 0.5;
+  let along = x / brickW - stagger;
+  along = ((along % cols) + cols) % cols;
+  const col = Math.floor(along);
+  const fy = (y % brickH) / brickH;
+  return { col, row, fx: along - col, fy };
+}
+
 function drawStone(ctx, width, height) {
-  ctx.fillStyle = '#6d6862';
-  ctx.fillRect(0, 0, width, height);
-  const brickH = 64;
-  const brickW = 128;
-  for (let row = 0; row < height / brickH; row += 1) {
-    const offset = row % 2 === 0 ? 0 : brickW / 2;
-    for (let x = -brickW; x < width + brickW; x += brickW) {
-      const shade = 112 + ((row * 13 + x / 8) % 5) * 7;
-      ctx.fillStyle = `rgb(${shade + 22}, ${shade + 16}, ${shade + 8})`;
-      ctx.fillRect(x + offset + 4, row * brickH + 4, brickW - 8, brickH - 8);
-      ctx.fillStyle = 'rgba(255,255,255,0.05)';
-      ctx.fillRect(x + offset + 4, row * brickH + 4, brickW - 8, 7);
+  const image = ctx.createImageData(width, height);
+  const data = image.data;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const { col, row, fx, fy } = stoneCourse(x + 0.5, y + 0.5, width, height);
+      const edge = Math.min(fx, 1 - fx, fy, 1 - fy);
+      const mortar = Math.min(1, Math.max(0, (0.1 - edge) / 0.06));
+      const [baseR, baseG, baseB] = blockTone(col + 2, row + 3);
+      const grit = hash2(col * 17 + Math.floor(fx * 24), row * 13 + Math.floor(fy * 24)) - 0.5;
+      let red = baseR + grit * 16;
+      let green = baseG + grit * 14;
+      let blue = baseB + grit * 10;
+      const pit = hash2(col * 5 + (x % 9), row * 3 + (y % 7));
+      if (pit > 0.82 && mortar < 0.2) {
+        red *= 0.72;
+        green *= 0.7;
+        blue *= 0.68;
+      }
+      red = red * (1 - mortar) + 62 * mortar;
+      green = green * (1 - mortar) + 56 * mortar;
+      blue = blue * (1 - mortar) + 48 * mortar;
+      const index = (y * width + x) * 4;
+      data[index] = Math.max(0, Math.min(255, red));
+      data[index + 1] = Math.max(0, Math.min(255, green));
+      data[index + 2] = Math.max(0, Math.min(255, blue));
+      data[index + 3] = 255;
     }
+  }
+  ctx.putImageData(image, 0, 0);
+}
+
+function drawStoneHeight(ctx, width, height) {
+  const image = ctx.createImageData(width, height);
+  const data = image.data;
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const { col, row, fx, fy } = stoneCourse(x + 0.5, y + 0.5, width, height);
+      const edge = Math.min(fx, 1 - fx, fy, 1 - fy);
+      const mortar = Math.min(1, Math.max(0, (0.11 - edge) / 0.07));
+      const grit = (hash2(col * 17 + Math.floor(fx * 24), row * 13 + Math.floor(fy * 24)) - 0.5) * 24;
+      const block = 150 + hash2(col, row) * 36 + grit;
+      const shade = Math.max(0, Math.min(255, block * (1 - mortar) + 42 * mortar));
+      const index = (y * width + x) * 4;
+      data[index] = shade;
+      data[index + 1] = shade;
+      data[index + 2] = shade;
+      data[index + 3] = 255;
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+}
+
+function drawDirt(ctx, width, height) {
+  ctx.fillStyle = '#6b5136';
+  ctx.fillRect(0, 0, width, height);
+  for (let i = 0; i < 1600; i += 1) {
+    const shade = 78 + Math.random() * 55;
+    ctx.fillStyle = `rgba(${shade + 28}, ${shade + 6}, ${shade - 24}, 0.38)`;
+    ctx.fillRect(Math.random() * width, Math.random() * height, 2 + Math.random() * 5, 2 + Math.random() * 3);
   }
 }
 
@@ -265,6 +373,8 @@ function sharedSurface(map, color, roughness, metalness, bump) {
 export function createMaterials() {
   const colorSpace = THREE.SRGBColorSpace;
   const stoneMap = canvasTexture(512, drawStone, colorSpace);
+  const stoneHeight = canvasTexture(256, drawStoneHeight, THREE.NoColorSpace);
+  const dirtMap = canvasTexture(512, drawDirt, colorSpace);
   const woodMap = canvasTexture(512, drawWood, colorSpace);
   const rockMap = canvasTexture(512, drawRock, colorSpace);
   const rockBump = canvasTexture(512, drawRockBump, THREE.NoColorSpace);
@@ -275,18 +385,23 @@ export function createMaterials() {
   const boneBump = imageTexture(boneField.bump, boneSize, THREE.NoColorSpace);
   const boneAo = imageTexture(boneField.ao, boneSize, THREE.NoColorSpace);
 
+  const ruin = createRuinField(stoneHeight);
   const wall = {
-    stone: sharedSurface(stoneMap, 0xc8c2b8, 0.9, 0.04),
+    stone: applyRuinShader(sharedSurface(stoneMap, 0x8d877e, 0.92, 0.04, stoneHeight), ruin),
     wood: sharedSurface(woodMap, 0xd7b48a, 0.9, 0.04),
     cave: sharedSurface(rockMap, 0x8a8682, 0.96, 0.02, rockBump),
   };
   const floor = {
-    stone: sharedSurface(stoneMap, 0x9a948c, 0.94, 0.04),
+    stone: applyRuinShader(sharedSurface(stoneMap, 0x6f6a63, 0.96, 0.03, stoneHeight), ruin),
     wood: sharedSurface(woodMap, 0xb08968, 0.94, 0.04),
     cave: sharedSurface(rockMap, 0x6e6a66, 0.96, 0.02, rockBump),
   };
   const plank = sharedSurface(woodMap, 0xc09060, 0.75, 0.04);
-  const ceiling = share(new THREE.MeshStandardMaterial({ color: 0x2a241e, roughness: 1 }));
+  const dirt = sharedSurface(dirtMap, 0x8a6a48, 1, 0);
+  const ceiling = applyRuinShader(sharedSurface(stoneMap, 0x4e4a44, 0.98, 0.02, stoneHeight), ruin);
+  wall.stone.bumpMap = null;
+  floor.stone.bumpMap = null;
+  ceiling.bumpMap = null;
   const ceilingCave = share(new THREE.MeshStandardMaterial({ color: 0x16181c, roughness: 1 }));
   const brazier = share(new THREE.MeshStandardMaterial({ color: 0x4a463f, roughness: 0.9 }));
   const bowl = share(new THREE.MeshStandardMaterial({ color: 0x2c2a28, roughness: 0.6, metalness: 0.4 }));
@@ -315,10 +430,37 @@ export function createMaterials() {
     roughness: 0.4,
     metalness: 0.82,
   }));
+  const leatherMap = canvasTexture(256, drawLeather, colorSpace);
+  const chainMap = canvasTexture(256, drawChain, colorSpace);
   const leather = share(new THREE.MeshStandardMaterial({
-    color: 0x6a4632,
-    roughness: 0.82,
-    metalness: 0.04,
+    map: leatherMap,
+    color: 0xc4a090,
+    roughness: 0.84,
+    metalness: 0.02,
+  }));
+  const chain = share(new THREE.MeshStandardMaterial({
+    map: chainMap,
+    color: 0xb7c0c6,
+    roughness: 0.48,
+    metalness: 0.72,
+  }));
+  const iron = share(new THREE.MeshStandardMaterial({
+    color: 0x2a2724,
+    roughness: 0.42,
+    metalness: 0.84,
+  }));
+  const gold = share(new THREE.MeshStandardMaterial({
+    color: 0xe2b34a,
+    emissive: 0x5a3810,
+    emissiveIntensity: 0.38,
+    roughness: 0.08,
+    metalness: 0.98,
+  }));
+  const ember = share(new THREE.MeshStandardMaterial({
+    color: 0x2a0c06,
+    emissive: 0xff5a18,
+    emissiveIntensity: 0.42,
+    roughness: 1,
   }));
   const rust = share(new THREE.MeshStandardMaterial({
     color: 0x6d5848,
@@ -397,14 +539,20 @@ export function createMaterials() {
     surface,
     floor: floorMaterial,
     plank,
+    dirt,
     ceiling,
     ceilingCave,
+    ruin,
     brazier,
     bowl,
     core,
     metal,
     armor,
     leather,
+    chain,
+    iron,
+    gold,
+    ember,
     rust,
     flame,
     eye,

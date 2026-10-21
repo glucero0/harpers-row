@@ -19,7 +19,12 @@ function writeSlider(key, value) {
   }
 }
 
-export function createUI(onRestart) {
+function percent(part, total) {
+  if (!total) return 0;
+  return Math.round((part / total) * 100);
+}
+
+export function createUI({ onRestart, onEquip }) {
   const paceSlider = document.querySelector('#pace-slider');
   const xpSlider = document.querySelector('#xp-slider');
   const roomName = document.querySelector('#room-name');
@@ -40,8 +45,16 @@ export function createUI(onRestart) {
   const bannerTitle = document.querySelector('#banner-title');
   const bannerText = document.querySelector('#banner-text');
   const hurt = document.querySelector('#hurt');
+  const areaTitle = document.querySelector('#area-title');
+  const checklist = document.querySelector('#checklist');
+  const checkMark = document.querySelector('#check-mark');
+  const equipButton = document.querySelector('#equip');
+  const statKills = document.querySelector('#stat-kills');
+  const statLoot = document.querySelector('#stat-loot');
+  const statGold = document.querySelector('#stat-gold');
   let shownLevel = 1;
   let shownHealth = 100;
+  let shownDeny = 0;
 
   paceSlider.value = String(readSlider(PACE_KEY));
   xpSlider.value = String(readSlider(XP_KEY));
@@ -50,6 +63,11 @@ export function createUI(onRestart) {
   document.querySelector('#restart').addEventListener('click', (event) => {
     event.stopPropagation();
     onRestart();
+  });
+  equipButton.addEventListener('click', (event) => {
+    event.stopPropagation();
+    event.preventDefault();
+    onEquip();
   });
 
   return {
@@ -97,9 +115,25 @@ export function createUI(onRestart) {
         bannerText.textContent = 'The last of them is down. Another descent will raise a different dungeon.';
       }
       overlay.hidden = showBanner || state.pointerLocked;
+      areaTitle.classList.toggle('away', state.outdoors === false);
+      checkMark.hidden = !state.equipped;
+      equipButton.disabled = !!state.equipped;
+      equipButton.textContent = state.equipped ? 'Equipped' : 'Equip';
+      statKills.textContent = `Enemies killed ${percent(state.enemiesFallen, state.enemiesTotal)}%`;
+      statLoot.textContent = `Loot collected ${percent(state.lootTaken, state.lootTotal)}%`;
+      statGold.textContent = `Gold ${state.gold || 0}`;
+      if (state.denySerial && state.denySerial !== shownDeny) {
+        shownDeny = state.denySerial;
+        checklist.classList.remove('flash');
+        void checklist.offsetWidth;
+        checklist.classList.add('flash');
+      }
+
       if (!state.started) {
-        overlayText.textContent = 'Each descent builds a new dungeon of about ten thousand square feet. Rooms, passages, and doors are never the same twice.';
-        overlayPrompt.textContent = 'Click to enter';
+        overlayText.textContent = state.equipped
+          ? 'The door is open. Click the view, then walk inside.'
+          : 'The door ahead is open. Equip a torch and a mace before you step inside.';
+        overlayPrompt.textContent = 'Click to look';
       } else if (!state.pointerLocked) {
         overlayText.textContent = 'The mouse is free, so the fight waits. Drag the sliders, then click to continue.';
         overlayPrompt.textContent = 'Click to continue';

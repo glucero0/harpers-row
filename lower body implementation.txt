@@ -1,0 +1,195 @@
+import * as THREE from 'three';
+
+export class PlayerBodyRig {
+  constructor(camera, playerRoot) {
+    this.camera = camera;
+    this.playerRoot = playerRoot;
+
+    // Rendering layers
+    this.FIRST_PERSON_LAYER = 1;
+    this.SHADOW_ONLY_LAYER = 2;
+
+    this.container = new THREE.Group();
+    this.playerRoot.add(this.container);
+
+    this.initCameraConstraints();
+    this.buildMaterials();
+    this.buildLowerBody();
+    this.setupLayerCulling();
+
+    // Animation stride state
+    this.walkCycle = 0;
+    this.isMoving = false;
+  }
+
+  initCameraConstraints() {
+    // Near plane strictly set to prevent near-clipping against tunic/belt
+    this.camera.near = 0.05;
+    this.camera.updateProjectionMatrix();
+
+    // Simulate eye socket placement forward from the spine axis
+    this.camera.position.set(0, 1.65, 0.14);
+
+    // Enforce layer rendering on camera
+    this.camera.layers.enable(this.FIRST_PERSON_LAYER);
+
+    // Downward pitch clamp (-72 degrees max, ~ -1.256 rad)
+    this.minPitch = -1.256;
+    this.maxPitch = 1.30;
+  }
+
+  buildMaterials() {
+    this.leatherBeltMat = new THREE.MeshStandardMaterial({
+      color: 0x241711,
+      roughness: 0.75,
+      metalness: 0.15,
+      flatShading: true,
+    });
+
+    this.buckleMat = new THREE.MeshStandardMaterial({
+      color: 0x8a6f3d,
+      roughness: 0.35,
+      metalness: 0.85,
+    });
+
+    this.trousersMat = new THREE.MeshStandardMaterial({
+      color: 0x1f2421,
+      roughness: 0.85,
+      metalness: 0.05,
+      flatShading: true,
+    });
+
+    this.bootsMat = new THREE.MeshStandardMaterial({
+      color: 0x181109,
+      roughness: 0.65,
+      metalness: 0.2,
+      flatShading: true,
+    });
+  }
+
+  buildLowerBody() {
+    // Solid, fully-capped waist/tunic
+    this.waistGroup = new THREE.Group();
+    this.waistGroup.position.set(0, 0.90, 0.04);
+
+    // Solid closed cylinder (chamfered tunic edge, NOT hollow)
+    const tunicGeo = new THREE.CylinderGeometry(0.24, 0.28, 0.22, 10, 1, false);
+    const tunicMesh = new THREE.Mesh(tunicGeo, this.leatherBeltMat);
+    tunicMesh.castShadow = true;
+    tunicMesh.receiveShadow = true;
+    this.waistGroup.add(tunicMesh);
+
+    // Solid cap plate over waist top to prevent seeing down into core
+    const capGeo = new THREE.CircleGeometry(0.235, 10);
+    capGeo.rotateX(-Math.PI / 2);
+    const capMesh = new THREE.Mesh(capGeo, this.leatherBeltMat);
+    capMesh.position.y = 0.11;
+    this.waistGroup.add(capMesh);
+
+    // Belt buckle accent
+    const buckleGeo = new THREE.BoxGeometry(0.08, 0.06, 0.04);
+    const buckleMesh = new THREE.Mesh(buckleGeo, this.buckleMat);
+    buckleMesh.position.set(0, 0.02, 0.26);
+    this.waistGroup.add(buckleMesh);
+
+    this.container.add(this.waistGroup);
+
+    // Leg Root - Offset forward along local Z
+    this.legRoot = new THREE.Group();
+    this.legRoot.position.set(0, 0.82, 0.06);
+    this.container.add(this.legRoot);
+
+    // Left and Right Leg Hierarchies
+    this.leftLeg = this.createLeg(-0.13);
+    this.rightLeg = this.createLeg(0.13);
+
+    this.legRoot.add(this.leftLeg.hip);
+    this.legRoot.add(this.rightLeg.hip);
+  }
+
+  createLeg(xOffset) {
+    const hip = new THREE.Group();
+    hip.position.set(xOffset, 0, 0);
+
+    // Thigh - Angled forward
+    const thighGeo = new THREE.CylinderGeometry(0.085, 0.07, 0.40, 8);
+    const thigh = new THREE.Mesh(thighGeo, this.trousersMat);
+    thigh.position.set(0, -0.20, 0.04);
+    thigh.rotation.x = 0.18; // Natural forward pitch
+    thigh.castShadow = true;
+    hip.add(thigh);
+
+    // Knee joint
+    const knee = new THREE.Group();
+    knee.position.set(0, -0.38, 0.08);
+    hip.add(knee);
+
+    // Shin
+    const shinGeo = new THREE.CylinderGeometry(0.07, 0.06, 0.38, 8);
+    const shin = new THREE.Mesh(shinGeo, this.trousersMat);
+    shin.position.set(0, -0.19, -0.02);
+    shin.rotation.x = -0.10;
+    shin.castShadow = true;
+    knee.add(shin);
+
+    // Boot - Extended toe box planted on floor
+    const bootGroup = new THREE.Group();
+    bootGroup.position.set(0, -0.38, 0.0);
+
+    // Ankle cuff
+    const ankleGeo = new THREE.CylinderGeometry(0.075, 0.07, 0.12, 8);
+    const ankle = new THREE.Mesh(ankleGeo, this.bootsMat);
+    ankle.position.y = 0.06;
+    bootGroup.add(ankle);
+
+    // Foot sole & toe box projecting forward
+    const footGeo = new THREE.BoxGeometry(0.12, 0.09, 0.28);
+    const foot = new THREE.Mesh(footGeo, this.bootsMat);
+    foot.position.set(0, 0.045, 0.09); // Extended toe reach
+    foot.castShadow = true;
+    foot.receiveShadow = true;
+    bootGroup.add(foot);
+
+    knee.add(bootGroup);
+
+    return { hip, knee, bootGroup };
+  }
+
+  setupLayerCulling() {
+    // Assign all first-person visible meshes to FIRST_PERSON_LAYER
+    this.container.traverse((node) => {
+      if (node.isMesh) {
+        node.layers.set(this.FIRST_PERSON_LAYER);
+      }
+    });
+
+    // If an upper chest/head placeholder exists on playerRoot, hide it from first-person view
+    const headOrTorso = this.playerRoot.getObjectByName('playerUpperBody');
+    if (headOrTorso) {
+      headOrTorso.layers.set(this.SHADOW_ONLY_LAYER);
+    }
+  }
+
+  update(delta, velocity) {
+    const speed = velocity ? velocity.length() : 0;
+    this.isMoving = speed > 0.1;
+
+    if (this.isMoving) {
+      this.walkCycle += delta * speed * 4.5;
+
+      const swingAngle = Math.sin(this.walkCycle) * 0.42;
+      this.leftLeg.hip.rotation.x = swingAngle;
+      this.rightLeg.hip.rotation.x = -swingAngle;
+
+      // Subtle knee bend on backswing
+      this.leftLeg.knee.rotation.x = swingAngle < 0 ? -swingAngle * 0.7 : 0;
+      this.rightLeg.knee.rotation.x = -swingAngle < 0 ? swingAngle * 0.7 : 0;
+    } else {
+      // Smooth reset to idle stance
+      this.leftLeg.hip.rotation.x = THREE.MathUtils.damp(this.leftLeg.hip.rotation.x, 0, 8, delta);
+      this.rightLeg.hip.rotation.x = THREE.MathUtils.damp(this.rightLeg.hip.rotation.x, 0, 8, delta);
+      this.leftLeg.knee.rotation.x = THREE.MathUtils.damp(this.leftLeg.knee.rotation.x, 0, 8, delta);
+      this.rightLeg.knee.rotation.x = THREE.MathUtils.damp(this.rightLeg.knee.rotation.x, 0, 8, delta);
+    }
+  }
+}

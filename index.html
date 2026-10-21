@@ -21,7 +21,11 @@
         <span class="compass-arrow"></span>
       </div>
     </div>
+    <h1 id="area-title">The Ancient Ruins</h1>
     <div class="panel top-right">
+      <p id="stat-kills" class="stat">Enemies killed 0%</p>
+      <p id="stat-loot" class="stat">Loot collected 0%</p>
+      <p id="stat-gold" class="stat">Gold 0</p>
       <label class="slider">
         <span class="slider-title">Undead haste</span>
         <span class="slider-scale"><span>Slight</span><span>Frantic</span></span>
@@ -40,15 +44,20 @@
       <div class="bar xp"><div id="xp-fill"></div></div>
       <p id="xp-text" class="sub">0 / 0 XP</p>
     </div>
-    <p id="hint" class="hint">WASD move · Mouse look · Left click or K attack · Right click block · Esc frees the mouse · Xbox: sticks, RT attack, LT block, Start pauses</p>
+    <div id="checklist" class="panel checklist" aria-label="Area requirements">
+      <p><span class="label">Area</span><span>The Ancient Ruins</span></p>
+      <p><span class="label">Enemy</span><span>Skeletal Warriors</span></p>
+      <p class="req-line"><span>Requirements: Torch and Mace</span><span id="check-mark" hidden>✓</span></p>
+      <button id="equip" type="button">Equip</button>
+    </div>
+    <p id="hint" class="hint">WASD move · Mouse look · Left click or K attack · Right click block · E lights a cleared sconce · Esc, then Equip · Xbox: RT attack, LT block, X uses, Start pauses</p>
     <div id="crosshair" class="crosshair" aria-hidden="true"><span></span><span></span></div>
     <p id="pause-label" class="pause" hidden>Paused</p>
   </div>
   <div id="overlay" class="overlay">
     <div class="card">
-      <h1>Dungeon Combater</h1>
-      <p id="overlay-text">Each descent builds a new dungeon of about ten thousand square feet. Rooms, passages, and doors are never the same twice.</p>
-      <p id="overlay-prompt" class="prompt">Click to enter</p>
+      <p id="overlay-text">The door ahead is open. Equip a torch and a mace before you step inside.</p>
+      <p id="overlay-prompt" class="prompt">Click to look</p>
     </div>
   </div>
   <div id="banner" hidden>

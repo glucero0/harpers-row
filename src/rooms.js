@@ -288,6 +288,179 @@ function themesFor(rng, count) {
   return themes;
 }
 
+const AREA_NAME = 'The Ancient Ruins';
+const PATH_WIDTH = 9;
+const PATH_LENGTH = 16;
+const COURT_DEPTH = 8;
+const COURT_EXTRA = 16;
+
+function fitAntechamber(orig, mouthX0, mouthX1) {
+  const mouth = Math.max(0.5, mouthX1 - mouthX0);
+  const width = Math.min(orig.w, Math.max(mouth + 0.4, Math.min(16, orig.w)));
+  let x = (mouthX0 + mouthX1) / 2 - width / 2;
+  const maxX = orig.x + orig.w - width;
+  x = Math.max(orig.x, Math.min(maxX, x));
+  if (x > mouthX0 + 0.05 || x + width < mouthX1 - 0.05) return { x: orig.x, w: orig.w };
+  return { x, w: width };
+}
+
+function ensureSpawns(room, linked, rng, minimum) {
+  if (room.spawns.length >= minimum) return;
+  const points = shuffle(candidates(room.rect, 1.2), rng);
+  for (const [x, z] of points) {
+    if (room.spawns.length >= minimum) break;
+    if (clearance(x, z, room.polygon) < 1.45) continue;
+    if (distanceToDoors(x, z, linked) < 2.2) continue;
+    if (room.spawns.some((point) => Math.hypot(point[0] - x, point[1] - z) < 2.2)) continue;
+    room.spawns.push([x, z]);
+  }
+}
+
+function sconceAnchor(room, rng, linked) {
+  const { rect } = room;
+  const options = [
+    { x: rect.x + 0.55, z: rect.z + rect.d * 0.5, nx: 1, nz: 0 },
+    { x: rect.x + rect.w - 0.55, z: rect.z + rect.d * 0.5, nx: -1, nz: 0 },
+    { x: rect.x + rect.w * 0.5, z: rect.z + 0.55, nx: 0, nz: 1 },
+    { x: rect.x + rect.w * 0.5, z: rect.z + rect.d - 0.55, nx: 0, nz: -1 },
+  ];
+  let best = options[0];
+  let bestScore = -Infinity;
+  for (const option of options) {
+    const score = distanceToDoors(option.x, option.z, linked) + rng.next();
+    if (score > bestScore) {
+      bestScore = score;
+      best = option;
+    }
+  }
+  return { ...best };
+}
+
+function chestAnchor(room, sconce, linked) {
+  const sideX = -sconce.nz;
+  const sideZ = sconce.nx;
+  // 0.35 m of air behind the chest, plus the body and the lid's swing, in world units.
+  const minClear = 0.35 * 3.2 + 1.35;
+  let best = null;
+  let bestClear = -Infinity;
+  for (let lateral = 3.2; lateral >= 2.55; lateral -= 0.25) {
+    for (const sign of [1, -1]) {
+      for (let inward = 1.9; inward <= 3.15; inward += 0.25) {
+        const x = sconce.x + sideX * sign * lateral + sconce.nx * inward;
+        const z = sconce.z + sideZ * sign * lateral + sconce.nz * inward;
+        const space = clearance(x, z, room.polygon);
+        if (space < 0.6) continue;
+        if (distanceToDoors(x, z, linked) < 1.5) continue;
+        if (room.spawns.some((point) => Math.hypot(point[0] - x, point[1] - z) < 1.6)) continue;
+        if (space > bestClear) {
+          bestClear = space;
+          best = { x, z };
+        }
+        if (space >= minClear) return { x, z };
+      }
+    }
+  }
+  return best || {
+    x: sconce.x + sideX * 2.7 + sconce.nx * 2.5,
+    z: sconce.z + sideZ * 2.7 + sconce.nz * 2.5,
+  };
+}
+
+function exteriorPolygon(court, path) {
+  return [
+    [path.x, path.z + path.d],
+    [path.x + path.w, path.z + path.d],
+    [path.x + path.w, path.z],
+    [court.x + court.w, path.z],
+    [court.x + court.w, court.z],
+    [court.x, court.z],
+    [court.x, path.z],
+    [path.x, path.z],
+  ];
+}
+
+// The descent is one place: The Ancient Ruins. The fighter starts outdoors on a dirt path,
+// the first room is a small empty stone antechamber, and every fought chamber keeps a sconce and a chest.
+function shapeAncientRuins(layout, rng) {
+  const { rooms, doors } = layout;
+  const ante = rooms[0];
+  const passage = rooms[1];
+  if (!ante || !passage || !doors[0]) return;
+
+  const usedNames = new Set(['Antechamber']);
+  for (const room of rooms) {
+    room.theme = 'stone';
+    room.rocks = [];
+    room.brazier = null;
+    if (room.kind === 'corridor') {
+      room.name = room.run > 18 ? 'Long Passage' : room.span < 6.2 ? 'Narrow Passage' : 'Passage';
+    } else if (room !== ante) {
+      room.name = nameFor('stone', usedNames);
+    }
+  }
+
+  const mouthX0 = passage.rect.x;
+  const mouthX1 = passage.rect.x + passage.rect.w;
+  const fitted = fitAntechamber(ante.rect, mouthX0, mouthX1);
+  const depth = Math.min(12.5, ante.rect.d);
+  ante.rect = { x: fitted.x, z: ante.rect.z, w: fitted.w, d: depth };
+  ante.polygon = polygonFromRect(ante.rect);
+  ante.spawns = [];
+  ante.role = 'antechamber';
+  ante.name = 'Antechamber';
+  ante.sconce = null;
+  ante.chest = null;
+
+  const southZ = ante.rect.z + ante.rect.d;
+  const midX = ante.rect.x + ante.rect.w / 2;
+  const doorWidth = Math.min(6.4, Math.max(4.8, ante.rect.w * 0.4));
+  const courtW = ante.rect.w + COURT_EXTRA * 2;
+  const court = {
+    x: midX - courtW / 2,
+    z: southZ,
+    w: courtW,
+    d: COURT_DEPTH,
+  };
+  const path = {
+    x: midX - PATH_WIDTH / 2,
+    z: court.z + court.d,
+    w: PATH_WIDTH,
+    d: PATH_LENGTH,
+  };
+
+  layout.areaName = AREA_NAME;
+  layout.enemyName = 'Skeletal Warriors';
+  layout.requirements = ['torch', 'mace'];
+  layout.entrance = {
+    a: [midX - doorWidth / 2, southZ],
+    b: [midX + doorWidth / 2, southZ],
+    width: doorWidth,
+    height: 7.2,
+    openingWidth: ante.rect.w,
+    mouthA: [ante.rect.x, southZ],
+    mouthB: [ante.rect.x + ante.rect.w, southZ],
+  };
+  layout.exterior = exteriorPolygon(court, path);
+  layout.approach = { court, path, southZ, midX };
+  layout.gateInward = { x: 0, z: -1 };
+  layout.start = { x: midX, z: path.z + path.d - 4.2, yaw: 0 };
+  layout.area = rooms.reduce((sum, room) => sum + room.rect.w * room.rect.d, 0);
+
+  const linkedFor = (room) => doors.filter((door) => door.from === room.id || door.to === room.id);
+  if (passage.kind === 'corridor') ensureSpawns(passage, linkedFor(passage), rng, 2);
+
+  for (const room of rooms) {
+    if (room.kind !== 'chamber' || !room.spawns.length) {
+      room.sconce = null;
+      room.chest = null;
+      continue;
+    }
+    const anchor = sconceAnchor(room, rng, linkedFor(room));
+    room.sconce = anchor;
+    room.chest = chestAnchor(room, anchor, linkedFor(room));
+  }
+}
+
 function nameFor(theme, used) {
   const pool = NAMES[theme];
   const available = pool.find((name) => !used.has(name));
@@ -429,8 +602,6 @@ function decorate(spaces, doors, rng) {
           room.rocks.push([x, z]);
         }
       }
-    } else {
-      room.sconce = [room.rect.x + room.rect.w / 2, room.rect.z + room.rect.d / 2];
     }
   }
 
@@ -456,7 +627,7 @@ function decorate(spaces, doors, rng) {
   const length = Math.hypot(fx, fz) || 1;
   start.yaw = Math.atan2(-fx / length, -fz / length);
 
-  return {
+  const layout = {
     seed: 0,
     area: areaOf(spaces),
     rooms,
@@ -464,7 +635,11 @@ function decorate(spaces, doors, rng) {
     start,
     lastRoomId: rooms[rooms.length - 1].id,
   };
+  shapeAncientRuins(layout, rng);
+  return layout;
 }
+
+export { AREA_NAME };
 
 export function generateLayout(seed = 1) {
   const rng = makeRng(seed);
