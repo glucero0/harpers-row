@@ -17,11 +17,14 @@ export function createInput(canvas) {
   let ignoreLook = 0;
   let padWasAttack = false;
   let padWasPause = false;
+  let padWasUse = false;
+  let useQueued = false;
 
   function onKeyDown(event) {
     if (event.repeat) return;
     if (event.code === 'KeyK') attackQueued = true;
-    if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyK'].includes(event.code)) {
+    if (event.code === 'KeyE') useQueued = true;
+    if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyK', 'KeyE'].includes(event.code)) {
       event.preventDefault();
     }
     keys.add(event.code);
@@ -87,6 +90,7 @@ export function createInput(canvas) {
     let padAttack = false;
     let padBlock = false;
     let padPause = false;
+    let padUse = false;
     const pads = navigator.getGamepads ? navigator.getGamepads() : [];
     for (const pad of pads) {
       if (!pad) continue;
@@ -98,7 +102,9 @@ export function createInput(canvas) {
       const leftTrigger = pad.buttons[6];
       const rightTrigger = pad.buttons[7];
       const start = pad.buttons[9];
+      const useButton = pad.buttons[2];
       if (leftTrigger && (leftTrigger.pressed || leftTrigger.value > 0.45)) padBlock = true;
+      if (useButton && (useButton.pressed || useButton.value > 0.45)) padUse = true;
       if (rightTrigger && (rightTrigger.pressed || rightTrigger.value > 0.45)) padAttack = true;
       if (start && start.pressed) padPause = true;
       break;
@@ -112,9 +118,12 @@ export function createInput(canvas) {
 
     const attack = attackQueued || (padAttack && !padWasAttack);
     const pausePressed = padPause && !padWasPause;
+    const use = useQueued || (padUse && !padWasUse);
     attackQueued = false;
+    useQueued = false;
     padWasAttack = padAttack;
     padWasPause = padPause;
+    padWasUse = padUse;
     const frame = {
       moveX,
       moveY,
@@ -123,6 +132,7 @@ export function createInput(canvas) {
       lookStickX,
       lookStickY,
       attack,
+      use,
       block: blockMouse || padBlock,
       pointerLocked,
       gamepadConnected,

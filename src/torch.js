@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 
 const TORCH_COLOR = 0xff8936;
-const TORCH_DISTANCE = 25;
+const TORCH_DISTANCE = 12;
 const TORCH_DECAY = 2;
 const TORCH_BASE = 90;
 
@@ -23,7 +23,7 @@ function createGlowTexture() {
 }
 
 class TorchParticleEmitter {
-  constructor(particleCount = 45) {
+  constructor(particleCount = 18) {
     this.count = particleCount;
     this.geometry = new THREE.BufferGeometry();
     const positions = new Float32Array(this.count * 3);
@@ -37,7 +37,7 @@ class TorchParticleEmitter {
     this.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     this.geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     this.material = new THREE.PointsMaterial({
-      size: 0.18,
+      size: 0.1,
       map: createGlowTexture(),
       transparent: true,
       blending: THREE.AdditiveBlending,
@@ -46,6 +46,8 @@ class TorchParticleEmitter {
     });
     this.mesh = new THREE.Points(this.geometry, this.material);
     this.mesh.frustumCulled = false;
+    this.mesh.castShadow = false;
+    this.mesh.receiveShadow = false;
   }
 
   resetParticle(index, positions, colors, initialRandom = false) {
@@ -53,8 +55,9 @@ class TorchParticleEmitter {
     positions[index * 3] = (Math.random() - 0.5) * 0.06;
     positions[index * 3 + 1] = initialRandom ? Math.random() * 0.3 : 0;
     positions[index * 3 + 2] = (Math.random() - 0.5) * 0.06;
+    if (!this.velocities[index]) this.velocities[index] = new THREE.Vector3();
     if (ember) {
-      this.velocities[index] = new THREE.Vector3(
+      this.velocities[index].set(
         (Math.random() - 0.5) * 0.12,
         0.35 + Math.random() * 0.35,
         (Math.random() - 0.5) * 0.12,
@@ -64,7 +67,7 @@ class TorchParticleEmitter {
       colors[index * 3 + 1] = 0.45;
       colors[index * 3 + 2] = 0.05;
     } else {
-      this.velocities[index] = new THREE.Vector3(
+      this.velocities[index].set(
         (Math.random() - 0.5) * 0.08,
         0.8 + Math.random() * 0.5,
         (Math.random() - 0.5) * 0.08,
@@ -98,10 +101,10 @@ class TorchParticleEmitter {
   }
 }
 
-const SPARK_COUNT = 36;
+const SPARK_COUNT = 12;
 const FLASH_SECONDS = 0.16;
 const SPARK_GRAVITY = 2.6;
-const EMBER_COUNT = 34;
+const EMBER_COUNT = 12;
 const EMBER_DRAG = 1.8;
 const EMBER_RISE = 0.9;
 
@@ -139,6 +142,8 @@ class GuardImpact {
       vertexColors: true,
     }));
     this.sparks.frustumCulled = false;
+    this.sparks.castShadow = false;
+    this.sparks.receiveShadow = false;
     this.sparks.renderOrder = 11;
     this.sparks.visible = false;
 
@@ -153,7 +158,7 @@ class GuardImpact {
     emberGeometry.setAttribute('position', new THREE.BufferAttribute(this.emberPositions, 3));
     emberGeometry.setAttribute('color', new THREE.BufferAttribute(this.emberColors, 3));
     this.embers = new THREE.Points(emberGeometry, new THREE.PointsMaterial({
-      size: 0.2,
+      size: 0.12,
       map: glowTexture(),
       transparent: true,
       blending: THREE.AdditiveBlending,
@@ -162,6 +167,8 @@ class GuardImpact {
       vertexColors: true,
     }));
     this.embers.frustumCulled = false;
+    this.embers.castShadow = false;
+    this.embers.receiveShadow = false;
     this.embers.renderOrder = 11;
     this.embers.visible = false;
 
@@ -313,15 +320,17 @@ function createHeldTorch(materials) {
   root.add(handle, sconce, tip);
 
   const light = new THREE.PointLight(TORCH_COLOR, TORCH_BASE, TORCH_DISTANCE, TORCH_DECAY);
+  light.decay = TORCH_DECAY;
   light.castShadow = true;
-  light.shadow.mapSize.set(1024, 1024);
-  light.shadow.bias = -0.001;
-  light.shadow.normalBias = 0.02;
-  light.shadow.camera.near = 0.08;
-  light.shadow.camera.far = TORCH_DISTANCE;
+  light.shadow.mapSize.set(512, 512);
+  light.shadow.bias = -0.0008;
+  light.shadow.normalBias = 0.04;
+  light.shadow.camera.near = 0.1;
+  light.shadow.camera.far = 12;
   tip.add(light);
+  tip.add(createTorchVolume());
 
-  const particles = new TorchParticleEmitter(40);
+  const particles = new TorchParticleEmitter(18);
   tip.add(particles.mesh);
 
   const impact = new GuardImpact();
@@ -331,14 +340,53 @@ function createHeldTorch(materials) {
 }
 
 // `flash` (0..1) briefly drives the light up when something strikes the torch.
+function createTorchVolume() {
+  const geometry = new THREE.ConeGeometry(0.62, 3.4, 14, 1, true);
+  geometry.translate(0, 1.7, 0);
+  const material = new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    blending: THREE.AdditiveBlending,
+    uniforms: {
+      uColor: { value: new THREE.Color(0xff7a2a) },
+    },
+    vertexShader: `
+      varying float vAlong;
+      varying float vRadial;
+      void main() {
+        vAlong = clamp(position.y / 3.4, 0.0, 1.0);
+        vRadial = length(position.xz) / max(0.08, 0.2 + vAlong * 0.62);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `,
+    fragmentShader: `
+      varying float vAlong;
+      varying float vRadial;
+      uniform vec3 uColor;
+      void main() {
+        float beam = smoothstep(1.15, 0.15, vRadial);
+        beam *= smoothstep(0.0, 0.12, vAlong) * smoothstep(1.0, 0.35, vAlong);
+        gl_FragColor = vec4(uColor, beam * 0.16);
+      }
+    `,
+  });
+  const cone = new THREE.Mesh(geometry, material);
+  cone.name = 'torchVolume';
+  cone.frustumCulled = false;
+  cone.renderOrder = 1;
+  return cone;
+}
+
 function flickerTorch(light, time, flash = 0) {
-  const wave = Math.sin(time * 12) * 0.15
-    + Math.sin(time * 23.3) * 0.1
-    + (Math.random() - 0.5) * 0.08;
-  const flicker = wave * (TORCH_BASE / 2.2);
-  light.intensity = Math.max(0.2, TORCH_BASE + flicker) + flash * TORCH_BASE * 3;
-  light.position.x = Math.sin(time * 19.7) * 0.03;
-  light.position.z = Math.cos(time * 14.3) * 0.03;
+  const wobble = Math.sin(time * 9.2) * 0.1
+    + Math.sin(time * 17.4) * 0.07
+    + (Math.random() - 0.5) * 0.14;
+  light.intensity = Math.max(8, TORCH_BASE * (0.78 + wobble)) + flash * TORCH_BASE * 2.4;
+  const jitter = Math.random() - 0.5;
+  light.position.x = Math.sin(time * 13.2) * 0.05 + jitter * 0.02;
+  light.position.y = Math.sin(time * 8.1) * 0.035 + jitter * 0.015;
+  light.position.z = Math.cos(time * 11.6) * 0.05;
 }
 
 export { GuardImpact, TorchParticleEmitter, createHeldTorch, flickerTorch };

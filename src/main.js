@@ -3,6 +3,7 @@ import './style.css';
 import { audio } from './audio.js';
 import { consumeTime } from './impact.js';
 import { createDungeon } from './dungeon.js';
+import { setDustLight } from './dust.js';
 import { createInput } from './input.js';
 import { createMaterials } from './materials.js';
 import { createPlayer } from './player.js';
@@ -25,10 +26,10 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.type = THREE.PCFShadowMap;
 
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.08, 500);
+const camera = new THREE.PerspectiveCamera(66, window.innerWidth / window.innerHeight, 0.05, 500);
 camera.rotation.order = 'YXZ';
 scene.add(camera);
 
@@ -62,10 +63,17 @@ function beginRun() {
   manualPause = false;
 }
 
-const ui = createUI(() => {
-  started = true;
-  beginRun();
-  input.requestLook();
+const ui = createUI({
+  onRestart() {
+    started = true;
+    beginRun();
+    input.requestLook();
+  },
+  onEquip() {
+    if (!player.equip()) return;
+    dungeon.openGate();
+    audio.unlock();
+  },
 });
 
 window.addEventListener('resize', fit);
@@ -78,6 +86,7 @@ document.querySelector('#overlay').addEventListener('click', () => {
 });
 
 let reportedFault = false;
+let loggedCalls = -1;
 
 function frame(now) {
   if (canvas.width !== Math.floor(window.innerWidth * renderer.getPixelRatio())) fit();
@@ -98,6 +107,7 @@ function frame(now) {
       player.reconcileXp(ui.experience());
       player.update(time.dt, frameInput, dungeon, skeletons, ui.experience(), true, time);
       skeletons.update(time.dt, player.state, player.hurt, ui.pace(), true, time.realDt);
+      dungeon.offerSconce(player.state, (roomId) => skeletons.livingIn(roomId));
       if (skeletons.cryptCleared()) {
         victory = true;
         input.releaseLook();
@@ -107,8 +117,20 @@ function frame(now) {
       player.update(time.dt, frameInput, dungeon, skeletons, ui.experience(), false, time);
     }
 
-    const theme = player.state.room?.theme || 'stone';
-    dungeon.update(now / 1000, time.dt, theme, player.state.x, player.state.z);
+    const theme = player.state.room?.theme || 'outdoor';
+    dungeon.update(now / 1000, time.dt, theme, player.state.x, player.state.z, player.state.moving, camera);
+    const torchPower = player.state.equipped ? 1 : 0;
+    materials.ruin.sync({
+      x: player.state.guardX,
+      y: player.state.guardY,
+      z: player.state.guardZ,
+      power: torchPower,
+      fogLift: theme === 'outdoor' ? 1.35 : 1.05,
+    });
+    setDustLight(player.state.guardX, player.state.guardY, player.state.guardZ, torchPower);
+    audio.setListener(player.state.x, 5.5, player.state.z, player.state.yaw);
+    audio.ambience(theme !== 'outdoor');
+    const enemyTotal = skeletons.list.length;
     ui.sync({
     room: player.state.room,
     roomCount: dungeon.rooms.length,
@@ -125,6 +147,14 @@ function frame(now) {
     started,
     pointerLocked: frameInput.pointerLocked,
     banner: !player.state.alive ? 'dead' : victory ? 'victory' : null,
+    outdoors: player.state.room?.kind === 'exterior',
+    equipped: player.state.equipped,
+    denySerial: player.state.denySerial,
+    gold: player.state.gold,
+    enemiesFallen: skeletons.fallen(),
+    enemiesTotal: enemyTotal,
+    lootTaken: dungeon.lootTaken(),
+    lootTotal: dungeon.lootTotal(),
     });
   } catch (error) {
     if (!reportedFault) {
@@ -133,6 +163,11 @@ function frame(now) {
     }
   }
   renderer.render(scene, camera);
+  const calls = renderer.info.render.calls;
+  if (calls !== loggedCalls) {
+    loggedCalls = calls;
+    console.info(`draw calls ${calls}`);
+  }
   requestAnimationFrame(frame);
 }
 

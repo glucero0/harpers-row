@@ -18,11 +18,11 @@ import {
 import { lineOfSight, resolveBody } from './geometry.js';
 import { audio } from './audio.js';
 import { clearHitStop, triggerHitStop } from './impact.js';
+import { PITCH_DOWN, PITCH_UP, PlayerBodyRig } from './player-body.js';
 import { createHeldTorch, flickerTorch } from './torch.js';
 
 const LOOK_STICK = 2.35;
-const THIGH = 1.55;
-const SHIN = 1.48;
+const METRE = 3.2;
 
 function hinge(parent, x, y, z) {
   const group = new THREE.Group();
@@ -31,9 +31,49 @@ function hinge(parent, x, y, z) {
   return group;
 }
 
-function limb(parent, length, radius, material) {
-  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius * 0.92, length, 7), material);
-  mesh.position.y = -length / 2;
+function skinnedChain(parent, joints, samples, material) {
+  const radial = 8;
+  const positions = [];
+  const skinIndex = [];
+  const skinWeight = [];
+  const indices = [];
+  const rings = [];
+  for (const sample of samples) {
+    const start = positions.length / 3;
+    for (let spoke = 0; spoke < radial; spoke += 1) {
+      const angle = (spoke / radial) * Math.PI * 2;
+      positions.push(
+        sample.x + Math.cos(angle) * sample.radius,
+        sample.y,
+        sample.z + Math.sin(angle) * sample.radius,
+      );
+      skinIndex.push(sample.boneA, sample.boneB, 0, 0);
+      skinWeight.push(sample.weightA, sample.weightB, 0, 0);
+    }
+    rings.push(start);
+  }
+  for (let ring = 0; ring < rings.length - 1; ring += 1) {
+    for (let spoke = 0; spoke < radial; spoke += 1) {
+      const next = (spoke + 1) % radial;
+      const a = rings[ring] + spoke;
+      const b = rings[ring] + next;
+      const c = rings[ring + 1] + spoke;
+      const d = rings[ring + 1] + next;
+      indices.push(a, c, b, b, c, d);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(skinIndex, 4));
+  geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(skinWeight, 4));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  const mesh = new THREE.SkinnedMesh(geometry, material);
+  mesh.add(joints[0]);
+  mesh.bind(new THREE.Skeleton(joints));
+  mesh.frustumCulled = false;
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
   parent.add(mesh);
   return mesh;
 }
@@ -41,50 +81,67 @@ function limb(parent, length, radius, material) {
 function createFighter(materials) {
   const rig = new THREE.Group();
   const body = new THREE.Group();
+  body.name = 'FirstPersonBody';
   rig.add(body);
 
-  const torso = hinge(body, 0, 3.15, -0.28);
-  const chest = new THREE.Mesh(new THREE.BoxGeometry(1.05, 1.05, 0.42), materials.armor);
-  chest.position.set(0, 0.58, -0.28);
-  const belly = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.32, 0.38), materials.leather);
-  belly.position.set(0, 0.08, -0.04);
-  const belt = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.14, 0.42), materials.leather);
-  belt.position.set(0, -0.08, -0.02);
-  torso.add(chest, belly, belt);
+  const torso = hinge(body, 0, 3.45, 0);
+  torso.name = 'playerUpperBody';
+  const chest = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.78, 0.52), materials.leather);
+  chest.position.set(0, 0.62, -0.08);
+  const mailShirt = new THREE.Mesh(new THREE.BoxGeometry(1.05, 0.62, 0.46), materials.chain);
+  mailShirt.position.set(0, 0.05, -0.02);
+  torso.add(chest, mailShirt);
 
   function pauldron(side) {
-    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.26, 8, 6), materials.armor);
-    cap.scale.set(1.15, 0.72, 1.05);
-    cap.position.set(0.55 * side, 1.22, 0.02);
+    const cap = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.16, 0.46), materials.armor);
+    cap.position.set(0.58 * side, 0.95, -0.02);
+    cap.layers.set(2);
     torso.add(cap);
   }
 
-  function leg(side) {
-    const hip = hinge(body, 0.32 * side, 3.05, -0.42);
-    limb(hip, THIGH, 0.24, materials.leather);
-    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.7, 0.16), materials.armor);
-    plate.position.set(0, -THIGH * 0.45, -0.16);
-    hip.add(plate);
-    const knee = hinge(hip, 0, -THIGH, 0);
-    limb(knee, SHIN, 0.16, materials.armor);
-    const ankle = hinge(knee, 0, -SHIN, 0);
-    const boot = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.26, 0.62), materials.leather);
-    boot.position.set(0, -0.08, -0.14);
-    ankle.add(boot);
-    return { hip, knee, ankle };
+  function hangArm(side) {
+    const shoulder = new THREE.Bone();
+    shoulder.position.set(0.62 * side, 4.35, -0.28);
+    const elbow = new THREE.Bone();
+    elbow.position.set(0, -0.9, 0.04);
+    shoulder.add(elbow);
+    const wrist = new THREE.Bone();
+    wrist.position.set(0.02 * side, -0.78, 0.02);
+    elbow.add(wrist);
+    const sx = shoulder.position.x;
+    const sy = shoulder.position.y;
+    const sz = shoulder.position.z;
+    const armMesh = skinnedChain(body, [shoulder, elbow, wrist], [
+      { x: sx, y: sy, z: sz, radius: 0.16, boneA: 0, boneB: 1, weightA: 1, weightB: 0 },
+      { x: sx, y: sy - 0.45, z: sz, radius: 0.13, boneA: 0, boneB: 1, weightA: 0.7, weightB: 0.3 },
+      { x: sx, y: sy - 0.9, z: sz + 0.04, radius: 0.11, boneA: 0, boneB: 1, weightA: 0.25, weightB: 0.75 },
+      { x: sx, y: sy - 1.35, z: sz + 0.05, radius: 0.1, boneA: 1, boneB: 2, weightA: 0.65, weightB: 0.35 },
+      { x: sx + 0.02 * side, y: sy - 1.68, z: sz + 0.06, radius: 0.09, boneA: 1, boneB: 2, weightA: 0.1, weightB: 0.9 },
+    ], side > 0 ? materials.leather : materials.chain);
+    armMesh.layers.set(2);
+    elbow.rotation.x = -0.4;
+    return { shoulder, elbow };
   }
 
   pauldron(1);
   pauldron(-1);
-  const legR = leg(1);
-  const legL = leg(-1);
-  const eyes = hinge(rig, 0, PLAYER_EYE_HEIGHT, -0.16);
+  const helm = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.38, 0.46), materials.armor);
+  helm.position.set(0, 1.15, -0.02);
+  helm.layers.set(2);
+  torso.add(helm);
+  const armR = hangArm(1);
+  const armL = hangArm(-1);
+  const eyes = hinge(rig, 0, PLAYER_EYE_HEIGHT, 0);
   rig.traverse((obj) => {
     if (!obj.isMesh) return;
-    obj.castShadow = false;
     obj.receiveShadow = true;
+    obj.castShadow = true;
   });
-  return { rig, body, torso, eyes, legR, legL };
+  helm.castShadow = false;
+  torso.traverse((obj) => {
+    if (obj.isMesh) obj.layers.set(2);
+  });
+  return { rig, body, torso, eyes, armR, armL };
 }
 
 const DEG = Math.PI / 180;
@@ -102,9 +159,9 @@ const easeInOutQuad = (t) => (t < 0.5 ? 2 * t * t : 1 - ((-2 * t + 2) ** 2) / 2)
 // s: wrist (hand socket) rotation. The cut runs from the upper right of the view, through the
 // crosshair, to the lower left, and the arm base stays off the edge of the screen throughout.
 const SWING_POSES = {
-  cock: { p: [0.2, 0.6, 0.1], r: [0.2, 0.2, -0.2], s: [-0.15, 0, 0.1] },
-  reach: { p: [-0.25, 0.45, -0.55], r: [0.2, 0.4, 0.2], s: [0.12, 0.05, -0.08] },
-  follow: { p: [-1.0, 0.2, -0.2], r: [-0.2, 1.0, 0], s: [0.28, 0.12, -0.22] },
+  cock: { p: [0.1, 0.22, 0.02], r: [-0.7, -0.2, -0.65], s: [-0.35, 0.1, 0.3] },
+  reach: { p: [-0.06, 0.04, -0.16], r: [0.25, 0.35, 0.1], s: [0.15, -0.05, -0.12] },
+  follow: { p: [-0.28, -0.16, -0.06], r: [0.95, 0.7, 0.4], s: [0.45, -0.15, -0.4] },
 };
 
 // Quick anticipation, an accelerating strike that arrives at full extension at SWING_CONTACT,
@@ -158,22 +215,6 @@ const FOREARM_LENGTH = 0.72;
 const FOREARM_PITCH = 35 * DEG;
 const FOREARM_YAW = 20 * DEG;
 
-function addFist(socket, materials, side) {
-  const fist = new THREE.Group();
-  fist.name = side > 0 ? 'rightFist' : 'leftFist';
-  const palm = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.08, 0.09), materials.leather);
-  const bevel = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.045, 0.07), materials.leather);
-  bevel.position.set(0.012 * side, 0.05, 0.02);
-  const knuckle = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.03, 0.04), materials.leather);
-  knuckle.position.set(0.04 * side, 0.055, 0.045);
-  const finger = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.025, 0.035), materials.leather);
-  finger.position.set(0.03 * side, 0.03, 0.055);
-  const thumb = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.05, 0.04), materials.leather);
-  thumb.position.set(-0.065 * side, 0.01, 0.02);
-  fist.add(palm, bevel, knuckle, finger, thumb);
-  socket.add(fist);
-}
-
 function createMace(materials) {
   const mace = new THREE.Group();
   mace.name = 'mace';
@@ -187,12 +228,109 @@ function createMace(materials) {
   flangeB.position.y = 0.48;
   mace.add(handle, head, flangeA, flangeB);
   mace.rotation.set(15 * DEG, 0, 25 * DEG);
+  const trail = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.62, 0.12),
+    new THREE.MeshBasicMaterial({
+      color: 0xe7d3a4,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+      side: THREE.DoubleSide,
+      blending: THREE.AdditiveBlending,
+    }),
+  );
+  trail.position.set(0.16, 0.42, 0);
+  trail.rotation.y = Math.PI / 2;
+  mace.add(trail);
+  mace.userData.restX = mace.rotation.x;
+  mace.userData.restZ = mace.rotation.z;
+  mace.userData.trail = trail;
   return mace;
 }
 
 function rememberRest(socket) {
   socket.userData.restPosition = socket.position.clone();
   socket.userData.restRotation = socket.rotation.clone();
+}
+
+function skinnedViewArm(leather, chain) {
+  const length = FOREARM_LENGTH;
+  const hand = 0.22;
+  const radial = 8;
+  const rows = 8;
+  const positions = [];
+  const skinIndex = [];
+  const skinWeight = [];
+  const indices = [];
+  for (let row = 0; row <= rows; row += 1) {
+    const t = row / rows;
+    const onHand = t > 0.78;
+    const along = onHand ? -length - ((t - 0.78) / 0.22) * hand : -(t / 0.78) * length;
+    const forearmT = Math.min(t, 0.78) / 0.78;
+    const handT = onHand ? (t - 0.78) / 0.22 : 0;
+    const radius = 0.074 - forearmT * 0.018;
+    const radiusX = radius * (1 + handT * 0.45);
+    const radiusY = radius * (1 - handT * 0.5);
+    let bone = 0;
+    let next = 1;
+    let weight = 1;
+    if (t > 0.72) {
+      bone = 2;
+      next = 1;
+      weight = 1;
+    } else if (t > 0.28) {
+      bone = 1;
+      next = 2;
+      weight = 1 - (t - 0.28) / 0.44;
+    }
+    for (let spoke = 0; spoke < radial; spoke += 1) {
+      const angle = (spoke / radial) * Math.PI * 2;
+      positions.push(Math.cos(angle) * radiusX, Math.sin(angle) * radiusY, along);
+      skinIndex.push(bone, next, 0, 0);
+      skinWeight.push(weight, 1 - weight, 0, 0);
+    }
+  }
+  for (let row = 0; row < rows; row += 1) {
+    for (let spoke = 0; spoke < radial; spoke += 1) {
+      const next = (spoke + 1) % radial;
+      const a = row * radial + spoke;
+      const b = row * radial + next;
+      const c = (row + 1) * radial + spoke;
+      const d = (row + 1) * radial + next;
+      indices.push(a, c, b, b, c, d);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setAttribute('skinIndex', new THREE.Uint16BufferAttribute(skinIndex, 4));
+  geometry.setAttribute('skinWeight', new THREE.Float32BufferAttribute(skinWeight, 4));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  const root = new THREE.Bone();
+  const elbow = new THREE.Bone();
+  elbow.position.z = -length * 0.48;
+  root.add(elbow);
+  const wrist = new THREE.Bone();
+  wrist.position.z = -length * 0.52;
+  elbow.add(wrist);
+  for (const offset of [0.08, -0.12]) {
+    const band = new THREE.Mesh(new THREE.TorusGeometry(0.062, 0.011, 4, 8), leather);
+    band.rotation.x = Math.PI / 2;
+    band.position.z = offset;
+    elbow.add(band);
+  }
+  const cuff = new THREE.Mesh(new THREE.TorusGeometry(0.058, 0.012, 4, 8), chain);
+  cuff.rotation.x = Math.PI / 2;
+  wrist.add(cuff);
+  const plate = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.035, 0.16), leather);
+  plate.position.set(0, 0.04, -0.1);
+  wrist.add(plate);
+  const mesh = new THREE.SkinnedMesh(geometry, leather);
+  mesh.add(root);
+  mesh.bind(new THREE.Skeleton([root, elbow, wrist]));
+  mesh.frustumCulled = false;
+  mesh.castShadow = false;
+  return { mesh, elbow };
 }
 
 function addViewArm(arms, materials, side) {
@@ -203,13 +341,9 @@ function addViewArm(arms, materials, side) {
   forearm.rotation.set(FOREARM_PITCH, FOREARM_YAW * side, 0);
   arms.add(forearm);
 
-  const bone = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.05, 0.066, FOREARM_LENGTH, 6),
-    materials.leather,
-  );
-  bone.rotation.x = -Math.PI / 2;
-  bone.position.set(0, 0, -FOREARM_LENGTH / 2);
-  forearm.add(bone);
+  const sleeve = skinnedViewArm(materials.leather, materials.chain);
+  forearm.add(sleeve.mesh);
+  forearm.userData.elbow = sleeve.elbow;
 
   const socket = new THREE.Group();
   socket.name = side > 0 ? 'rightHandSocket' : 'leftHandSocket';
@@ -217,7 +351,6 @@ function addViewArm(arms, materials, side) {
   socket.quaternion.copy(forearm.quaternion).invert();
   forearm.add(socket);
   socket.add(new THREE.AxesHelper(0.2));
-  addFist(socket, materials, side);
   return socket;
 }
 
@@ -291,12 +424,23 @@ function bindGripDebug(rightHandSocket, leftHandSocket) {
 
 export function createPlayer(camera, materials, start) {
   const fighter = createFighter(materials);
-  const { rig, body, torso, eyes, legR, legL } = fighter;
+  const { rig, body, torso, eyes, armR, armL } = fighter;
+  const bodySpin = new THREE.Quaternion();
+  const bodyGoal = new THREE.Quaternion();
+  const Y_AXIS = new THREE.Vector3(0, 1, 0);
+  const currentVelocity = new THREE.Vector3();
+  let lastX = start.x;
+  let lastZ = start.z;
+  camera.layers.set(0);
   camera.parent.add(rig);
   eyes.add(camera);
   camera.position.set(0, 0, 0);
   camera.rotation.set(0, 0, 0);
+  const playerMesh = rig;
+  const bodyRig = new PlayerBodyRig(camera, playerMesh);
   const hands = createViewHands(camera, materials);
+  hands.torch.light.shadow.camera.layers.enable(1);
+  hands.torch.light.shadow.camera.layers.enable(2);
   const { rightHandSocket, leftHandSocket } = hands;
   bindGripDebug(rightHandSocket, leftHandSocket);
   const baseFov = camera.fov;
@@ -316,6 +460,8 @@ export function createPlayer(camera, materials, start) {
     swing: 0,
     blocking: false,
     blockBlend: 0,
+    usePressed: false,
+    swinging: false,
     // The raised torch: true once the arm is up, and where the torch sits in the world. Archers read
     // this to see whether an arrow lands on it.
     guardUp: false,
@@ -338,10 +484,16 @@ export function createPlayer(camera, materials, start) {
     prevPitch: -0.08,
     lagYaw: 0,
     lagPitch: 0,
+    bodyYaw: 0,
     swayTime: 0,
     torchTime: 0,
     gait: 0,
     room: null,
+    equipped: false,
+    gold: 0,
+    moving: false,
+    denySerial: 0,
+    denyCooldown: 0,
     aiming: false,
     struck: new Set(),
     swingTPrev: 0,
@@ -398,6 +550,7 @@ export function createPlayer(camera, materials, start) {
     rig.position.set(state.x, state.gait * (state.blocking ? 0.03 : 0.07), state.z);
     rig.rotation.set(0, state.yaw, state.gait * 0.035);
     camera.rotation.set(state.pitch, 0, 0);
+    camera.rotation.x = Math.max(-PITCH_DOWN, Math.min(PITCH_UP, camera.rotation.x));
     camera.position.set(0, 0, 0);
     if (state.shake > 0) {
       camera.position.x = Math.sin(state.shake * 70) * 0.05;
@@ -417,11 +570,27 @@ export function createPlayer(camera, materials, start) {
     }
   }
 
+  function applyGear() {
+    hands.mace.visible = state.equipped;
+    hands.torch.root.visible = state.equipped;
+    if (!state.equipped) hands.torch.light.intensity = 0;
+  }
+
   function updateTorch(dt) {
+    if (!state.equipped) {
+      hands.torch.light.intensity = 0;
+      return;
+    }
     state.torchTime += dt;
     hands.torch.impact.update(dt);
     flickerTorch(hands.torch.light, state.torchTime, hands.torch.impact.flash);
     hands.torch.particles.update(dt);
+  }
+
+  function denyEntry() {
+    if (state.denyCooldown > 0) return;
+    state.denySerial += 1;
+    state.denyCooldown = 0.7;
   }
 
   // Where the torch is in the world, refreshed after the pose is set. Archers aim their "did it land
@@ -465,7 +634,8 @@ export function createPlayer(camera, materials, start) {
     const headBob = Math.sin(state.bob);
     const stride = moving ? headBob : 0;
     state.gait = stride;
-    torso.rotation.x = state.pitch * 0.32;
+    const lookDown = Math.max(0, -state.pitch);
+    torso.rotation.x = Math.min(lookDown, 0.9) * 0.12;
 
     const swingT = state.swing > 0 ? 1 - state.swing / state.attackInterval : 0;
     const weights = swingWeights(swingT);
@@ -545,32 +715,36 @@ export function createPlayer(camera, materials, start) {
     const arms = hands.arms;
     // The raised guard barely trails the view when turning: it is meant to hold still in front.
     const trail = 1 - raised * 0.75;
+    const dropArms = Math.max(0, -state.pitch - 0.55);
     arms.position.set(
       Math.sin(lap) * BOB_X * walk + state.lagYaw * trail,
-      Math.sin(lap * 2) * BOB_Y * walk - Math.abs(Math.sin(lap)) * 0.012 * walk - state.lagPitch * trail,
+      Math.sin(lap * 2) * BOB_Y * walk - Math.abs(Math.sin(lap)) * 0.012 * walk - state.lagPitch * trail - dropArms * 0.55,
       0,
     );
     arms.rotation.set(-state.lagPitch * 0.8 * trail, -state.lagYaw * 0.9 * trail, Math.sin(lap) * 0.025 * walk);
     leftArm.position.x += Math.sin(lap + 1.1) * 0.02 * walk;
     leftArm.position.y += Math.sin(lap * 2 + 1.1) * 0.015 * walk;
+    if (rightArm.userData.elbow) rightArm.userData.elbow.rotation.x = cock * 0.35 + reach * 0.85 + follow * 0.4;
+    if (leftArm.userData.elbow) leftArm.userData.elbow.rotation.x = 0.2 + raised * 0.5;
+    const mace = hands.mace;
+    mace.rotation.x = mace.userData.restX + reach * 0.35 + follow * 0.15;
+    mace.rotation.z = mace.userData.restZ + cock * 0.45 - follow * 0.55;
+    mace.userData.trail.material.opacity = reach * 0.65 + follow * 0.22;
+    armR.shoulder.rotation.x = 0.2 - stride * 0.55;
+    armL.shoulder.rotation.x = 0.2 + stride * 0.55;
     hands.torch.root.rotation.set(
       TORCH_REST.x + (TORCH_GUARD.x - TORCH_REST.x) * raised,
       TORCH_REST.y + (TORCH_GUARD.y - TORCH_REST.y) * raised,
       TORCH_REST.z + (TORCH_GUARD.z - TORCH_REST.z) * raised,
     );
 
-    legR.hip.rotation.x = 0.12 + stride * 0.62;
-    legL.hip.rotation.x = 0.12 - stride * 0.62;
-    legR.knee.rotation.x = Math.max(0, -legR.hip.rotation.x) * 1.15;
-    legL.knee.rotation.x = Math.max(0, -legL.hip.rotation.x) * 1.15;
-    legR.ankle.rotation.x = -(legR.hip.rotation.x + legR.knee.rotation.x);
-    legL.ankle.rotation.x = -(legL.hip.rotation.x + legL.knee.rotation.x);
   }
 
   function landBlow() {
-    triggerHitStop();
-    state.trauma = 1;
-    state.traumaDuration = 0.2;
+    triggerHitStop(0.03);
+    state.shake = Math.max(state.shake, 0.12);
+    state.trauma = 0.45;
+    state.traumaDuration = 0.12;
     state.traumaX = -1;
     state.traumaY = -0.28;
   }
@@ -583,11 +757,19 @@ export function createPlayer(camera, materials, start) {
     state.pitch += input.mousePitch;
     state.yaw -= input.lookStickX * realDt * LOOK_STICK;
     state.pitch -= input.lookStickY * realDt * LOOK_STICK;
-    state.pitch = Math.max(-1.42, Math.min(1.15, state.pitch));
-    const turn = (state.yaw - state.prevYaw) * LAG_GAIN;
+    camera.rotation.x = Math.max(-PITCH_DOWN, Math.min(PITCH_UP, state.pitch));
+    state.pitch = camera.rotation.x;
+    const yawDelta = state.yaw - state.prevYaw;
+    const turn = yawDelta * LAG_GAIN;
     const tilt = (state.pitch - state.prevPitch) * LAG_GAIN;
+    state.bodyYaw -= yawDelta;
     state.prevYaw = state.yaw;
     state.prevPitch = state.pitch;
+    bodySpin.setFromAxisAngle(Y_AXIS, state.bodyYaw);
+    bodyGoal.identity();
+    bodySpin.slerp(bodyGoal, 1 - Math.exp(-realDt * 6));
+    state.bodyYaw = Math.max(-0.45, Math.min(0.45, 2 * Math.atan2(bodySpin.y, bodySpin.w)));
+    body.rotation.y = state.bodyYaw;
     const lagDecay = Math.exp(-realDt * LAG_RATE);
     state.lagYaw = Math.max(-LAG_LIMIT, Math.min(LAG_LIMIT, (state.lagYaw + turn) * lagDecay));
     state.lagPitch = Math.max(-LAG_LIMIT, Math.min(LAG_LIMIT, (state.lagPitch + tilt) * lagDecay));
@@ -601,8 +783,12 @@ export function createPlayer(camera, materials, start) {
     const swingT = state.swing > 0 ? 1 - state.swing / state.attackInterval : 0;
 
     if (!running || !state.alive) {
+      state.moving = false;
       state.swingTPrev = swingT;
       state.blocking = false;
+      state.usePressed = false;
+      state.swinging = false;
+      stepBody(dt);
       pose(dt, 0);
       placeCamera();
       trackGuard();
@@ -610,7 +796,7 @@ export function createPlayer(camera, materials, start) {
       return;
     }
 
-    state.blocking = input.block;
+    state.blocking = input.block && state.equipped;
     const sin = Math.sin(state.yaw);
     const cos = Math.cos(state.yaw);
     const forwardX = -sin;
@@ -621,6 +807,7 @@ export function createPlayer(camera, materials, start) {
     let mz = forwardZ * -input.moveY + rightZ * input.moveX;
     const length = Math.hypot(mx, mz);
     const moving = length > 0.01;
+    state.moving = moving;
     let moveAmount = 0;
     if (moving) {
       const speed = PLAYER_SPEED * (state.blocking ? PLAYER_BLOCK_SPEED_FACTOR : 1);
@@ -631,9 +818,19 @@ export function createPlayer(camera, materials, start) {
       state.x = resolved.x;
       state.z = resolved.z;
     }
+    state.denyCooldown = Math.max(0, state.denyCooldown - dt);
+    if (!state.equipped && world.containsInterior(state.x, state.z)) {
+      const spot = world.threshold();
+      state.x = spot.x;
+      state.z = spot.z;
+      denyEntry();
+    } else if (!state.equipped && moving && world.nearGate(state.x, state.z)) {
+      const press = (mx / length) * world.gateInward.x + (mz / length) * world.gateInward.z;
+      if (press > 0.35) denyEntry();
+    }
     state.room = world.roomAt(state.x, state.z, state.room?.id);
 
-    if (input.attack && state.attackWait <= 0 && state.swing <= 0) {
+    if (state.equipped && input.attack && state.attackWait <= 0 && state.swing <= 0) {
       state.attackWait = state.attackInterval;
       state.swing = state.attackInterval;
       state.struck.clear();
@@ -665,6 +862,16 @@ export function createPlayer(camera, materials, start) {
         }
       }
     }
+    state.usePressed = !!input.use;
+    state.swinging = striking;
+    if (striking && world.openChestAt) {
+      const gold = world.openChestAt(state.x, state.z, forwardX, forwardZ);
+      if (gold > 0) {
+        state.gold += gold;
+        connected = true;
+        audio.chestOpen({ x: state.x, y: 1.4, z: state.z });
+      }
+    }
     if (connected) {
       state.swing = state.attackInterval * (1 - SWING_CONTACT);
       state.swingTPrev = SWING_CONTACT;
@@ -673,6 +880,7 @@ export function createPlayer(camera, materials, start) {
       state.swingTPrev = swingNow;
     }
 
+    stepBody(dt);
     pose(dt, moveAmount);
     placeCamera();
     trackGuard();
@@ -730,10 +938,22 @@ export function createPlayer(camera, materials, start) {
     state.walkBlend = 0;
     state.lagYaw = 0;
     state.lagPitch = 0;
+    state.bodyYaw = 0;
+    body.rotation.y = 0;
+    lastX = nextStart.x;
+    lastZ = nextStart.z;
+    currentVelocity.set(0, 0, 0);
+    bodyRig.update(0, currentVelocity);
     state.prevYaw = nextStart.yaw;
     state.prevPitch = -0.08;
     clearHitStop();
     state.room = null;
+    state.equipped = false;
+    state.gold = 0;
+    state.moving = false;
+    state.denySerial = 0;
+    state.denyCooldown = 0;
+    applyGear();
     state.struck.clear();
     state.swingTPrev = 0;
     state.gait = 0;
@@ -746,16 +966,36 @@ export function createPlayer(camera, materials, start) {
     updateTorch(0);
   }
 
+  function stepBody(delta) {
+    const step = Math.max(delta, 1e-4);
+    currentVelocity.set((state.x - lastX) / step / METRE, 0, (state.z - lastZ) / step / METRE);
+    if (delta <= 0) currentVelocity.set(0, 0, 0);
+    lastX = state.x;
+    lastZ = state.z;
+    bodyRig.update(delta, currentVelocity);
+  }
+
+  applyGear();
+  stepBody(0);
   pose(0, 0);
   placeCamera();
   trackGuard();
   updateTorch(0);
 
+  function equip() {
+    if (state.equipped) return false;
+    state.equipped = true;
+    applyGear();
+    return true;
+  }
+
   return {
     state,
+    bodyRig,
     update,
     hurt,
     reset,
+    equip,
     reconcileXp,
     weapons: {
       rightHand: hands.mace,

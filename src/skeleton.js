@@ -16,6 +16,35 @@ import {
 } from './balance.js';
 import { closestApproach3, closestOnSegment, lineOfSight, pointInPolygon, randomPointInPolygon, resolveBody } from './geometry.js';
 import { audio } from './audio.js';
+import { TriggerDustFall } from './dust.js';
+
+function longBone(length, radius) {
+  return new THREE.CapsuleGeometry(radius, Math.max(0.08, length - radius * 2), 2, 5);
+}
+
+function ribArc() {
+  const geometry = new THREE.TorusGeometry(0.38, 0.035, 3, 8, Math.PI * 0.95);
+  geometry.rotateX(Math.PI / 2);
+  return geometry;
+}
+
+function looseFragment(kind, material) {
+  let geometry;
+  if (kind === 'femur') geometry = new THREE.CapsuleGeometry(0.07, 0.82, 2, 5);
+  else if (kind === 'rib') {
+    geometry = new THREE.TorusGeometry(0.3, 0.035, 3, 7, Math.PI * 0.85);
+    geometry.rotateX(Math.PI / 2);
+  } else {
+    geometry = new THREE.TetrahedronGeometry(0.16, 0);
+    geometry.scale(1.35, 0.62, 0.9);
+  }
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.userData.fragment = true;
+  mesh.userData.bone = true;
+  return mesh;
+}
 
 function addPart(parent, geometry, material, x, y, z, isBone = false) {
   const mesh = new THREE.Mesh(geometry, material);
@@ -54,8 +83,7 @@ const POSE_KEYS = ['sx', 'sy', 'sz', 'ex', 'wx', 'tx', 'ty'];
 const WINDUP_DRAW = 0.68;
 const FOLLOW_SHARE = 0.24;
 const LEG_LENGTH = 2.48;
-const SKULL_RADIUS = 0.34;
-const SKULL_REST_Y = 1.43;
+const SKULL_REST_Y = 1.16;
 
 // Archer keyframes. The skeleton faces +Z. The bow rides in the arm on the +X side (the skeleton's
 // anatomical left) and the other arm draws the string. Aim and draw poses were solved with inverse
@@ -345,6 +373,70 @@ function rigBow(mesh, aim, nocked) {
   bow.arrow.group.quaternion.setFromUnitVectors(AXIS_NEG_Z, dir);
 }
 
+function nasalCavityGeometry() {
+  const shape = new THREE.Shape();
+  shape.moveTo(0, 0.075);
+  shape.bezierCurveTo(0.05, 0.04, 0.055, -0.01, 0.032, -0.07);
+  shape.lineTo(0, -0.018);
+  shape.lineTo(-0.032, -0.07);
+  shape.bezierCurveTo(-0.055, -0.01, -0.05, 0.04, 0, 0.075);
+  const geometry = new THREE.ExtrudeGeometry(shape, { depth: 0.1, bevelEnabled: false });
+  geometry.translate(0, 0, -0.1);
+  return geometry;
+}
+
+function buildSkull(materials) {
+  const bone = materials.bone;
+  const cavity = materials.socket;
+  const cranium = new THREE.Group();
+  const vault = new THREE.IcosahedronGeometry(0.25, 0);
+  vault.scale(1.18, 0.92, 1.22);
+  addPart(cranium, vault, bone, 0, 0.18, -0.02, true);
+  const occiput = new THREE.OctahedronGeometry(0.11, 0);
+  occiput.scale(1.15, 0.85, 1.45);
+  addPart(cranium, occiput, bone, 0, 0.1, -0.2, true);
+  const brow = new THREE.CylinderGeometry(0.18, 0.22, 0.09, 5);
+  brow.rotateX(Math.PI / 2);
+  brow.scale(1.2, 0.62, 0.5);
+  addPart(cranium, brow, bone, 0, 0.13, 0.16, true);
+  for (const side of [-1, 1]) {
+    const arch = new THREE.TorusGeometry(0.1, 0.016, 3, 6, Math.PI * 0.9);
+    arch.rotateY(side * Math.PI / 2);
+    arch.rotateX(0.35);
+    addPart(cranium, arch, bone, 0.16 * side, 0.02, 0.05, true);
+    const cheek = new THREE.OctahedronGeometry(0.055, 0);
+    cheek.scale(1.35, 0.65, 1.05);
+    addPart(cranium, cheek, bone, 0.2 * side, -0.02, 0.12, true);
+    addPart(cranium, new THREE.BoxGeometry(0.1, 0.08, 0.14), cavity, 0.1 * side, 0.07, 0.07);
+    addPart(
+      cranium,
+      new THREE.SphereGeometry(0.012, 4, 3),
+      materials.ember,
+      0.1 * side,
+      0.065,
+      0.015,
+      false,
+    );
+  }
+  const maxilla = new THREE.CylinderGeometry(0.04, 0.13, 0.15, 4);
+  maxilla.scale(1.35, 1, 0.8);
+  addPart(cranium, maxilla, bone, 0, -0.06, 0.12, true);
+  addPart(cranium, new THREE.BoxGeometry(0.2, 0.022, 0.035), bone, 0, -0.14, 0.16, true);
+  addPart(cranium, nasalCavityGeometry(), cavity, 0, -0.01, 0.2);
+
+  const jaw = new THREE.Group();
+  jaw.position.set(0, -0.2, -0.01);
+  const mandible = new THREE.TorusGeometry(0.12, 0.032, 3, 7, Math.PI);
+  mandible.rotateX(Math.PI * 0.5);
+  addPart(jaw, mandible, bone, 0, 0.01, 0.02, true);
+  const chin = new THREE.OctahedronGeometry(0.055, 0);
+  chin.scale(0.85, 0.6, 1.25);
+  addPart(jaw, chin, bone, 0, -0.02, 0.13, true);
+  addPart(jaw, new THREE.BoxGeometry(0.16, 0.02, 0.03), bone, 0, 0.045, 0.11, true);
+  const eyes = cranium.children.filter((child) => child.material === materials.ember);
+  return { cranium, jaw, eyeL: eyes[0], eyeR: eyes[1] };
+}
+
 function pieceOf(node, ball = 0) {
   return {
     node,
@@ -370,35 +462,29 @@ function buildMesh(materials, weapon) {
   fall.add(spine);
   const column = addPart(spine, new THREE.BoxGeometry(0.22, 0.85, 0.2), bone, 0, 0.45, 0, true);
   const ribs = [];
-  for (let rib = 0; rib < 3; rib += 1) {
-    ribs.push(addPart(spine, new THREE.BoxGeometry(0.78, 0.08, 0.34), bone, 0, 0.35 + rib * 0.22, 0.02, true));
+  for (let rib = 0; rib < 4; rib += 1) {
+    ribs.push(addPart(spine, ribArc(), bone, 0, 0.28 + rib * 0.18, 0.04, true));
   }
-  addPart(spine, new THREE.BoxGeometry(0.66, 0.42, 0.1), materials.socket, 0, 0.57, 0.11);
+  addPart(spine, new THREE.BoxGeometry(0.5, 0.36, 0.08), materials.socket, 0, 0.55, 0.12);
 
-  // The skull pivots on its own centre so it rolls like a ball once it comes loose.
   const skull = new THREE.Group();
-  skull.position.set(0, SKULL_REST_Y, 0);
+  skull.position.set(0, SKULL_REST_Y, 0.03);
   spine.add(skull);
-  const skullGeometry = new THREE.SphereGeometry(SKULL_RADIUS, 20, 14);
-  skullGeometry.computeVertexNormals();
-  addPart(skull, skullGeometry, bone, 0, 0, 0, true);
-  addPart(skull, new THREE.BoxGeometry(0.28, 0.12, 0.22), bone, 0, -0.26, 0.12, true);
-  addPart(skull, new THREE.BoxGeometry(0.12, 0.1, 0.08), materials.socket, -0.12, 0.02, 0.26);
-  addPart(skull, new THREE.BoxGeometry(0.12, 0.1, 0.08), materials.socket, 0.12, 0.02, 0.26);
-  const eyeL = addPart(skull, new THREE.SphereGeometry(0.035, 6, 6), materials.eye, -0.12, 0.02, 0.32);
-  const eyeR = addPart(skull, new THREE.SphereGeometry(0.035, 6, 6), materials.eye, 0.12, 0.02, 0.32);
+  addPart(spine, new THREE.CapsuleGeometry(0.07, 0.28, 2, 5), bone, 0, 0.98, 0.03, true);
+  const { cranium, jaw, eyeL, eyeR } = buildSkull(materials);
+  skull.add(cranium, jaw);
 
   function limb(side) {
     const shoulder = new THREE.Group();
     shoulder.name = side > 0 ? 'SkeletonArm_R' : 'SkeletonArm_L';
     shoulder.position.set(0.48 * side, 0.85, 0);
     spine.add(shoulder);
-    const upper = addPart(shoulder, new THREE.BoxGeometry(0.12, 0.95, 0.12), bone, 0, -0.5, 0, true);
+    const upper = addPart(shoulder, longBone(0.95, 0.07), bone, 0, -0.5, 0, true);
     const elbow = new THREE.Group();
     elbow.name = side > 0 ? 'Forearm_R' : 'Forearm_L';
     elbow.position.y = -0.98;
     shoulder.add(elbow);
-    const fore = addPart(elbow, new THREE.BoxGeometry(0.1, 0.85, 0.1), bone, 0, -0.42, 0, true);
+    const fore = addPart(elbow, longBone(0.85, 0.055), bone, 0, -0.42, 0, true);
     const wrist = new THREE.Group();
     wrist.name = side > 0 ? 'WristJoint_R' : 'WristJoint_L';
     wrist.position.y = -0.86;
@@ -412,11 +498,11 @@ function buildMesh(materials, weapon) {
     const hip = new THREE.Group();
     hip.position.set(0.18 * side, 2.9, 0);
     fall.add(hip);
-    const thigh = addPart(hip, new THREE.BoxGeometry(0.14, 1.25, 0.14), bone, 0, -0.65, 0, true);
+    const thigh = addPart(hip, longBone(1.25, 0.08), bone, 0, -0.65, 0, true);
     const knee = new THREE.Group();
     knee.position.y = -1.28;
     hip.add(knee);
-    const shin = addPart(knee, new THREE.BoxGeometry(0.12, 1.2, 0.12), bone, 0, -0.6, 0, true);
+    const shin = addPart(knee, longBone(1.2, 0.06), bone, 0, -0.6, 0, true);
     return { hip, knee, thigh, shin };
   }
 
@@ -450,7 +536,8 @@ function buildMesh(materials, weapon) {
     armL.upper, armL.fore, armL.wrist, armR.upper, armR.fore, armR.wrist,
     legL.thigh, legL.shin, legR.thigh, legR.shin,
   ].map((node) => pieceOf(node));
-  pieces.push(pieceOf(skull, SKULL_RADIUS));
+  pieces.push(pieceOf(cranium));
+  pieces.push(pieceOf(jaw));
   if (held) pieces.push(pieceOf(held));
   return { root, fall, spine, skull, eyeL, eyeR, armL, armR, legL, legR, bow, held, pieces };
 }
@@ -484,6 +571,7 @@ export function createSkeletons(parent, dungeon, materials) {
       const mesh = buildMesh(materials, weapon);
       mesh.root.position.set(spawn[0], 0, spawn[1]);
       parent.add(mesh.root);
+      mesh.root.visible = false;
       list.push({
         id: spawnId,
         room,
@@ -507,6 +595,7 @@ export function createSkeletons(parent, dungeon, materials) {
         paint: materials.bone,
         knockX: 0,
         knockZ: 0,
+        dustWait: 0,
         reactT: 99,
         speed: 0,
         stride: 0,
@@ -669,7 +758,7 @@ export function createSkeletons(parent, dungeon, materials) {
           && closestApproach3(arrow.x, arrow.y, arrow.z, nextX, nextY, nextZ, player.guardX, player.guardY, player.guardZ).distance <= GUARD_RADIUS
           && hurt(0, { kind: 'arrow', deflected: true })) {
           bounceArrow(arrow, player);
-          arrow.mesh.quaternion.setFromUnitVectors(AXIS_NEG_Z, new THREE.Vector3(arrow.vx, arrow.vy, arrow.vz).normalize());
+          arrow.mesh.quaternion.setFromUnitVectors(AXIS_NEG_Z, arrowAim.set(arrow.vx, arrow.vy, arrow.vz).normalize());
           continue;
         }
         const closest = closestOnSegment(player.x, player.z, arrow.x, arrow.z, nextX, nextZ);
@@ -781,6 +870,33 @@ export function createSkeletons(parent, dungeon, materials) {
         target: null,
       };
     });
+    const kinds = ['femur', 'femur', 'rib', 'rib', 'rib', 'skull', 'skull'];
+    for (const kind of kinds) {
+      const meshBit = looseFragment(kind, materials.bone);
+      meshBit.position.set(
+        skeleton.x + (Math.random() - 0.5) * 0.8,
+        2.4 + Math.random() * 2.2,
+        skeleton.z + (Math.random() - 0.5) * 0.8,
+      );
+      group.add(meshBit);
+      const box = localBounds(meshBit);
+      const angle = Math.random() * Math.PI * 2;
+      pieces.push({
+        node: meshBit,
+        ball: 0,
+        dims: box.getSize(new THREE.Vector3()),
+        corners: boxCorners(box),
+        vel: new THREE.Vector3(
+          (Math.cos(angle) * 0.6 + dirX) * SCATTER,
+          (1.2 + Math.random() * 1.8) * METER,
+          (Math.sin(angle) * 0.6 + dirZ) * SCATTER,
+        ),
+        spin: new THREE.Vector3((Math.random() - 0.5) * 14, (Math.random() - 0.5) * 14, (Math.random() - 0.5) * 14),
+        bounces: 0,
+        mode: 'fly',
+        target: null,
+      });
+    }
     mesh.root.visible = false;
     skeleton.shattered = true;
     skeleton.debris = {
@@ -916,6 +1032,9 @@ export function createSkeletons(parent, dungeon, materials) {
   function dropDebris(skeleton) {
     const debris = skeleton.debris;
     if (!debris) return;
+    debris.group.traverse((object) => {
+      if (object.userData?.fragment) object.geometry?.dispose();
+    });
     parent.remove(debris.group);
     if (debris.fade) for (const twin of debris.fade) twin.dispose();
     skeleton.debris = null;
@@ -958,7 +1077,8 @@ export function createSkeletons(parent, dungeon, materials) {
     skeleton.knockX = (dirX / len) * 12;
     skeleton.knockZ = (dirZ / len) * 12;
     skeleton.aggro = true;
-    audio.hit();
+    audio.hit({ x: skeleton.x, y: 3.3, z: skeleton.z });
+    TriggerDustFall(skeleton.hp > 0 ? 1.15 : 2.5, { x: skeleton.x, y: 3.4, z: skeleton.z });
     if (skeleton.hp > 0) return false;
     skeleton.hp = 0;
     skeleton.dead = true;
@@ -1026,13 +1146,24 @@ export function createSkeletons(parent, dungeon, materials) {
     skeleton.reactT = 0;
   }
 
+  function puffDust(skeleton, x, y, z, power) {
+    if (skeleton.dustWait > 0) return;
+    skeleton.dustWait = 0.4;
+    TriggerDustFall(power, { x, y, z });
+  }
+
   function slideKnock(skeleton, dt) {
     if (!skeleton.knockX && !skeleton.knockZ) return;
     skeleton.x += skeleton.knockX * dt;
     skeleton.z += skeleton.knockZ * dt;
+    const knockedX = skeleton.x;
+    const knockedZ = skeleton.z;
     const resolved = resolveBody(skeleton.x, skeleton.z, SKELETON_RADIUS, dungeon.colliders);
     skeleton.x = resolved.x;
     skeleton.z = resolved.z;
+    if (Math.hypot(resolved.x - knockedX, resolved.z - knockedZ) > 0.12) {
+      puffDust(skeleton, resolved.x, 3.6, resolved.z, 1.6);
+    }
     const decay = Math.exp(-8 * dt);
     skeleton.knockX *= decay;
     skeleton.knockZ *= decay;
@@ -1133,10 +1264,13 @@ export function createSkeletons(parent, dungeon, materials) {
     springPose(drawPose, skeleton.velL, { ...DRAW_CARRY, sx: DRAW_CARRY.sx + stridePhase * 0.3 }, 6, dt);
   }
 
+  const paceByRoom = new Map();
+  const arrowAim = new THREE.Vector3();
   function update(dt, player, hurt, slider, running, realDt = dt) {
-    const paceByRoom = new Map(
-      dungeon.rooms.map((room) => [room.id, paceMultiplier(room.index, slider, dungeon.rooms.length)]),
-    );
+    paceByRoom.clear();
+    for (const room of dungeon.rooms) {
+      paceByRoom.set(room.id, paceMultiplier(room.index, slider, dungeon.rooms.length));
+    }
     for (const skeleton of list) {
       const pace = paceByRoom.get(skeleton.room.id);
       const mesh = skeleton.mesh;
@@ -1150,11 +1284,17 @@ export function createSkeletons(parent, dungeon, materials) {
       const startX = skeleton.x;
       const startZ = skeleton.z;
       const home = pointInPolygon(skeleton.x, skeleton.z, skeleton.room.polygon);
+      const shown = dungeon.roomVisible ? dungeon.roomVisible(skeleton.room.id) : true;
+      mesh.root.visible = shown;
+      if (!shown) {
+        tickDebris(skeleton, dt);
+        continue;
+      }
       skeleton.at = home && !skeleton.aggro ? skeleton.room : dungeon.roomAt(skeleton.x, skeleton.z, skeleton.at.id);
       // Seeing the player is what starts the hunt: standing in the skeleton's room, or a clear line to
       // them through a doorway or down a passage. Once started it never ends on its own. The only way
       // out is the player's death, so a skeleton cannot lose interest and wander back to its circuit.
-      if (running && player.alive && !skeleton.aggro) {
+      if (running && player.alive && !skeleton.aggro && dungeon.intruded) {
         const sameRoom = player.room && player.room.id === skeleton.room.id;
         const dx = player.x - skeleton.x;
         const dz = player.z - skeleton.z;
@@ -1264,10 +1404,16 @@ export function createSkeletons(parent, dungeon, materials) {
             skeleton.z += (dz / dist) * (1.7 - dist) * 2.2 * dt;
           }
         }
+        const intendedX = skeleton.x;
+        const intendedZ = skeleton.z;
         const resolved = resolveBody(skeleton.x, skeleton.z, SKELETON_RADIUS, dungeon.colliders);
         skeleton.x = resolved.x;
         skeleton.z = resolved.z;
+        if (Math.hypot(resolved.x - intendedX, resolved.z - intendedZ) > 0.1) {
+          puffDust(skeleton, resolved.x, 4.2, resolved.z, 1.35);
+        }
       }
+      if (skeleton.dustWait > 0) skeleton.dustWait = Math.max(0, skeleton.dustWait - dt);
 
       // Stride follows the ground actually covered (walls, doors, and crowding included),
       // so the feet never skate. Knockback slides are excluded on purpose.
@@ -1418,6 +1564,9 @@ export function createSkeletons(parent, dungeon, materials) {
     damage,
     livingIn(roomId) {
       return living().filter((skeleton) => skeleton.room.id === roomId).length;
+    },
+    fallen() {
+      return list.filter((skeleton) => skeleton.dead).length;
     },
     cryptCleared() {
       const last = list.filter((skeleton) => skeleton.room.id === dungeon.lastRoomId);
