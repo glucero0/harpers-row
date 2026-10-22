@@ -31,3 +31,43 @@ Armor softens every hit. Holding block (right click or left trigger) is done wit
 Clear the last room to finish. Reaching zero health ends the run. Dying or finishing and choosing another descent builds a different layout. The sliders stay where you left them.
 
 The game runs entirely in the browser. Slider values are stored locally and are ignored if they are not a number from 0 to 1.
+
+## Architecture
+
+The codebase is built from small `createX(...)` factory functions that return a plain object closing
+over private state — meshes, materials, vectors, flags — rather than classes. Modules are grouped by
+concern:
+
+- **Config/math** (`balance.js`, `geometry.js`) — pure constants and functions, no THREE, no DOM.
+- **World generation** (`rooms.js`) — the pure procedural dungeon layout generator.
+- **Content/rendering** (`dungeon.js`, `materials.js`, `flame.js`, `torch.js`, `sconce.js`, `dust.js`, `player-body.js`, ...) — turns config and layout into THREE objects and owns their GPU resources.
+- **Entities** (`player.js`, `skeleton.js`) — autonomous actors with their own state machines.
+- **Systems** (`input.js`, `audio.js`, `ui.js`, `impact.js`) — cross-cutting concerns not tied to one entity.
+- **Engine** (`main.js`) — the render loop, window resize, and the restart cycle that wires everything together. The renderer pixel ratio is capped at 1.5 so 2.5K/3K laptop panels stay at 60 fps on integrated GPUs. Wall sconces farther than 15 units turn their point light off and keep the flame mesh; only the held torch casts a shadow map. Repeated props (pillars, rocks, foliage in a future area) belong in a shared batched mesh, the way walls and floors already do.
+
+Every stateful module follows the same lifecycle contract (`update()`, and `dispose()`/`unload()` for
+anything that owns GPU resources or `window`/`document` listeners), documented in full in
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). New gameplay content — an enemy type, a chamber theme, a
+future area — is added as a new file in the matching layer rather than a special case inside `main.js`.
+[.cursor/rules/game-architecture.mdc](.cursor/rules/game-architecture.mdc) and
+[.cursor/skills/adding-game-modules](.cursor/skills/adding-game-modules/SKILL.md) encode these rules for
+AI-assisted changes.
+
+## Testing
+
+```bash
+npm test            # run the full suite once (Vitest)
+npm run test:watch  # re-run on change
+```
+
+Pure-logic specs (`balance`, `geometry`, `rooms`) run under Node. Specs that touch `window`/`document`
+(`ui`, `input`, `audio`) or build real THREE scenes with real materials (`dungeon`, `skeleton`, `player`,
+`materials`, `lifecycle`) opt into a jsdom environment. The `lifecycle.test.js` suite specifically
+replays the game's restart cycle (dispose the dungeon, build a fresh one) several times in a row and
+asserts the scene and GPU-resource disposal counts return to the same baseline every time, rather than
+leaking across restarts. Every new or changed module should land with a spec covering its `update()` and,
+if it owns resources, that `dispose()` cleans them up and is safe to call twice — see
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full contract.
+
+A GitHub Actions workflow (`.github/workflows/ci.yml`) runs `npm test` and `npm run build` on every push
+and pull request.

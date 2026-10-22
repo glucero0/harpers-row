@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import test from 'node:test';
+import { test } from 'vitest';
 import { closestApproach3 } from './geometry.js';
 
 test('closestApproach3 measures the 3D distance from a point to a segment', () => {

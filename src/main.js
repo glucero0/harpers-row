@@ -6,6 +6,7 @@ import { createDungeon } from './dungeon.js';
 import { setDustLight } from './dust.js';
 import { createInput } from './input.js';
 import { createMaterials } from './materials.js';
+import { cappedPixelRatio } from './pixel-ratio.js';
 import { createPlayer } from './player.js';
 import { generateLayout, randomSeed } from './rooms.js';
 import { createSkeletons } from './skeleton.js';
@@ -13,9 +14,11 @@ import { createUI } from './ui.js';
 
 const canvas = document.querySelector('#game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+renderer.setPixelRatio(cappedPixelRatio(window.devicePixelRatio));
 
 function fit() {
+  // Re-apply on resize: dragging the window onto a sharper panel must not lift the cap.
+  renderer.setPixelRatio(cappedPixelRatio(window.devicePixelRatio));
   const width = Math.max(1, window.innerWidth);
   const height = Math.max(1, window.innerHeight);
   camera.aspect = width / height;

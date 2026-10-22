@@ -1,4 +1,26 @@
-node_modules
-dist
+# Dependencies
+node_modules/
+
+# Environment & Secrets
+.env
+.env.local
+.env.*.local
+
+# Build / Bundle outputs (Vite, Webpack, Rollup)
+dist/
+build/
+.parcel-cache/
+
+# OS / Editor junk
 .DS_Store
-*.log
+Thumbs.db
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Large or temporary local 3D assets (optional, adjust as needed)
+*.blend1
+*.tmp

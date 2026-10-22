@@ -3,7 +3,9 @@ import { SWORD_ARC, SWORD_RANGE } from './balance.js';
 import { clearDustField, createDustField } from './dust.js';
 import { clearance, closestOnSegment, lineOfSight, pointInPolygon } from './geometry.js';
 import { audio } from './audio.js';
-import { createWallSconce } from './sconce.js';
+import { SCONCE_LIGHT_CULL_DISTANCE, createWallSconce } from './sconce.js';
+
+const SCONCE_LIGHT_CULL_DISTANCE_SQ = SCONCE_LIGHT_CULL_DISTANCE * SCONCE_LIGHT_CULL_DISTANCE;
 
 const WALL_HEIGHT = 10;
 const DOOR_HEIGHT = 7;
@@ -743,6 +745,9 @@ export function createDungeon(scene, materials, layout) {
   const dust = createDustField(root);
   const approach = layout.approach || { midX: 0, southZ: 0 };
   const sun = new THREE.DirectionalLight(0xb7c0c8, SUN_OUTDOOR);
+  // Daylight does not cast a shadow map. The held torch is the single shadow-casting light,
+  // so integrated GPUs only ever render one shadow pass.
+  sun.castShadow = false;
   sun.position.set(approach.midX + 22, 42, approach.southZ + 26);
   const sunTarget = new THREE.Object3D();
   sunTarget.position.set(approach.midX, 6, approach.southZ);
@@ -819,6 +824,7 @@ export function createDungeon(scene, materials, layout) {
     coinMouth.set(0, 0.45, 0);
     chest.group.localToWorld(coinMouth);
     const flash = new THREE.PointLight(0xffc56a, 24, 6, 2);
+    flash.castShadow = false;
     flash.position.copy(coinMouth);
     root.add(flash);
     const material = materials.gold.clone();
@@ -870,6 +876,7 @@ export function createDungeon(scene, materials, layout) {
     doors,
     colliders,
     chests,
+    sconces,
     lastRoomId: layout.lastRoomId,
     group: root,
     gateInward: layout.gateInward || { x: 0, z: -1 },
@@ -994,7 +1001,7 @@ export function createDungeon(scene, materials, layout) {
         const dx = sconce.x - x;
         const dz = sconce.z - z;
         const hidden = !shown || !sconce.interactable.lit
-          || dx * dx + dz * dz > 225
+          || dx * dx + dz * dz > SCONCE_LIGHT_CULL_DISTANCE_SQ
           || !lineOfSight(x, z, sconce.x, sconce.z, colliders);
         sconce.interactable.cullLight(hidden);
         sconce.interactable.update(dt, time);

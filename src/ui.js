@@ -58,17 +58,29 @@ export function createUI({ onRestart, onEquip }) {
 
   paceSlider.value = String(readSlider(PACE_KEY));
   xpSlider.value = String(readSlider(XP_KEY));
-  paceSlider.addEventListener('input', () => writeSlider(PACE_KEY, paceSlider.value));
-  xpSlider.addEventListener('input', () => writeSlider(XP_KEY, xpSlider.value));
-  document.querySelector('#restart').addEventListener('click', (event) => {
+  const restartButton = document.querySelector('#restart');
+
+  function onPaceInput() {
+    writeSlider(PACE_KEY, paceSlider.value);
+  }
+  function onXpInput() {
+    writeSlider(XP_KEY, xpSlider.value);
+  }
+  function onRestartClick(event) {
     event.stopPropagation();
     onRestart();
-  });
-  equipButton.addEventListener('click', (event) => {
+  }
+  function onEquipClick(event) {
     event.stopPropagation();
     event.preventDefault();
     onEquip();
-  });
+  }
+
+  paceSlider.addEventListener('input', onPaceInput);
+  xpSlider.addEventListener('input', onXpInput);
+  restartButton.addEventListener('click', onRestartClick);
+  equipButton.addEventListener('click', onEquipClick);
+  let disposed = false;
 
   return {
     pace() {
@@ -138,6 +150,16 @@ export function createUI({ onRestart, onEquip }) {
         overlayText.textContent = 'The mouse is free, so the fight waits. Drag the sliders, then click to continue.';
         overlayPrompt.textContent = 'Click to continue';
       }
+    },
+    // Removes every DOM listener createUI() attached, per the module lifecycle contract in
+    // docs/ARCHITECTURE.md. Idempotent: safe to call more than once.
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      paceSlider.removeEventListener('input', onPaceInput);
+      xpSlider.removeEventListener('input', onXpInput);
+      restartButton.removeEventListener('click', onRestartClick);
+      equipButton.removeEventListener('click', onEquipClick);
     },
   };
 }

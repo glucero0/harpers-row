@@ -1,0 +1,71 @@
+---
+description: Dungeon Combater modularity, lifecycle, and performance rules for src/**/*.js
+globs: src/**/*.js
+alwaysApply: false
+---
+
+# Dungeon Combater Architecture Rules
+
+Full contract and module map: [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md). This file is the
+condensed, enforceable version.
+
+## 1. Factory functions, not classes
+
+- This codebase uses `createX(...)` factory functions returning plain objects that close over private
+  state (meshes, materials, vectors, flags). There is no class hierarchy.
+- Do NOT rewrite existing modules (`player.js`, `skeleton.js`, `dungeon.js`, etc.) into ES6 classes, and
+  do not introduce new entity/area classes. Keep using closures for private state.
+
+## 2. Module lifecycle contract
+
+Every stateful factory implements some subset of `update`, `dispose`, `unload`, `load`, `init` — only the
+hooks it actually needs (see docs/ARCHITECTURE.md for the full JSDoc contract). Concretely:
+
+- `update(dt, ...)` must never allocate a new object/array/`THREE.Vector3` in the hot path. Reuse scratch
+  variables declared once in closure scope (see `dungeon.js`'s batching, `skeleton.js`'s animation code).
+- Any module that creates its own `THREE.BufferGeometry`/`Material`/`Texture`, or attaches a
+  `window`/`document` listener, MUST expose a `dispose()` that cleans all of it up and is safe to call
+  twice (idempotent — guard with a `disposed` flag, see `input.js`/`ui.js`/`materials.js`).
+- An object parented under another module's root (e.g. skeleton meshes under `dungeon.group`) does NOT
+  need its own `dispose()` — the owning module's dispose already walks that subtree. Don't add a
+  redundant one.
+- Materials flagged `material.userData.shared = true` must never be disposed by a single consumer mesh's
+  cleanup (many meshes share one instance) — only the factory that created them (`materials.js`) disposes
+  them, when the whole set is torn down.
+
+## 3. Extend, don't break
+
+- Prefer adding a new optional parameter or a new field on a factory's returned object over changing an
+  existing function signature or return shape.
+- If a breaking change to a shared factory (`player.js`, `skeleton.js`, `dungeon.js`, `materials.js`,
+  `balance.js`, `geometry.js`) is genuinely required, update every call site and every test depending on
+  the old shape in the same change, and say so explicitly rather than leaving it implicit.
+- New gameplay content (an enemy type, a chamber theme, a future area) is added as a new file composing
+  the existing systems — it must not require special-casing inside `main.js` beyond wiring the new
+  factory in the same way `createSkeletons`/`createPlayer` already are.
+
+## 4. Testing
+
+- Tests live next to the module as `*.test.js` (e.g. `skeleton.test.js` next to `skeleton.js`), run via
+  `npm test` (Vitest). Specs that touch `window`/`document` opt into jsdom with a
+  `// @vitest-environment jsdom` comment at the top of the file.
+- Prefer real collaborators over hand-rolled mocks for THREE/materials-heavy specs — e.g. build a real
+  `createMaterials()` (via `src/test-utils/testMaterials.js`) and a real `createDungeon()` from
+  `generateLayout()` rather than stubbing their shape, so tests don't silently drift from the real API.
+- Every new or materially-changed module should land with a spec covering its `update()` behavior and,
+  if it has one, that `dispose()` disposes what it created and is safe to call twice.
+- A change must keep `npm test` and `npm run build` green before it's considered done.
+
+## 5. Performance
+
+- Favor instancing/batching for repeated geometry (see `dungeon.js`'s wall/floor `BatchedMesh` usage)
+  over one mesh per piece of geometry. Pillars, rocks, foliage, and any future Forest Area props go in
+  a shared `BatchedMesh` or `InstancedMesh`. One scene node per copy is only for a unique interactive
+  object (a chest, a sconce).
+- Pool frequently spawned/destroyed objects instead of recreating them every time (see `skeleton.js`'s
+  bone-fragment debris pool).
+- Keep the renderer pixel ratio capped at 1.5 via `cappedPixelRatio()` (`src/pixel-ratio.js`). `main.js`
+  applies it at startup and on resize. Do not set an uncapped `window.devicePixelRatio`.
+- Wall-sconce point lights are distance-culled (`SCONCE_LIGHT_CULL_DISTANCE`, 15 units) by toggling
+  `PointLight.visible` only — the flame mesh stays visible. `castShadow` stays false on wall sconces,
+  chest lights, and the outdoor sun. The held torch is the only shadow-casting light.
