@@ -101,7 +101,7 @@ tests and the Cursor rule both check against this contract.
 - Wall-sconce point lights turn off past `SCONCE_LIGHT_CULL_DISTANCE` (15 units) and when occluded.
   The flame mesh stays visible. Those lights, the chest fill, the loot flash, and the outdoor sun all
   have `castShadow = false`. The held torch is the only light that casts a shadow map.
-- Repeated dressing — pillars, rocks, the dead trees outside the ruins, and any future Forest Area props — goes in one shared
+- Repeated dressing — pillars, rocks, the dead trees and scrub outside the ruins, and any future Forest Area props — goes in one shared
   `BatchedMesh` or `InstancedMesh`, the way `dungeon.js` already batches walls and floors. A unique
   interactive object (a chest, a sconce) can stay its own scene node. Do not add one mesh per copy of
   a repeated prop.

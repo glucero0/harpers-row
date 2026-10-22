@@ -242,6 +242,13 @@ describe('createDungeon', () => {
     expect(Math.max(size.x, size.y)).toBeGreaterThan(160);
     expect(dungeon.group.getObjectByName('dead-trees')).toBeTruthy();
     expect(dungeon.group.getObjectByName('approach-path')).toBeTruthy();
+    expect(dungeon.group.getObjectByName('vista-path')).toBeTruthy();
+    expect(dungeon.group.getObjectByName('scrub-brush')).toBeTruthy();
+    expect(dungeon.group.getObjectByName('mountain-west')).toBeFalsy();
+    expect(dungeon.group.getObjectByName('mountain-east')).toBeFalsy();
+    const range = dungeon.group.getObjectByName('mountain-range');
+    range.geometry.computeBoundingBox();
+    expect(range.geometry.boundingBox.max.z).toBeGreaterThan(layout.approach.samples.at(-1).z + 80);
     expect(dungeon.group.getObjectByName('approach-sky')).toBeTruthy();
     expect(dungeon.group.getObjectByName('contact-shadows')).toBeTruthy();
     expect(dungeon.group.getObjectByName('sun-shafts').parent.name).toBe('outdoor-zone');

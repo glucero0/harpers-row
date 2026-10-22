@@ -412,15 +412,7 @@ function clonePreset(preset) {
   };
 }
 
-function buildTrailSamples(midX, z0) {
-  const samples = [];
-  for (let i = 0; i <= PATH_SAMPLES; i += 1) {
-    const t = i / PATH_SAMPLES;
-    const z = z0 + t * PATH_LENGTH;
-    const x = midX + Math.sin(t * Math.PI) * 1.65;
-    const half = PATH_WIDTH / 2 + Math.sin(t * 8.4) * 0.42 + Math.sin(t * 3.1 + 0.7) * 0.26;
-    samples.push({ x, z, half, t });
-  }
+function stampTrailFrame(samples) {
   for (let i = 0; i < samples.length; i += 1) {
     const prev = samples[Math.max(0, i - 1)];
     const next = samples[Math.min(samples.length - 1, i + 1)];
@@ -435,6 +427,114 @@ function buildTrailSamples(midX, z0) {
     samples[i].nz = tx;
   }
   return samples;
+}
+
+function buildTrailSamples(midX, z0) {
+  const samples = [];
+  for (let i = 0; i <= PATH_SAMPLES; i += 1) {
+    const t = i / PATH_SAMPLES;
+    const z = z0 + t * PATH_LENGTH;
+    const x = midX + Math.sin(t * Math.PI) * 1.65;
+    const half = PATH_WIDTH / 2 + Math.sin(t * 8.4) * 0.42 + Math.sin(t * 3.1 + 0.7) * 0.26;
+    samples.push({ x, z, half, t });
+  }
+  return stampTrailFrame(samples);
+}
+
+const VISTA_LENGTH = 118;
+const VISTA_STEPS = 22;
+
+function vistaTree(sample, side, lateral, index, variant, scaleMul) {
+  const spec = DEAD_TREE_VARIANTS[variant];
+  const along = ((index % 5) - 2) * 0.85;
+  return {
+    x: sample.x + sample.nx * side * lateral + sample.tx * along,
+    z: sample.z + sample.nz * side * lateral + sample.tz * along,
+    nx: sample.nx,
+    nz: sample.nz,
+    tx: sample.tx,
+    tz: sample.tz,
+    scale: (0.78 + (index % 5) * 0.1) * scaleMul,
+    rotationY: (index * 1.17) % (Math.PI * 2),
+    lean: (index % 2 === 0 ? 1 : -1) * (6 + (index % 4)) * (Math.PI / 180),
+    leanAxis: (index * 0.73) % (Math.PI * 2),
+    variant,
+    branches: spec.branches,
+    height: spec.height,
+  };
+}
+
+// Scenery past the walkable hub: the path keeps going, and the range closes over its far end.
+// The hub polygon and the mountain-pass trigger stay where they are.
+export function buildMountainVista(end, hub) {
+  const path = [];
+  for (let i = 0; i <= VISTA_STEPS; i += 1) {
+    const t = i / VISTA_STEPS;
+    path.push({
+      x: end.x + Math.sin(t * Math.PI) * -3.1,
+      z: end.z + t * VISTA_LENGTH,
+      half: end.half + (4.35 - end.half) * t,
+      t,
+    });
+  }
+  stampTrailFrame(path);
+  const far = path[path.length - 1];
+  const mountains = [
+    { x: far.x - 96, z: far.z + 22, height: 62, radius: 38, yaw: 0.4, depth: 0.82 },
+    { x: far.x - 62, z: far.z + 10, height: 90, radius: 42, yaw: 0.2, depth: 0.74 },
+    { x: far.x - 34, z: far.z + 2, height: 108, radius: 36, yaw: -0.3, depth: 0.7 },
+    { x: far.x - 14, z: far.z + 6, height: 74, radius: 28, yaw: 0.15, depth: 0.78 },
+    { x: far.x, z: far.z + 14, height: 86, radius: 32, yaw: 0.05, depth: 0.66 },
+    { x: far.x + 16, z: far.z + 6, height: 78, radius: 28, yaw: -0.2, depth: 0.76 },
+    { x: far.x + 40, z: far.z + 4, height: 114, radius: 40, yaw: 0.35, depth: 0.72 },
+    { x: far.x + 72, z: far.z + 14, height: 96, radius: 44, yaw: -0.15, depth: 0.8 },
+    { x: far.x + 104, z: far.z + 26, height: 64, radius: 36, yaw: 0.5, depth: 0.84 },
+    { x: far.x - 48, z: far.z - 2, height: 28, radius: 30, yaw: 0.25, depth: 0.7 },
+    { x: far.x - 22, z: far.z - 8, height: 22, radius: 26, yaw: 0.6, depth: 0.62 },
+    { x: far.x, z: far.z - 2, height: 16, radius: 20, yaw: 0.1, depth: 0.55 },
+    { x: far.x + 22, z: far.z - 8, height: 20, radius: 24, yaw: -0.4, depth: 0.6 },
+    { x: far.x + 50, z: far.z - 2, height: 30, radius: 32, yaw: -0.55, depth: 0.68 },
+  ];
+  const trees = [];
+  const scrub = [];
+  const clearZ = hub.z + hub.d + 1.6;
+  for (let i = 1; i < path.length; i += 1) {
+    const sample = path[i];
+    if (sample.z < clearZ || sample.t > 0.8) continue;
+    const side = i % 2 === 0 ? -1 : 1;
+    const lateral = sample.half + 2.6 + (i % 4) * 1.15;
+    trees.push(vistaTree(sample, side, lateral, i, i % DEAD_TREE_VARIANTS.length, 1));
+    if (i % 2 === 0) {
+      trees.push(vistaTree(sample, side, lateral + 6.5, i + 11, (i + 2) % DEAD_TREE_VARIANTS.length, 0.82));
+    }
+    for (const brushSide of [-1, 1]) {
+      const brushLateral = sample.half + 1.35 + ((i + (brushSide > 0 ? 1 : 0)) % 3) * 0.7;
+      const along = ((i % 3) - 1) * 1.15;
+      scrub.push({
+        x: sample.x + sample.nx * brushSide * brushLateral + sample.tx * along,
+        z: sample.z + sample.nz * brushSide * brushLateral + sample.tz * along,
+        scale: 0.75 + (i % 4) * 0.22,
+        rotationY: (i * 1.31 + (brushSide > 0 ? 0.4 : 0)) % (Math.PI * 2),
+        variant: (i + (brushSide > 0 ? 1 : 0)) % 2,
+      });
+      if (i % 3 !== 0) continue;
+      const farLateral = brushLateral + 4.8;
+      scrub.push({
+        x: sample.x + sample.nx * brushSide * farLateral - sample.tx * 0.8,
+        z: sample.z + sample.nz * brushSide * farLateral - sample.tz * 0.8,
+        scale: 0.6 + (i % 3) * 0.2,
+        rotationY: (i * 0.77) % (Math.PI * 2),
+        variant: i % 2,
+      });
+    }
+  }
+  return {
+    description: 'Scrub and dead trees follow a long dirt path away from the pass until the mountain range meets it.',
+    path,
+    mountains,
+    scrub,
+    trees,
+  };
 }
 
 function pointOnTrail(samples, t) {
@@ -671,7 +771,8 @@ function shapeAncientRuins(layout, rng) {
     hub,
     corridorWidth: PATH_WIDTH + TRAIL_CLEARANCE,
     lighting: 'day',
-    description: 'A worn dirt path ends at a weathered stone arch. Thin clouds cross a pale blue sky, and pale sun falls between dead trees on the parched ground.',
+    description: 'A worn dirt path ends at a weathered stone arch. Thin clouds cross a pale blue sky, and pale sun falls between dead trees on the parched ground. Beyond the pass, scrub and dead trees follow the path until a mountain range meets it.',
+    vista: buildMountainVista(end, hub),
   };
   layout.transitions = [
     {

@@ -32,7 +32,7 @@ Clear the last room to finish. Reaching zero health ends the run. Dying or finis
 
 The game runs entirely in the browser. Slider values are stored locally and are ignored if they are not a number from 0 to 1.
 
-You start on a worn dirt trail in daylight: a pale sky, thin clouds, and dead trees on parched ground, with the stone arch of the ruins at the end of the path. The trail continues the other way, through a gap in the low hills. Walking into the arch, or out through that gap, fades the screen and moves you across. Inside the ruins the sky is gone — corridors fall off into black a short way ahead, and the torch is what you see by. Daylight outside does not cast a second shadow map; dark patches on the ground follow the sun so the torch can keep the only one.
+You start on a worn dirt trail in daylight: a pale sky, thin clouds, and dead trees on parched ground, with the stone arch of the ruins at the end of the path. The trail continues the other way, out of the mountain pass: scrub and dead trees follow a long dirt path that runs into a mountain range. Walking into the arch, or out through the pass, fades the screen and moves you across. Inside the ruins the sky is gone — corridors fall off into black a short way ahead, and the torch is what you see by. Daylight outside does not cast a second shadow map; dark patches on the ground follow the sun so the torch can keep the only one.
 
 ## Architecture
 
@@ -45,7 +45,7 @@ concern:
 - **Content/rendering** (`dungeon.js`, `materials.js`, `flame.js`, `torch.js`, `sconce.js`, `dust.js`, `player-body.js`, ...) — turns config and layout into THREE objects and owns their GPU resources.
 - **Entities** (`player.js`, `skeleton.js`) — autonomous actors with their own state machines.
 - **Systems** (`input.js`, `audio.js`, `ui.js`, `impact.js`, `zone-transition.js`) — cross-cutting concerns not tied to one entity. Zone changes (the ruin arch, the mountain pass) share one fade, teleport, and lighting preset.
-- **Engine** (`main.js`) — the render loop, window resize, and the restart cycle that wires everything together. The renderer pixel ratio is capped at 1.5 so 2.5K/3K laptop panels stay at 60 fps on integrated GPUs. Wall sconces farther than 15 units turn their point light off and keep the flame mesh; only the held torch casts a shadow map. Repeated props (pillars, rocks, and the dead trees on the trail) belong in a shared batched mesh, the way walls and floors already do.
+- **Engine** (`main.js`) — the render loop, window resize, and the restart cycle that wires everything together. The renderer pixel ratio is capped at 1.5 so 2.5K/3K laptop panels stay at 60 fps on integrated GPUs. Wall sconces farther than 15 units turn their point light off and keep the flame mesh; only the held torch casts a shadow map. Repeated props (pillars, rocks, and the dead trees and scrub on the trail) belong in a shared batched mesh, the way walls and floors already do.
 
 Every stateful module follows the same lifecycle contract (`update()`, and `dispose()`/`unload()` for
 anything that owns GPU resources or `window`/`document` listeners), documented in full in

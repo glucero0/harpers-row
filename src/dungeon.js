@@ -4,7 +4,7 @@ import { clearDustField, createDustField } from './dust.js';
 import { clearance, closestOnSegment, lineOfSight, pointInPolygon } from './geometry.js';
 import { audio } from './audio.js';
 import ancientRuinsData from './ancientRuinsData.json';
-import { DEAD_TREE_VARIANTS, ENVIRONMENT_PRESETS } from './rooms.js';
+import { DEAD_TREE_VARIANTS, ENVIRONMENT_PRESETS, trailBlocksProp } from './rooms.js';
 import { SCONCE_LIGHT_CULL_DISTANCE, createWallSconce } from './sconce.js';
 
 const SCONCE_LIGHT_CULL_DISTANCE_SQ = SCONCE_LIGHT_CULL_DISTANCE * SCONCE_LIGHT_CULL_DISTANCE;
@@ -586,6 +586,101 @@ function ribbonGeometry(samples, y) {
   return geometry;
 }
 
+function scrubGeometry(variant) {
+  const parts = [];
+  const clumps = variant === 0 ? 5 : 4;
+  for (let i = 0; i < clumps; i += 1) {
+    const bush = new THREE.SphereGeometry(0.42, 5, 4);
+    bush.scale(1.7, 0.72, 1.25);
+    const ang = (i / clumps) * Math.PI * 2 + variant * 0.7;
+    bush.translate(Math.cos(ang) * 0.5, 0.22, Math.sin(ang) * 0.34);
+    parts.push(bush);
+  }
+  return mergeGeometries(parts);
+}
+
+function peakHeight(x, z, peak) {
+  const yaw = peak.yaw || 0;
+  const dx = x - peak.x;
+  const dz = z - peak.z;
+  const cos = Math.cos(yaw);
+  const sin = Math.sin(yaw);
+  const lx = cos * dx + sin * dz;
+  const lz = -sin * dx + cos * dz;
+  const radius = peak.radius;
+  const depth = radius * (peak.depth || 1);
+  const distance = Math.hypot(lx / radius, lz / depth);
+  if (distance >= 1) return 0;
+  const falloff = Math.cos(distance * Math.PI * 0.5);
+  return peak.height * falloff * falloff;
+}
+
+function mountainRangeGeometry(peaks) {
+  let minX = Infinity;
+  let maxX = -Infinity;
+  let minZ = Infinity;
+  let maxZ = -Infinity;
+  for (const peak of peaks) {
+    const reach = peak.radius;
+    minX = Math.min(minX, peak.x - reach);
+    maxX = Math.max(maxX, peak.x + reach);
+    minZ = Math.min(minZ, peak.z - reach);
+    maxZ = Math.max(maxZ, peak.z + reach);
+  }
+  const cols = 80;
+  const rows = 36;
+  const positions = [];
+  const indices = [];
+  for (let row = 0; row <= rows; row += 1) {
+    const z = minZ + ((maxZ - minZ) * row) / rows;
+    for (let col = 0; col <= cols; col += 1) {
+      const x = minX + ((maxX - minX) * col) / cols;
+      let height = 0;
+      for (const peak of peaks) height = Math.max(height, peakHeight(x, z, peak));
+      positions.push(x, height, z);
+    }
+  }
+  const stride = cols + 1;
+  const heightOf = (row, col) => positions[(row * stride + col) * 3 + 1];
+  for (let row = 0; row < rows; row += 1) {
+    for (let col = 0; col < cols; col += 1) {
+      const rise = Math.max(
+        heightOf(row, col),
+        heightOf(row, col + 1),
+        heightOf(row + 1, col),
+        heightOf(row + 1, col + 1),
+      );
+      if (rise < 0.2) continue;
+      const a = row * stride + col;
+      indices.push(a, a + stride, a + 1, a + 1, a + stride, a + stride + 1);
+    }
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+function outdoorGround(vista, midX, southZ) {
+  let minX = midX - 120;
+  let maxX = midX + 120;
+  let minZ = southZ - 100;
+  let maxZ = southZ + 180;
+  for (const peak of vista?.mountains || []) {
+    minX = Math.min(minX, peak.x - peak.radius - 12);
+    maxX = Math.max(maxX, peak.x + peak.radius + 12);
+    maxZ = Math.max(maxZ, peak.z + peak.radius * 0.4 + 20);
+  }
+  return {
+    width: maxX - minX,
+    depth: maxZ - minZ,
+    x: (minX + maxX) / 2,
+    z: (minZ + maxZ) / 2,
+    far: maxZ,
+  };
+}
+
 function deadTreeGeometry(spec, variant) {
   const parts = [];
   const trunk = new THREE.CylinderGeometry(0.16, 0.28, spec.height, 5);
@@ -638,10 +733,11 @@ function buildApproach(outdoor, threshold, materials, colliders, layout, owned) 
   const left = entrance.a[0];
   const right = entrance.b[0];
 
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(240, 280), materials.dirt);
+  const pad = outdoorGround(approach.vista, midX, southZ);
+  const ground = new THREE.Mesh(new THREE.PlaneGeometry(pad.width, pad.depth), materials.dirt);
   ground.name = 'approach-ground';
   ground.rotation.x = -Math.PI / 2;
-  ground.position.set(midX, -0.06, southZ + 40);
+  ground.position.set(pad.x, -0.06, pad.z);
   ground.receiveShadow = true;
   ground.castShadow = false;
   outdoor.add(ground);
@@ -654,6 +750,14 @@ function buildApproach(outdoor, threshold, materials, colliders, layout, owned) 
   pathMesh.receiveShadow = true;
   pathMesh.castShadow = false;
   outdoor.add(pathMesh);
+
+  if (approach.vista?.path?.length) {
+    const vistaPath = new THREE.Mesh(ribbonGeometry(approach.vista.path, 0.05), pathMat);
+    vistaPath.name = 'vista-path';
+    vistaPath.receiveShadow = true;
+    vistaPath.castShadow = false;
+    outdoor.add(vistaPath);
+  }
 
   const bankMat = trackMaterial(owned, new THREE.MeshStandardMaterial({ color: 0x7a6248, roughness: 1 }));
   const bankParts = [];
@@ -746,7 +850,7 @@ function buildApproach(outdoor, threshold, materials, colliders, layout, owned) 
   outdoor.add(cap);
 
   const wood = trackMaterial(owned, new THREE.MeshStandardMaterial({ color: 0x645c54, roughness: 1 }));
-  const trees = new THREE.BatchedMesh(40, 40000, 60000, wood);
+  const trees = new THREE.BatchedMesh(96, 40000, 60000, wood);
   trees.name = 'dead-trees';
   trees.castShadow = false;
   trees.receiveShadow = true;
@@ -777,14 +881,14 @@ function buildApproach(outdoor, threshold, materials, colliders, layout, owned) 
   }));
   const shadowPlane = new THREE.PlaneGeometry(1.5, 1.5);
   shadowPlane.rotateX(-Math.PI / 2);
-  const shadows = new THREE.BatchedMesh(40, 4000, 6000, shadowMat);
+  const shadows = new THREE.BatchedMesh(160, 4000, 6000, shadowMat);
   shadows.name = 'contact-shadows';
   shadows.castShadow = false;
   shadows.receiveShadow = false;
   const shadowGeo = shadows.addGeometry(shadowPlane);
   shadowPlane.dispose();
   const shadowYaw = Math.atan2(shadowDirX, shadowDirZ);
-  for (const tree of layout.trees || []) {
+  const placeTree = (tree) => {
     leanAxis.set(Math.cos(tree.leanAxis), 0, Math.sin(tree.leanAxis));
     leanQ.setFromAxisAngle(leanAxis, tree.lean);
     yawQ.setFromAxisAngle(up, tree.rotationY);
@@ -800,12 +904,42 @@ function buildApproach(outdoor, threshold, materials, colliders, layout, owned) 
     matrix.compose(position, quaternion, scale);
     const shadow = shadows.addInstance(shadowGeo);
     shadows.setMatrixAt(shadow, matrix);
-  }
+  };
+  for (const tree of layout.trees || []) placeTree(tree);
+  for (const tree of approach.vista?.trees || []) placeTree(tree);
   trees.computeBoundingBox();
   trees.computeBoundingSphere();
+  const scrubMat = trackMaterial(owned, new THREE.MeshStandardMaterial({ color: 0x5a6238, roughness: 1 }));
+  const scrub = new THREE.BatchedMesh(96, 8000, 12000, scrubMat);
+  scrub.name = 'scrub-brush';
+  scrub.castShadow = false;
+  scrub.receiveShadow = true;
+  const scrubIds = [0, 1].map((variant) => {
+    const geometry = scrubGeometry(variant);
+    const id = scrub.addGeometry(geometry);
+    geometry.dispose();
+    return id;
+  });
+  for (const bush of approach.vista?.scrub || []) {
+    quaternion.setFromAxisAngle(up, bush.rotationY);
+    scale.set(bush.scale, bush.scale, bush.scale);
+    position.set(bush.x, 0, bush.z);
+    matrix.compose(position, quaternion, scale);
+    const instance = scrub.addInstance(scrubIds[bush.variant] ?? scrubIds[0]);
+    scrub.setMatrixAt(instance, matrix);
+    quaternion.setFromAxisAngle(up, shadowYaw);
+    scale.set(0.7 * bush.scale, 1, 1.05 * bush.scale);
+    position.set(bush.x + shadowDirX * 0.4 * bush.scale, 0.045, bush.z + shadowDirZ * 0.4 * bush.scale);
+    matrix.compose(position, quaternion, scale);
+    const shadow = shadows.addInstance(shadowGeo);
+    shadows.setMatrixAt(shadow, matrix);
+  }
+  scrub.computeBoundingBox();
+  scrub.computeBoundingSphere();
   shadows.computeBoundingBox();
   shadows.computeBoundingSphere();
   outdoor.add(trees);
+  outdoor.add(scrub);
   outdoor.add(shadows);
 
   const ruinShadow = new THREE.Mesh(new THREE.PlaneGeometry(court.w * 0.62, 8.5), shadowMat);
@@ -829,6 +963,7 @@ function buildApproach(outdoor, threshold, materials, colliders, layout, owned) 
     const hx = midX + Math.cos(angle) * radius;
     const hz = southZ + 30 + Math.sin(angle) * radius * 0.7;
     if (Math.abs(hx - end.x) < 18 && hz > end.z - 12) continue;
+    if (approach.vista?.path && trailBlocksProp(approach.vista.path, hx, hz)) continue;
     const lift = i % 2 === 0 ? 3.2 : 4.6;
     quaternion.identity();
     scale.set(7 + (i % 3), lift, 8 + (i % 4));
@@ -841,17 +976,13 @@ function buildApproach(outdoor, threshold, materials, colliders, layout, owned) 
   hills.computeBoundingSphere();
   outdoor.add(hills);
 
-  const ridgeMat = trackMaterial(owned, new THREE.MeshStandardMaterial({ color: 0x8d877e, roughness: 1 }));
-  const ridge = new THREE.ConeGeometry(1, 1, 6);
-  for (const sign of [-1, 1]) {
-    const mountain = new THREE.Mesh(sign < 0 ? ridge : ridge.clone(), ridgeMat);
-    mountain.name = sign < 0 ? 'mountain-west' : 'mountain-east';
-    mountain.scale.set(16, 18, 22);
-    mountain.position.set(end.x + sign * 24, 6.2, end.z + 8);
-    mountain.castShadow = false;
-    mountain.receiveShadow = true;
-    outdoor.add(mountain);
-    colliders.push({ x: end.x + sign * 22, z: end.z + 7, radius: 8.5 });
+  if (approach.vista?.mountains?.length) {
+    const ridgeMat = trackMaterial(owned, new THREE.MeshStandardMaterial({ color: 0x5e5954, roughness: 1 }));
+    const range = new THREE.Mesh(mountainRangeGeometry(approach.vista.mountains), ridgeMat);
+    range.name = 'mountain-range';
+    range.castShadow = false;
+    range.receiveShadow = true;
+    outdoor.add(range);
   }
 
   const skyTex = paintSky();
@@ -862,9 +993,14 @@ function buildApproach(outdoor, threshold, materials, colliders, layout, owned) 
     fog: false,
   }));
   skyMat.userData.ownsMap = true;
-  const skyDome = new THREE.Mesh(new THREE.SphereGeometry(160, 18, 12), skyMat);
+  let skyRadius = 160;
+  const skyZ = southZ + 24;
+  for (const peak of approach.vista?.mountains || []) {
+    skyRadius = Math.max(skyRadius, Math.hypot(peak.x - midX, peak.height * 0.85, peak.z - skyZ) + 28);
+  }
+  const skyDome = new THREE.Mesh(new THREE.SphereGeometry(skyRadius, 18, 12), skyMat);
   skyDome.name = 'approach-sky';
-  skyDome.position.set(midX, 0, southZ + 24);
+  skyDome.position.set(midX, 0, skyZ);
   skyDome.frustumCulled = false;
   skyDome.renderOrder = -2;
   outdoor.add(skyDome);
@@ -1173,7 +1309,8 @@ export function createDungeon(scene, materials, layout = ancientRuinsLayout(), r
     name: 'Mountain Pass',
     theme: 'outdoor',
     lighting: 'day',
-    description: 'The trail leaves the ruins through a gap in the low hills.',
+    description: layout.approach?.vista?.description
+      || 'The trail leaves the ruins through a gap in the low hills.',
     polygon: layout.hub || [],
     spawns: [],
   };

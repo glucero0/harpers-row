@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import { clearance, pointInPolygon, rectGap, segmentOnBoundary } from './geometry.js';
-import { generateLayout, trailBlocksProp } from './rooms.js';
+import ancientRuinsData from './ancientRuinsData.json';
+import { buildMountainVista, generateLayout, trailBlocksProp } from './rooms.js';
 
 function chambers(layout) {
   return layout.rooms.filter((room) => room.kind === 'chamber');
@@ -168,4 +169,23 @@ test('the worn trail is a seeded daytime approach, not a cliff edge', () => {
   assert.equal(pass.environmentalPreset.skyboxVisible, true);
   assert.equal(first.zoneLabels['world-hub'], 'Mountain Pass');
   assert.equal(first.approach.vestibule.d > 2 && first.approach.vestibule.d < 3.2, true);
+
+  const far = first.approach.vista.path.at(-1);
+  assert.ok(far.z - end.z > 100, 'the pass path keeps going after the hub');
+  assert.equal(first.approach.vista.path[0].x, end.x);
+  assert.equal(first.approach.vista.path[0].z, end.z);
+  const hubFar = first.approach.hub.z + first.approach.hub.d;
+  assert.ok(first.approach.vista.trees.length >= 12);
+  assert.ok(first.approach.vista.scrub.length >= 24);
+  for (const tree of first.approach.vista.trees) assert.ok(tree.z > hubFar);
+  for (const bush of first.approach.vista.scrub) assert.ok(bush.z > hubFar);
+  assert.ok(first.approach.vista.mountains.some((peak) => peak.x < far.x - 40));
+  assert.ok(first.approach.vista.mountains.some((peak) => peak.x > far.x + 40));
+  assert.ok(first.approach.vista.mountains.some((peak) => Math.abs(peak.x - far.x) < 6 && peak.z > far.z));
+});
+
+test('the baked ruins use the same mountain vista as the generator', () => {
+  const end = ancientRuinsData.approach.samples.at(-1);
+  assert.deepEqual(ancientRuinsData.approach.vista, buildMountainVista(end, ancientRuinsData.approach.hub));
+  assert.match(ancientRuinsData.approach.description, /mountain range/i);
 });
