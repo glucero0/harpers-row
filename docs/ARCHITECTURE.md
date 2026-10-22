@@ -14,10 +14,10 @@ assisted changes.
 | Layer | Files | Responsibility |
 | --- | --- | --- |
 | Config / math | `balance.js`, `geometry.js`, `pixel-ratio.js` | Pure constants and pure functions. No THREE, no DOM. Fully unit-testable, and fully unit-tested. |
-| World generation | `rooms.js` | Pure procedural dungeon layout (rooms, doors, polygons). No THREE, no DOM — deliberately kept separate from scene-building so it stays trivial to test. |
+| World generation | `rooms.js`, `ancientRuinsData.json` | `rooms.js` is a pure procedural layout generator (no THREE, no DOM) kept for tests. The playable Ancient Ruins are the baked `ancientRuinsData.json`. `ancientRuinsLayout()` deep-copies that file and `main.js` passes the copy into `createDungeon`. Loading the ruins does not call `generateLayout()`. |
 | Content / rendering | `dungeon.js`, `materials.js`, `ruin-material.js`, `subsurface.js`, `flame.js`, `torch.js`, `sconce.js`, `dust.js`, `player-body.js` | Turn config + layout data into THREE objects (geometry, materials, meshes, particles) and own their GPU resources. |
 | Entities | `player.js`, `skeleton.js` | Autonomous actors: own state machines, animation, and combat behavior. |
-| Systems | `input.js`, `audio.js`, `ui.js`, `impact.js` | Cross-cutting concerns not tied to a specific entity or the dungeon: hardware input, sound, HUD, hit-stop/time control. |
+| Systems | `input.js`, `audio.js`, `ui.js`, `impact.js`, `zone-transition.js` | Cross-cutting concerns not tied to a specific entity or the dungeon: hardware input, sound, HUD, hit-stop/time control, and zone changes. `createZoneTransitions` fades the screen, then asks the caller to teleport and apply a lighting preset. It does not own dungeon meshes. |
 | Composition root ("Engine") | `main.js` | Renderer/camera setup, the `requestAnimationFrame` loop, window resize, and the restart cycle (`beginRun`/`clearRun`) that wires every module together. |
 
 New gameplay content (a new enemy type, a new chamber theme, a future second area) belongs in the
@@ -101,7 +101,7 @@ tests and the Cursor rule both check against this contract.
 - Wall-sconce point lights turn off past `SCONCE_LIGHT_CULL_DISTANCE` (15 units) and when occluded.
   The flame mesh stays visible. Those lights, the chest fill, the loot flash, and the outdoor sun all
   have `castShadow = false`. The held torch is the only light that casts a shadow map.
-- Repeated dressing — pillars, rocks, foliage, and any future Forest Area props — goes in one shared
+- Repeated dressing — pillars, rocks, the dead trees outside the ruins, and any future Forest Area props — goes in one shared
   `BatchedMesh` or `InstancedMesh`, the way `dungeon.js` already batches walls and floors. A unique
   interactive object (a chest, a sconce) can stay its own scene node. Do not add one mesh per copy of
   a repeated prop.

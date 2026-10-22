@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
 import { clearance, pointInPolygon, rectGap, segmentOnBoundary } from './geometry.js';
-import { generateLayout } from './rooms.js';
+import { generateLayout, trailBlocksProp } from './rooms.js';
 
 function chambers(layout) {
   return layout.rooms.filter((room) => room.kind === 'chamber');
@@ -119,4 +119,53 @@ test('the path is walkable and nothing is buried in a wall', () => {
       }
     }
   }
+});
+
+test('the worn trail is a seeded daytime approach, not a cliff edge', () => {
+  const first = generateLayout(11);
+  const second = generateLayout(11);
+  assert.equal(first.approach.lighting, 'day');
+  assert.match(first.approach.description, /pale/i);
+  assert.match(first.rooms[0].description, /threshold/i);
+  assert.equal(first.rooms[0].lighting, 'underground');
+  assert.ok(first.approach.samples.at(-1).z - first.approach.samples[0].z > 40);
+  assert.ok(first.approach.samples.some((sample) => Math.abs(sample.x - first.approach.midX) > 0.4));
+  assert.ok(first.approach.samples[0].half > 5.2);
+  const gateZ = first.entrance.a[1];
+  const end = first.approach.samples.at(-1);
+  assert.ok(first.start.z > gateZ + 8);
+  assert.ok(end.z - first.start.z > 15, 'spawn sits on the trail, short of the pass');
+  assert.deepEqual(first.trees, second.trees);
+  assert.ok(first.trees.length >= 12);
+  const variants = new Set(first.trees.map((tree) => tree.variant));
+  const branches = new Set(first.trees.map((tree) => tree.branches));
+  assert.ok(variants.size >= 2);
+  assert.ok(branches.size >= 2);
+  const laterals = first.trees.map((tree) => trailBlocksProp(first.approach.samples, tree.x, tree.z));
+  assert.ok(laterals.every((blocked) => blocked === false));
+  for (const tree of first.trees) {
+    assert.ok(tree.scale >= 0.7 && tree.scale <= 1.3);
+    assert.ok(tree.rotationY >= 0 && tree.rotationY < Math.PI * 2);
+    const degrees = Math.abs(tree.lean) * (180 / Math.PI);
+    assert.ok(degrees >= 5 && degrees <= 10);
+  }
+  const distances = first.trees.map((tree) => {
+    let best = Infinity;
+    for (const sample of first.approach.samples) best = Math.min(best, Math.hypot(tree.x - sample.x, tree.z - sample.z));
+    return best;
+  });
+  assert.ok(Math.max(...distances) - Math.min(...distances) > 1.2);
+
+  const entry = first.transitions.find((item) => item.id === 'ruin-entry');
+  const pass = first.transitions.find((item) => item.id === 'mountain-pass');
+  assert.ok(entry.volume.maxZ < first.approach.southZ - 0.8);
+  assert.equal(entry.environmentalPreset.skyboxVisible, false);
+  assert.equal(entry.environmentalPreset.fog.near, 8);
+  assert.equal(entry.environmentalPreset.fog.far, 20);
+  assert.equal(entry.fadeDurationMs, 600);
+  assert.ok(pass.volume.minZ > end.z - 3);
+  assert.equal(pass.targetZoneId, 'world-hub');
+  assert.equal(pass.environmentalPreset.skyboxVisible, true);
+  assert.equal(first.zoneLabels['world-hub'], 'Mountain Pass');
+  assert.equal(first.approach.vestibule.d > 2 && first.approach.vestibule.d < 3.2, true);
 });

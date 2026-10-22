@@ -132,6 +132,20 @@ html, body {
 
 #area-title.away { opacity: 0; }
 
+body[data-lighting="day"] #area-title {
+  color: #f4efe6;
+  text-shadow: 0 2px 14px rgba(72, 62, 48, 0.55);
+}
+
+#zone-fade {
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  background: #000;
+  opacity: 0;
+  pointer-events: none;
+}
+
 .stat {
   margin: 0 0 6px;
   font-size: 16px;

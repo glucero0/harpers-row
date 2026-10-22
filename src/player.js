@@ -990,6 +990,17 @@ export function createPlayer(camera, materials, start) {
     return true;
   }
 
+  function placeAt(x, z, yaw) {
+    state.x = x;
+    state.z = z;
+    state.yaw = yaw;
+    state.prevYaw = yaw;
+    lastX = x;
+    lastZ = z;
+    currentVelocity.set(0, 0, 0);
+    placeCamera();
+  }
+
   return {
     state,
     bodyRig,
@@ -997,6 +1008,7 @@ export function createPlayer(camera, materials, start) {
     hurt,
     reset,
     equip,
+    placeAt,
     reconcileXp,
     weapons: {
       rightHand: hands.mace,

@@ -124,9 +124,11 @@ export function createUI({ onRestart, onEquip }) {
         bannerText.textContent = 'Your health is gone. Descend again and the dungeon is built anew.';
       } else if (state.banner === 'victory') {
         bannerTitle.textContent = 'The crypt is still';
-        bannerText.textContent = 'The last of them is down. Another descent will raise a different dungeon.';
+        bannerText.textContent = 'The last of them is down. Another descent returns to these ruins.';
       }
       overlay.hidden = showBanner || state.pointerLocked;
+      if (state.zoneName) areaTitle.textContent = state.zoneName;
+      if (state.lighting) document.body.dataset.lighting = state.lighting;
       areaTitle.classList.toggle('away', state.outdoors === false);
       checkMark.hidden = !state.equipped;
       equipButton.disabled = !!state.equipped;
@@ -143,8 +145,8 @@ export function createUI({ onRestart, onEquip }) {
 
       if (!state.started) {
         overlayText.textContent = state.equipped
-          ? 'The door is open. Click the view, then walk inside.'
-          : 'The door ahead is open. Equip a torch and a mace before you step inside.';
+          ? 'The arch is open. Click the view, then walk inside.'
+          : 'A worn trail ends at the stone arch. Equip a torch and a mace before you step inside.';
         overlayPrompt.textContent = 'Click to look';
       } else if (!state.pointerLocked) {
         overlayText.textContent = 'The mouse is free, so the fight waits. Drag the sliders, then click to continue.';

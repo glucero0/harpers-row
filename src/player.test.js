@@ -38,6 +38,17 @@ afterEach(() => {
 });
 
 describe('createPlayer', () => {
+  it('placeAt() moves the fighter without clearing gear or health', () => {
+    const player = createPlayer(camera, testMaterials.materials, layout.start);
+    player.equip();
+    player.placeAt(layout.start.x + 4, layout.start.z - 3, 1.2);
+    expect(player.state.x).toBe(layout.start.x + 4);
+    expect(player.state.z).toBe(layout.start.z - 3);
+    expect(player.state.yaw).toBe(1.2);
+    expect(player.state.equipped).toBe(true);
+    expect(player.state.health).toBe(100);
+  });
+
   it('starts at the given spawn point, unequipped and at full health', () => {
     const player = createPlayer(camera, testMaterials.materials, layout.start);
     expect(player.state.x).toBe(layout.start.x);
