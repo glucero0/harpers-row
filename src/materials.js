@@ -357,6 +357,20 @@ function textured(map, repeatX, repeatY, params) {
   return new THREE.MeshStandardMaterial({ map: clone, ...params });
 }
 
+// Disposes a material and every texture it owns (map, bumpMap, aoMap, emissiveMap, etc.), the same
+// generic property-walk used for scene meshes elsewhere in the codebase. Safe to call more than once:
+// THREE's `.dispose()` is itself idempotent.
+function disposeMaterial(material) {
+  if (!material) return;
+  Object.keys(material).forEach((key) => {
+    const value = material[key];
+    if (value && typeof value === 'object' && typeof value.dispose === 'function') {
+      value.dispose();
+    }
+  });
+  material.dispose();
+}
+
 function sharedSurface(map, color, roughness, metalness, bump) {
   const material = new THREE.MeshStandardMaterial({
     map,
@@ -534,6 +548,17 @@ export function createMaterials() {
     return twin;
   }
 
+  // Every material this factory created, kept for dispose(). `fadeVariant()` clones created later
+  // (per living skeleton) are each entity's own responsibility, not this shared material set's.
+  const ownedMaterials = [
+    wall.stone, wall.wood, wall.cave,
+    floor.stone, floor.wood, floor.cave,
+    plank, dirt, ceiling, ceilingCave, brazier, bowl, core,
+    metal, armor, leather, chain, iron, gold, ember, rust, flame, eye, socket,
+    bone, boneHot, boneFlash,
+  ];
+  let disposed = false;
+
   return {
     fadeVariant,
     surface,
@@ -560,5 +585,16 @@ export function createMaterials() {
     bone,
     boneHot,
     boneFlash,
+    // Disposes every material and texture this factory created, including the heightmap texture
+    // (`stoneHeight`) that only survives via the ruin shader's uniform once the per-material bumpMap
+    // reference is cleared above. Per docs/ARCHITECTURE.md this factory owns teardown of its own
+    // resources; it does not need to be called during normal play since materials live for the app's
+    // session, but it exists so areas/themes can be rebuilt and so tests can assert no leaks. Idempotent.
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      ownedMaterials.forEach(disposeMaterial);
+      stoneHeight.dispose();
+    },
   };
 }

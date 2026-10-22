@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { createFlamePoints, disposeFlamePoints } from './flame.js';
 
 const TORCH_COLOR = 0xff8936;
 const TORCH_DISTANCE = 12;
@@ -48,6 +49,12 @@ class TorchParticleEmitter {
     this.mesh.frustumCulled = false;
     this.mesh.castShadow = false;
     this.mesh.receiveShadow = false;
+  }
+
+  dispose() {
+    this.geometry.dispose();
+    this.material.map?.dispose();
+    this.material.dispose();
   }
 
   resetParticle(index, positions, colors, initialRandom = false) {
@@ -305,18 +312,27 @@ class GuardImpact {
   }
 }
 
+// The cup is a tapered cylinder (radiusTop 0.09, radiusBottom 0.055, height 0.14) centered at
+// SCONCE_CUP_Y, so its rim — where the fuel sits and the flame/sparks should originate — is at
+// SCONCE_CUP_Y + half its height.
+const SCONCE_CUP_Y = 0.5;
+const SCONCE_CUP_HEIGHT = 0.14;
+const CUP_RIM_Y = SCONCE_CUP_Y + SCONCE_CUP_HEIGHT / 2;
+
 function createHeldTorch(materials) {
   const root = new THREE.Group();
   root.name = 'torch';
   const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.045, 0.62, 8), materials.plank);
   handle.position.y = 0.16;
   handle.castShadow = false;
-  const sconce = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.055, 0.14, 8), materials.metal);
-  sconce.position.y = 0.5;
+  const sconce = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.055, SCONCE_CUP_HEIGHT, 8), materials.metal);
+  sconce.position.y = SCONCE_CUP_Y;
   sconce.castShadow = false;
+  // Sits exactly on the cup rim: the flame, its light, and the spark emitter all spawn from here, the
+  // same way the wall sconce anchors its flame/light/particles at one shared `flamePos` (sconce.js).
   const tip = new THREE.Group();
   tip.name = 'TorchTipSocket';
-  tip.position.y = 0.58;
+  tip.position.y = CUP_RIM_Y;
   root.add(handle, sconce, tip);
 
   const light = new THREE.PointLight(TORCH_COLOR, TORCH_BASE, TORCH_DISTANCE, TORCH_DECAY);
@@ -328,7 +344,18 @@ function createHeldTorch(materials) {
   light.shadow.camera.near = 0.1;
   light.shadow.camera.far = 12;
   tip.add(light);
-  tip.add(createTorchVolume());
+
+  const torchVolume = createTorchVolume();
+  tip.add(torchVolume);
+
+  // The core flame visual (fire + smoke + embers), the same assembly a lit wall sconce uses. Unlike a
+  // sconce, the held torch is always lit once equipped, so show it immediately rather than waiting for
+  // an ignite() call — but each quad mesh still starts hidden internally, so the group's visibility
+  // alone isn't enough (see flame.js).
+  const flame = createFlamePoints();
+  flame.mesh.visible = true;
+  for (const layer of flame.mesh.children) layer.visible = true;
+  tip.add(flame.mesh);
 
   const particles = new TorchParticleEmitter(18);
   tip.add(particles.mesh);
@@ -336,7 +363,29 @@ function createHeldTorch(materials) {
   const impact = new GuardImpact();
   tip.add(impact.group);
 
-  return { root, light, particles, tip, impact };
+  let disposed = false;
+  return {
+    root,
+    light,
+    particles,
+    tip,
+    impact,
+    flame,
+    // Idempotent cleanup for every geometry/material this factory created, per the module lifecycle
+    // contract in docs/ARCHITECTURE.md. `handle`/`sconce` use shared materials (materials.js owns
+    // those), so only their own geometry is disposed here.
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      handle.geometry.dispose();
+      sconce.geometry.dispose();
+      torchVolume.geometry.dispose();
+      torchVolume.material.dispose();
+      disposeFlamePoints(flame);
+      particles.dispose();
+      impact.dispose();
+    },
+  };
 }
 
 // `flash` (0..1) briefly drives the light up when something strikes the torch.

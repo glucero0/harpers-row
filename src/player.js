@@ -585,6 +585,7 @@ export function createPlayer(camera, materials, start) {
     hands.torch.impact.update(dt);
     flickerTorch(hands.torch.light, state.torchTime, hands.torch.impact.flash);
     hands.torch.particles.update(dt);
+    hands.torch.flame.uniforms.uTime.value = state.torchTime;
   }
 
   function denyEntry() {

@@ -1,0 +1,32 @@
+Area Implementation Checklist
+When asked to create a new level (e.g., createHub, createForestArea):
+
+Create src/areas/<areaName>.js.
+
+Implement init, load, update, unload, and dispose.
+
+Keep environment asset definitions decoupled:
+
+Use THREE.InstancedMesh for repeated props (pillars, trees, rubble).
+
+Use spawn definitions to instantiate creatures via their separate factory functions.
+
+Verify unload(scene) detaches all created entities and calls their individual dispose() methods.
+
+
+---
+
+### File 3: Concrete Prompt to Refactor the Existing Codebase
+Copy and paste this prompt directly into Cursor Composer or your local Qwen 2.5 chat session to standardize what already exists:
+
+```text
+Act as a Principal Game Engine Engineer. Review the existing project files: player.js, skeleton.js, dungeon.js, ui.js, input.js, materials.js, and torch.js.
+
+Do NOT convert these files into ES6 classes. Preserve the existing factory function and closure pattern.
+
+Execute these tasks:
+1. Standardize the return interface for player.js and skeleton.js so both provide { mesh, update, takeDamage, dispose }.
+2. Refactor dungeon.js into src/areas/ancientRuins.js, ensuring it exposes { init, load, update, unload, dispose }.
+3. Isolate the main loop, canvas resizing, and WebGL renderer initialization into src/core/engine.js.
+4. Verify all Vector3 scratchpads in update() routines are created once in closure scope rather than reallocated per frame.
+5. Create tests/ancientRuins.test.js using Vitest to verify that loading and unloading the area properly cleans up scene nodes and triggers disposals without throwing errors

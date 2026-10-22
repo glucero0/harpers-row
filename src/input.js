@@ -65,6 +65,10 @@ export function createInput(canvas) {
     blockMouse = false;
   }
 
+  function onContextMenu(event) {
+    event.preventDefault();
+  }
+
   window.addEventListener('keydown', onKeyDown);
   window.addEventListener('keyup', onKeyUp);
   window.addEventListener('mousedown', onMouseDown);
@@ -72,9 +76,26 @@ export function createInput(canvas) {
   window.addEventListener('mousemove', onMouseMove);
   window.addEventListener('blur', onBlur);
   document.addEventListener('pointerlockchange', onLockChange);
-  canvas.addEventListener('contextmenu', (event) => event.preventDefault());
+  canvas.addEventListener('contextmenu', onContextMenu);
+  let disposed = false;
 
   function poll() {
+    if (disposed) {
+      return {
+        moveX: 0,
+        moveY: 0,
+        mouseYaw: 0,
+        mousePitch: 0,
+        lookStickX: 0,
+        lookStickY: 0,
+        attack: false,
+        use: false,
+        block: false,
+        pointerLocked: false,
+        gamepadConnected: false,
+        pausePressed: false,
+      };
+    }
     let moveX = 0;
     let moveY = 0;
     if (keys.has('KeyW')) moveY -= 1;
@@ -150,6 +171,21 @@ export function createInput(canvas) {
     },
     releaseLook() {
       if (document.pointerLockElement === canvas) document.exitPointerLock();
+    },
+    // Removes every window/document/canvas listener createInput() attached, per the module
+    // lifecycle contract in docs/ARCHITECTURE.md. Idempotent: safe to call more than once.
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('mousedown', onMouseDown);
+      window.removeEventListener('mouseup', onMouseUp);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('blur', onBlur);
+      document.removeEventListener('pointerlockchange', onLockChange);
+      canvas.removeEventListener('contextmenu', onContextMenu);
+      keys.clear();
     },
   };
 }
