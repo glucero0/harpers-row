@@ -2,6 +2,7 @@
 import * as THREE from 'three';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ancientRuinsData from './ancientRuinsData.json';
+import { SKELETON_NAME } from './balance.js';
 import { ancientRuinsLayout, createDungeon } from './dungeon.js';
 import { generateLayout } from './rooms.js';
 import { withTestMaterials } from './test-utils/testMaterials.js';
@@ -32,6 +33,7 @@ describe('createDungeon', () => {
     expect(layout.rooms).toHaveLength(ancientRuinsData.rooms.length);
     expect(layout.lastRoomId).toBe(ancientRuinsData.lastRoomId);
     expect(layout.start).toEqual(ancientRuinsData.start);
+    expect(layout.enemyName).toBe(SKELETON_NAME);
     layout.rooms[0].name = 'mutated';
     expect(ancientRuinsData.rooms[0].name).not.toBe('mutated');
 

@@ -1,0 +1,22 @@
+{
+  "name": "Skeletal Warriors",
+  "description": "Definition for the skeletal warriors. The game reads this file for the name, combat stats, and weapon cycle. Room spawn positions stay in ancientRuinsData.json as [x, z] points. src/skeleton.js still builds the bone mesh and runs the wander, attack, and hit behavior from these numbers.",
+  "stats": {
+    "health": 36,
+    "damage": 14,
+    "moveSpeed": 3.6,
+    "wanderFactor": 0.42,
+    "radius": 0.7,
+    "sightRange": 26,
+    "windup": 0.72,
+    "recover": 1.15,
+    "minWindup": 0.22,
+    "minRecover": 0.28
+  },
+  "weapons": [
+    { "id": "sword", "range": 4.4 },
+    { "id": "mace", "range": 3.35 },
+    { "id": "hammer", "range": 3.8 },
+    { "id": "bow", "range": 26 }
+  ]
+}

@@ -1,4 +1,4 @@
-import { clampUnit, paceMultiplier, xpRequired } from './balance.js';
+import { clampUnit, paceMultiplier, SKELETON_NAME, xpRequired } from './balance.js';
 
 const PACE_KEY = 'dungeon-combater.pace';
 const XP_KEY = 'dungeon-combater.experience';
@@ -24,7 +24,12 @@ function percent(part, total) {
   return Math.round((part / total) * 100);
 }
 
-export function createUI({ onRestart, onEquip }) {
+function requirementLine(requirements) {
+  const items = (requirements || []).map((item) => item.charAt(0).toUpperCase() + item.slice(1));
+  return items.length ? `Requirements: ${items.join(' and ')}` : '';
+}
+
+export function createUI({ onRestart, onEquip, areaName, requirements }) {
   const paceSlider = document.querySelector('#pace-slider');
   const xpSlider = document.querySelector('#xp-slider');
   const roomName = document.querySelector('#room-name');
@@ -47,6 +52,12 @@ export function createUI({ onRestart, onEquip }) {
   const hurt = document.querySelector('#hurt');
   const areaTitle = document.querySelector('#area-title');
   const checklist = document.querySelector('#checklist');
+  const enemyName = document.querySelector('#enemy-name');
+  if (enemyName) enemyName.textContent = SKELETON_NAME;
+  const areaLabel = document.querySelector('#area-name');
+  if (areaLabel && areaName) areaLabel.textContent = areaName;
+  const requirementLabel = document.querySelector('#requirements');
+  if (requirementLabel) requirementLabel.textContent = requirementLine(requirements);
   const checkMark = document.querySelector('#check-mark');
   const equipButton = document.querySelector('#equip');
   const statKills = document.querySelector('#stat-kills');

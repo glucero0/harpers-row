@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { SKELETON_NAME } from './balance.js';
 import { createUI } from './ui.js';
 
 const HUD_HTML = `
@@ -20,7 +21,7 @@ const HUD_HTML = `
   <div id="banner" hidden><div class="card"><h2 id="banner-title"></h2><p id="banner-text"></p><button id="restart" type="button"></button></div></div>
   <div id="hurt"></div>
   <h1 id="area-title"></h1>
-  <div id="checklist"><span id="check-mark" hidden></span></div>
+  <div id="checklist"><span id="area-name"></span><span id="enemy-name"></span><span id="requirements"></span><span id="check-mark" hidden></span></div>
   <button id="equip" type="button"></button>
   <p id="stat-kills"></p>
   <p id="stat-loot"></p>
@@ -65,7 +66,12 @@ beforeEach(() => {
   document.body.innerHTML = HUD_HTML;
   onRestart = vi.fn();
   onEquip = vi.fn();
-  ui = createUI({ onRestart, onEquip });
+  ui = createUI({
+    onRestart,
+    onEquip,
+    areaName: 'The Ancient Ruins',
+    requirements: ['torch', 'mace'],
+  });
 });
 
 afterEach(() => {
@@ -76,6 +82,9 @@ describe('createUI', () => {
   it('defaults the pace/experience sliders to 0.5 when nothing is saved', () => {
     expect(ui.pace()).toBe(0.5);
     expect(ui.experience()).toBe(0.5);
+    expect(document.querySelector('#enemy-name').textContent).toBe(SKELETON_NAME);
+    expect(document.querySelector('#area-name').textContent).toBe('The Ancient Ruins');
+    expect(document.querySelector('#requirements').textContent).toBe('Requirements: Torch and Mace');
   });
 
   it('persists slider changes to localStorage', () => {

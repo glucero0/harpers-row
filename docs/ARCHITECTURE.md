@@ -13,8 +13,8 @@ assisted changes.
 
 | Layer | Files | Responsibility |
 | --- | --- | --- |
-| Config / math | `balance.js`, `geometry.js`, `pixel-ratio.js` | Pure constants and pure functions. No THREE, no DOM. Fully unit-testable, and fully unit-tested. |
-| World generation | `rooms.js`, `ancientRuinsData.json` | `rooms.js` is a pure procedural layout generator (no THREE, no DOM) kept for tests. The playable Ancient Ruins are the baked `ancientRuinsData.json`. `ancientRuinsLayout()` deep-copies that file and `main.js` passes the copy into `createDungeon`. Loading the ruins does not call `generateLayout()`. |
+| Config / math | `balance.js`, `geometry.js`, `pixel-ratio.js`, `skeletelWarrior.json` | Pure constants and pure functions. No THREE, no DOM. Skeletal warrior name, health, damage, speed, and weapons are read from `skeletelWarrior.json` by `balance.js`. Fully unit-testable, and fully unit-tested. |
+| World generation | `rooms.js`, `ancientRuinsData.json` | `rooms.js` is a pure procedural layout generator (no THREE, no DOM) kept for tests. The playable Ancient Ruins are the baked `ancientRuinsData.json`. That file owns the rooms, doors, approach, and the outdoor shell (`approach.shell`: facade height, flank height, cornice). `ancientRuinsLayout()` deep-copies that file, then sets `enemyName` from `skeletelWarrior.json`. Loading the ruins does not call `generateLayout()`. |
 | Content / rendering | `dungeon.js`, `materials.js`, `ruin-material.js`, `subsurface.js`, `flame.js`, `torch.js`, `sconce.js`, `dust.js`, `player-body.js` | Turn config + layout data into THREE objects (geometry, materials, meshes, particles) and own their GPU resources. |
 | Entities | `player.js`, `skeleton.js` | Autonomous actors: own state machines, animation, and combat behavior. |
 | Systems | `input.js`, `audio.js`, `ui.js`, `impact.js`, `zone-transition.js` | Cross-cutting concerns not tied to a specific entity or the dungeon: hardware input, sound, HUD, hit-stop/time control, and zone changes. `createZoneTransitions` fades the screen, then asks the caller to teleport and apply a lighting preset. It does not own dungeon meshes. |

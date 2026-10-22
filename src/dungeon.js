@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { SWORD_ARC, SWORD_RANGE } from './balance.js';
+import { SKELETON_NAME, SWORD_ARC, SWORD_RANGE } from './balance.js';
 import { clearDustField, createDustField } from './dust.js';
 import { clearance, closestOnSegment, lineOfSight, pointInPolygon } from './geometry.js';
 import { audio } from './audio.js';
@@ -802,8 +802,10 @@ function buildApproach(outdoor, threshold, materials, colliders, layout, owned) 
   colliders.push(segmentCollider(end.x + fence, end.z, end.x + fence, fenceZ, 1, 0));
   colliders.push(segmentCollider(end.x - fence, fenceZ, end.x + fence, fenceZ, 0, 1));
 
-  const facade = 13;
-  const flank = 6.5;
+  const shell = approach.shell;
+  const facade = shell.facadeHeight;
+  const flank = shell.flankHeight;
+  const cornice = shell.cornice;
   if (ante.rect.x > court.x + 0.4) {
     addWall(outdoor, court.x, southZ, ante.rect.x, southZ, 'stone', materials, colliders, facade, 0, true);
   }
@@ -823,7 +825,14 @@ function buildApproach(outdoor, threshold, materials, colliders, layout, owned) 
   addWall(outdoor, left - 0.4, facadeZ, right + 0.4, facadeZ, 'stone', materials, colliders, facade - doorTop, doorTop, false);
   addWall(outdoor, left - 0.7, southZ + 0.15, left - 0.7, southZ + 2.4, 'stone', materials, colliders, doorTop + 1.2, 0, true);
   addWall(outdoor, right + 0.7, southZ + 0.15, right + 0.7, southZ + 2.4, 'stone', materials, colliders, doorTop + 1.2, 0, true);
-  addProp(outdoor, new THREE.BoxGeometry(court.w + 1.2, 1.15, 1.35), stone, court.x + court.w / 2, 12.5, southZ + 0.35);
+  addProp(
+    outdoor,
+    new THREE.BoxGeometry(court.w + cornice.overhang, cornice.height, cornice.depth),
+    stone,
+    court.x + court.w / 2,
+    cornice.y,
+    southZ + 0.35,
+  );
 
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(vestibule.w, vestibule.d), stone);
   floor.rotation.x = -Math.PI / 2;
@@ -1109,7 +1118,9 @@ function createBatch(root) {
 }
 
 export function ancientRuinsLayout() {
-  return JSON.parse(JSON.stringify(ancientRuinsData));
+  const layout = JSON.parse(JSON.stringify(ancientRuinsData));
+  layout.enemyName = SKELETON_NAME;
+  return layout;
 }
 
 export function createDungeon(scene, materials, layout = ancientRuinsLayout(), renderer = null) {
@@ -1295,7 +1306,7 @@ export function createDungeon(scene, materials, layout = ancientRuinsLayout(), r
     id: 'worn-trail',
     index: 0,
     kind: 'exterior',
-    name: 'Worn Trail',
+    name: layout.zoneLabels['worn-trail'],
     theme: 'outdoor',
     lighting: 'day',
     description: approach.description || '',
@@ -1306,11 +1317,10 @@ export function createDungeon(scene, materials, layout = ancientRuinsLayout(), r
     id: 'world-hub',
     index: 0,
     kind: 'exterior',
-    name: 'Mountain Pass',
+    name: layout.zoneLabels['world-hub'],
     theme: 'outdoor',
     lighting: 'day',
-    description: layout.approach?.vista?.description
-      || 'The trail leaves the ruins through a gap in the low hills.',
+    description: layout.approach?.vista?.description || '',
     polygon: layout.hub || [],
     spawns: [],
   };

@@ -1,3 +1,5 @@
+import warriorDef from '../skeletelWarrior.json';
+
 export const ROOM_COUNT = 6;
 
 export const MIN_END_PACE = 1.25;
@@ -52,20 +54,46 @@ export function inGuardArc(forwardX, forwardZ, dx, dz, arcDegrees = GUARD_ARC_DE
   return cosine >= Math.cos((arcDegrees / 2) * (Math.PI / 180));
 }
 
-export const SKELETON_HP = 36;
-export const SKELETON_DAMAGE = 14;
-export const SKELETON_MOVE_SPEED = 3.6;
-export const SKELETON_WANDER_FACTOR = 0.42;
-export const SKELETON_ATTACK_RANGE = 3.35;
-export const SKELETON_WINDUP = 0.72;
-export const SKELETON_RECOVER = 1.15;
-export const SKELETON_MIN_WINDUP = 0.22;
-export const SKELETON_MIN_RECOVER = 0.28;
-export const SKELETON_RADIUS = 0.7;
-export const SKELETON_WEAPONS = ['sword', 'mace', 'hammer', 'bow'];
-export const BOW_RANGE = 26;
+const DRAWABLE_WEAPONS = new Set(['sword', 'mace', 'hammer', 'bow']);
+
+function warriorNumber(value, label) {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    throw new Error(`skeletelWarrior.json ${label} must be a finite number >= 0`);
+  }
+  return value;
+}
+
+const warriorStats = warriorDef.stats;
+if (!warriorStats || typeof warriorDef.name !== 'string' || warriorDef.name.trim() === '') {
+  throw new Error('skeletelWarrior.json needs a name and a stats object');
+}
+if (!Array.isArray(warriorDef.weapons) || warriorDef.weapons.length === 0) {
+  throw new Error('skeletelWarrior.json weapons must be a non-empty list');
+}
+
+const weaponRanges = new Map();
+for (const weapon of warriorDef.weapons) {
+  if (!weapon || !DRAWABLE_WEAPONS.has(weapon.id) || weaponRanges.has(weapon.id)) {
+    throw new Error('skeletelWarrior.json weapons must be unique ids of sword, mace, hammer, or bow');
+  }
+  weaponRanges.set(weapon.id, warriorNumber(weapon.range, `weapons.${weapon.id}.range`));
+}
+
+export const SKELETON_NAME = warriorDef.name;
+export const SKELETON_HP = warriorNumber(warriorStats.health, 'stats.health');
+export const SKELETON_DAMAGE = warriorNumber(warriorStats.damage, 'stats.damage');
+export const SKELETON_MOVE_SPEED = warriorNumber(warriorStats.moveSpeed, 'stats.moveSpeed');
+export const SKELETON_WANDER_FACTOR = warriorNumber(warriorStats.wanderFactor, 'stats.wanderFactor');
+export const SKELETON_ATTACK_RANGE = weaponRanges.get('mace') ?? warriorDef.weapons[0].range;
+export const SKELETON_WINDUP = warriorNumber(warriorStats.windup, 'stats.windup');
+export const SKELETON_RECOVER = warriorNumber(warriorStats.recover, 'stats.recover');
+export const SKELETON_MIN_WINDUP = warriorNumber(warriorStats.minWindup, 'stats.minWindup');
+export const SKELETON_MIN_RECOVER = warriorNumber(warriorStats.minRecover, 'stats.minRecover');
+export const SKELETON_RADIUS = warriorNumber(warriorStats.radius, 'stats.radius');
+export const SKELETON_WEAPONS = warriorDef.weapons.map((weapon) => weapon.id);
+export const BOW_RANGE = weaponRanges.get('bow') ?? SKELETON_ATTACK_RANGE;
 // A skeleton that has a clear line to the player this close (a doorway, a long passage) notices them.
-export const SKELETON_SIGHT_RANGE = 26;
+export const SKELETON_SIGHT_RANGE = warriorNumber(warriorStats.sightRange, 'stats.sightRange');
 
 export function skeletonWeapon(index) {
   const n = Number.isFinite(index) ? Math.abs(Math.floor(index)) : 0;
@@ -73,10 +101,7 @@ export function skeletonWeapon(index) {
 }
 
 export function skeletonAttackRange(weapon) {
-  if (weapon === 'bow') return BOW_RANGE;
-  if (weapon === 'sword') return 4.4;
-  if (weapon === 'hammer') return 3.8;
-  return SKELETON_ATTACK_RANGE;
+  return weaponRanges.get(weapon) ?? SKELETON_ATTACK_RANGE;
 }
 
 export function attackWindup(pace) {

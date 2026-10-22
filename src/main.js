@@ -88,6 +88,8 @@ const transitions = createZoneTransitions({
 });
 
 const ui = createUI({
+  areaName: layout.areaName,
+  requirements: layout.requirements,
   onRestart() {
     started = true;
     beginRun();

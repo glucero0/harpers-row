@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
+import { SKELETON_NAME } from './balance.js';
 import { clearance, pointInPolygon, rectGap, segmentOnBoundary } from './geometry.js';
 import ancientRuinsData from './ancientRuinsData.json';
 import { buildMountainVista, generateLayout, trailBlocksProp } from './rooms.js';
@@ -43,7 +44,7 @@ test('rooms, corridors, and doors are different sizes', () => {
   const themes = new Set(layout.rooms.map((room) => room.theme));
   assert.deepEqual([...themes], ['stone']);
   assert.equal(layout.areaName, 'The Ancient Ruins');
-  assert.equal(layout.enemyName, 'Skeletal Warriors');
+  assert.equal(layout.enemyName, SKELETON_NAME);
   assert.deepEqual(layout.requirements, ['torch', 'mace']);
 });
 
@@ -187,5 +188,10 @@ test('the worn trail is a seeded daytime approach, not a cliff edge', () => {
 test('the baked ruins use the same mountain vista as the generator', () => {
   const end = ancientRuinsData.approach.samples.at(-1);
   assert.deepEqual(ancientRuinsData.approach.vista, buildMountainVista(end, ancientRuinsData.approach.hub));
+  assert.ok(ancientRuinsData.approach.shell.facadeHeight > 0);
+  assert.ok(ancientRuinsData.approach.shell.flankHeight > 0);
+  assert.ok(ancientRuinsData.approach.shell.cornice.height > 0);
+  assert.ok(generateLayout(1).approach.shell.facadeHeight > 0);
+  assert.equal(ancientRuinsData.enemyName, undefined);
   assert.match(ancientRuinsData.approach.description, /mountain range/i);
 });
