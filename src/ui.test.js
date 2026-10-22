@@ -86,6 +86,14 @@ describe('createUI', () => {
     expect(ui.pace()).toBeCloseTo(0.8, 5);
   });
 
+  it('writes the active zone into the header', () => {
+    ui.sync(baseState({ zoneName: 'Mountain Pass', lighting: 'day', outdoors: true }));
+    const title = document.querySelector('#area-title');
+    expect(title.textContent).toBe('Mountain Pass');
+    expect(title.classList.contains('away')).toBe(false);
+    expect(document.body.dataset.lighting).toBe('day');
+  });
+
   it('syncs health/xp/room readouts onto the DOM', () => {
     ui.sync(baseState({ health: 42, maxHealth: 100, xp: 10, level: 1 }));
     expect(document.querySelector('#health-text').textContent).toBe('42 / 100');

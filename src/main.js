@@ -2,15 +2,15 @@ import * as THREE from 'three';
 import './style.css';
 import { audio } from './audio.js';
 import { consumeTime } from './impact.js';
-import { createDungeon } from './dungeon.js';
+import { ancientRuinsLayout, createDungeon } from './dungeon.js';
 import { setDustLight } from './dust.js';
 import { createInput } from './input.js';
 import { createMaterials } from './materials.js';
 import { cappedPixelRatio } from './pixel-ratio.js';
 import { createPlayer } from './player.js';
-import { generateLayout, randomSeed } from './rooms.js';
 import { createSkeletons } from './skeleton.js';
 import { createUI } from './ui.js';
+import { createZoneTransitions } from './zone-transition.js';
 
 const canvas = document.querySelector('#game');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
@@ -38,8 +38,8 @@ scene.add(camera);
 
 const materials = createMaterials();
 const input = createInput(canvas);
-let layout = generateLayout(randomSeed());
-let dungeon = createDungeon(scene, materials, layout);
+let layout = ancientRuinsLayout();
+let dungeon = createDungeon(scene, materials, layout, renderer);
 let skeletons = createSkeletons(dungeon.group, dungeon, materials);
 const player = createPlayer(camera, materials, layout.start);
 player.state.room = dungeon.roomAt(layout.start.x, layout.start.z, null);
@@ -56,15 +56,36 @@ function clearRun() {
 
 function beginRun() {
   if (dungeon) clearRun();
-  layout = generateLayout(randomSeed());
-  dungeon = createDungeon(scene, materials, layout);
+  layout = ancientRuinsLayout();
+  dungeon = createDungeon(scene, materials, layout, renderer);
   skeletons = createSkeletons(dungeon.group, dungeon, materials);
   player.reset(layout.start);
   player.reconcileXp(ui.experience());
   player.state.room = dungeon.roomAt(layout.start.x, layout.start.z, null);
+  transitions.setRun(layout.transitions, layout.zoneLabels, 'worn-trail');
   victory = false;
   manualPause = false;
 }
+
+const transitions = createZoneTransitions({
+  configs: layout.transitions,
+  labels: layout.zoneLabels,
+  initialZoneId: 'worn-trail',
+  canActivate(config) {
+    if (config.requiresGate) return dungeon.isGateOpen();
+    return true;
+  },
+  onFadeStart(config) {
+    dungeon.blendEnvironment(config.environmentalPreset, (config.fadeDurationMs || 300) / 1000);
+  },
+  onCommit(config) {
+    const spawn = config.targetSpawnPoint;
+    player.placeAt(spawn.x, spawn.z, spawn.rotationY);
+    dungeon.showZone(config.targetZoneId);
+    dungeon.applyEnvironment(config.environmentalPreset);
+    player.state.room = dungeon.roomAt(player.state.x, player.state.z, null);
+  },
+});
 
 const ui = createUI({
   onRestart() {
@@ -106,6 +127,11 @@ function frame(now) {
       && !manualPause
       && (frameInput.pointerLocked || frameInput.gamepadConnected);
 
+    if (transitions.blocksMovement()) {
+      frameInput.moveX = 0;
+      frameInput.moveY = 0;
+    }
+
     if (running) {
       player.reconcileXp(ui.experience());
       player.update(time.dt, frameInput, dungeon, skeletons, ui.experience(), true, time);
@@ -120,6 +146,8 @@ function frame(now) {
       player.update(time.dt, frameInput, dungeon, skeletons, ui.experience(), false, time);
     }
 
+    transitions.update(time.realDt, player.state.x, player.state.z);
+    dungeon.tickEnvironment(time.realDt);
     const theme = player.state.room?.theme || 'outdoor';
     dungeon.update(now / 1000, time.dt, theme, player.state.x, player.state.z, player.state.moving, camera);
     const torchPower = player.state.equipped ? 1 : 0;
@@ -151,6 +179,8 @@ function frame(now) {
     pointerLocked: frameInput.pointerLocked,
     banner: !player.state.alive ? 'dead' : victory ? 'victory' : null,
     outdoors: player.state.room?.kind === 'exterior',
+    zoneName: transitions.zoneName(),
+    lighting: transitions.lighting(),
     equipped: player.state.equipped,
     denySerial: player.state.denySerial,
     gold: player.state.gold,
@@ -169,7 +199,6 @@ function frame(now) {
   const calls = renderer.info.render.calls;
   if (calls !== loggedCalls) {
     loggedCalls = calls;
-    console.info(`draw calls ${calls}`);
   }
   requestAnimationFrame(frame);
 }

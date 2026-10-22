@@ -130,7 +130,12 @@ const NORMAL_CHUNK = `#include <normal_fragment_begin>
 const FOG_CHUNK = `
 #ifdef USE_FOG
   float ruinHeightFog = exp(-max(vRuinWorld.y, 0.0) * 0.11);
-  float fogFactor = 1.0 - exp(-fogDensity * fogDensity * vFogDepth * vFogDepth * (0.45 + ruinHeightFog * ruinFogLift));
+  float fogFactor;
+  #ifdef FOG_EXP2
+    fogFactor = 1.0 - exp(-fogDensity * fogDensity * vFogDepth * vFogDepth * (0.45 + ruinHeightFog * ruinFogLift));
+  #else
+    fogFactor = smoothstep(fogNear, fogFar, vFogDepth);
+  #endif
   vec3 ruinToTorch = vRuinWorld - ruinTorchPos;
   float ruinTorchDist = length(ruinToTorch);
   float ruinAtten = ruinTorchPower / (1.0 + 0.085 * ruinTorchDist * ruinTorchDist);

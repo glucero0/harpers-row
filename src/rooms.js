@@ -289,10 +289,46 @@ function themesFor(rng, count) {
 }
 
 const AREA_NAME = 'The Ancient Ruins';
-const PATH_WIDTH = 9;
-const PATH_LENGTH = 16;
-const COURT_DEPTH = 8;
+const PATH_WIDTH = 12;
+const PATH_LENGTH = 56;
+const COURT_DEPTH = 9;
 const COURT_EXTRA = 16;
+const VESTIBULE_DEPTH = 2.7;
+const TRAIL_CLEARANCE = 3;
+const PATH_SAMPLES = 20;
+const CORRIDOR_HALF = (PATH_WIDTH + TRAIL_CLEARANCE) / 2;
+
+// Daylight outside the arch, and a black interior once the threshold is crossed.
+// `density` selects exponential fog; a near/far pair without it selects linear fog.
+export const ENVIRONMENT_PRESETS = {
+  day: {
+    clearColor: '#c5d0d6',
+    ambientLightIntensity: 0.55,
+    fog: { color: '#c5d0d6', near: 28, far: 110, density: 0.009 },
+    skyboxVisible: true,
+  },
+  interior: {
+    clearColor: '#000000',
+    ambientLightIntensity: 0.012,
+    fog: { color: '#000000', near: 8, far: 20 },
+    skyboxVisible: false,
+  },
+};
+
+// Dead-wood silhouettes. Rendering reads this table so every copy is not the same cross of sticks.
+export const DEAD_TREE_VARIANTS = [
+  { branches: 3, height: 4.4, spread: 0.9 },
+  { branches: 5, height: 6.2, spread: 0.55 },
+  { branches: 4, height: 5.0, spread: 1.15 },
+  { branches: 7, height: 7.1, spread: 0.4 },
+  { branches: 2, height: 1.35, spread: 0.8 },
+];
+
+export const ZONE_LABELS = {
+  'worn-trail': 'Worn Trail',
+  'ancient-ruins': 'The Ancient Ruins',
+  'world-hub': 'Mountain Pass',
+};
 
 function fitAntechamber(orig, mouthX0, mouthX1) {
   const mouth = Math.max(0.5, mouthX1 - mouthX0);
@@ -339,8 +375,9 @@ function sconceAnchor(room, rng, linked) {
 function chestAnchor(room, sconce, linked) {
   const sideX = -sconce.nz;
   const sideZ = sconce.nx;
-  // 0.35 m of air behind the chest, plus the body and the lid's swing, in world units.
-  const minClear = 0.35 * 3.2 + 1.35;
+  // Rear face is ~1.22 m behind the anchor. The open lid swings ~1.15 m past
+  // that hinge, plus 0.35 m of air so the lid clears the wall.
+  const minClear = 1.22 + 1.15 + 0.35;
   let best = null;
   let bestClear = -Infinity;
   for (let lateral = 3.2; lateral >= 2.55; lateral -= 0.25) {
@@ -366,17 +403,271 @@ function chestAnchor(room, sconce, linked) {
   };
 }
 
-function exteriorPolygon(court, path) {
-  return [
-    [path.x, path.z + path.d],
-    [path.x + path.w, path.z + path.d],
-    [path.x + path.w, path.z],
-    [court.x + court.w, path.z],
-    [court.x + court.w, court.z],
-    [court.x, court.z],
-    [court.x, path.z],
-    [path.x, path.z],
+function clonePreset(preset) {
+  return {
+    clearColor: preset.clearColor,
+    ambientLightIntensity: preset.ambientLightIntensity,
+    fog: preset.fog ? { ...preset.fog } : null,
+    skyboxVisible: preset.skyboxVisible,
+  };
+}
+
+function stampTrailFrame(samples) {
+  for (let i = 0; i < samples.length; i += 1) {
+    const prev = samples[Math.max(0, i - 1)];
+    const next = samples[Math.min(samples.length - 1, i + 1)];
+    let tx = next.x - prev.x;
+    let tz = next.z - prev.z;
+    const len = Math.hypot(tx, tz) || 1;
+    tx /= len;
+    tz /= len;
+    samples[i].tx = tx;
+    samples[i].tz = tz;
+    samples[i].nx = -tz;
+    samples[i].nz = tx;
+  }
+  return samples;
+}
+
+function buildTrailSamples(midX, z0) {
+  const samples = [];
+  for (let i = 0; i <= PATH_SAMPLES; i += 1) {
+    const t = i / PATH_SAMPLES;
+    const z = z0 + t * PATH_LENGTH;
+    const x = midX + Math.sin(t * Math.PI) * 1.65;
+    const half = PATH_WIDTH / 2 + Math.sin(t * 8.4) * 0.42 + Math.sin(t * 3.1 + 0.7) * 0.26;
+    samples.push({ x, z, half, t });
+  }
+  return stampTrailFrame(samples);
+}
+
+const VISTA_LENGTH = 118;
+const VISTA_STEPS = 22;
+
+function vistaTree(sample, side, lateral, index, variant, scaleMul) {
+  const spec = DEAD_TREE_VARIANTS[variant];
+  const along = ((index % 5) - 2) * 0.85;
+  return {
+    x: sample.x + sample.nx * side * lateral + sample.tx * along,
+    z: sample.z + sample.nz * side * lateral + sample.tz * along,
+    nx: sample.nx,
+    nz: sample.nz,
+    tx: sample.tx,
+    tz: sample.tz,
+    scale: (0.78 + (index % 5) * 0.1) * scaleMul,
+    rotationY: (index * 1.17) % (Math.PI * 2),
+    lean: (index % 2 === 0 ? 1 : -1) * (6 + (index % 4)) * (Math.PI / 180),
+    leanAxis: (index * 0.73) % (Math.PI * 2),
+    variant,
+    branches: spec.branches,
+    height: spec.height,
+  };
+}
+
+// Scenery past the walkable hub: the path keeps going, and the range closes over its far end.
+// The hub polygon and the mountain-pass trigger stay where they are.
+export function buildMountainVista(end, hub) {
+  const path = [];
+  for (let i = 0; i <= VISTA_STEPS; i += 1) {
+    const t = i / VISTA_STEPS;
+    path.push({
+      x: end.x + Math.sin(t * Math.PI) * -3.1,
+      z: end.z + t * VISTA_LENGTH,
+      half: end.half + (4.35 - end.half) * t,
+      t,
+    });
+  }
+  stampTrailFrame(path);
+  const far = path[path.length - 1];
+  const mountains = [
+    { x: far.x - 96, z: far.z + 22, height: 62, radius: 38, yaw: 0.4, depth: 0.82 },
+    { x: far.x - 62, z: far.z + 10, height: 90, radius: 42, yaw: 0.2, depth: 0.74 },
+    { x: far.x - 34, z: far.z + 2, height: 108, radius: 36, yaw: -0.3, depth: 0.7 },
+    { x: far.x - 14, z: far.z + 6, height: 74, radius: 28, yaw: 0.15, depth: 0.78 },
+    { x: far.x, z: far.z + 14, height: 86, radius: 32, yaw: 0.05, depth: 0.66 },
+    { x: far.x + 16, z: far.z + 6, height: 78, radius: 28, yaw: -0.2, depth: 0.76 },
+    { x: far.x + 40, z: far.z + 4, height: 114, radius: 40, yaw: 0.35, depth: 0.72 },
+    { x: far.x + 72, z: far.z + 14, height: 96, radius: 44, yaw: -0.15, depth: 0.8 },
+    { x: far.x + 104, z: far.z + 26, height: 64, radius: 36, yaw: 0.5, depth: 0.84 },
+    { x: far.x - 48, z: far.z - 2, height: 28, radius: 30, yaw: 0.25, depth: 0.7 },
+    { x: far.x - 22, z: far.z - 8, height: 22, radius: 26, yaw: 0.6, depth: 0.62 },
+    { x: far.x, z: far.z - 2, height: 16, radius: 20, yaw: 0.1, depth: 0.55 },
+    { x: far.x + 22, z: far.z - 8, height: 20, radius: 24, yaw: -0.4, depth: 0.6 },
+    { x: far.x + 50, z: far.z - 2, height: 30, radius: 32, yaw: -0.55, depth: 0.68 },
   ];
+  const trees = [];
+  const scrub = [];
+  const clearZ = hub.z + hub.d + 1.6;
+  for (let i = 1; i < path.length; i += 1) {
+    const sample = path[i];
+    if (sample.z < clearZ || sample.t > 0.8) continue;
+    const side = i % 2 === 0 ? -1 : 1;
+    const lateral = sample.half + 2.6 + (i % 4) * 1.15;
+    trees.push(vistaTree(sample, side, lateral, i, i % DEAD_TREE_VARIANTS.length, 1));
+    if (i % 2 === 0) {
+      trees.push(vistaTree(sample, side, lateral + 6.5, i + 11, (i + 2) % DEAD_TREE_VARIANTS.length, 0.82));
+    }
+    for (const brushSide of [-1, 1]) {
+      const brushLateral = sample.half + 1.35 + ((i + (brushSide > 0 ? 1 : 0)) % 3) * 0.7;
+      const along = ((i % 3) - 1) * 1.15;
+      scrub.push({
+        x: sample.x + sample.nx * brushSide * brushLateral + sample.tx * along,
+        z: sample.z + sample.nz * brushSide * brushLateral + sample.tz * along,
+        scale: 0.75 + (i % 4) * 0.22,
+        rotationY: (i * 1.31 + (brushSide > 0 ? 0.4 : 0)) % (Math.PI * 2),
+        variant: (i + (brushSide > 0 ? 1 : 0)) % 2,
+      });
+      if (i % 3 !== 0) continue;
+      const farLateral = brushLateral + 4.8;
+      scrub.push({
+        x: sample.x + sample.nx * brushSide * farLateral - sample.tx * 0.8,
+        z: sample.z + sample.nz * brushSide * farLateral - sample.tz * 0.8,
+        scale: 0.6 + (i % 3) * 0.2,
+        rotationY: (i * 0.77) % (Math.PI * 2),
+        variant: i % 2,
+      });
+    }
+  }
+  return {
+    description: 'Scrub and dead trees follow a long dirt path away from the pass until the mountain range meets it.',
+    path,
+    mountains,
+    scrub,
+    trees,
+  };
+}
+
+function pointOnTrail(samples, t) {
+  const scaled = Math.min(0.999, Math.max(0, t)) * (samples.length - 1);
+  const index = Math.floor(scaled);
+  const frac = scaled - index;
+  const a = samples[index];
+  const b = samples[Math.min(samples.length - 1, index + 1)];
+  return {
+    x: a.x + (b.x - a.x) * frac,
+    z: a.z + (b.z - a.z) * frac,
+    half: a.half + (b.half - a.half) * frac,
+    nx: a.nx + (b.nx - a.nx) * frac,
+    nz: a.nz + (b.nz - a.nz) * frac,
+    tx: a.tx + (b.tx - a.tx) * frac,
+    tz: a.tz + (b.tz - a.tz) * frac,
+  };
+}
+
+export function trailDistance(samples, x, z) {
+  let best = Infinity;
+  for (let i = 0; i < samples.length - 1; i += 1) {
+    const a = samples[i];
+    const b = samples[i + 1];
+    const closest = closestOnSegment(x, z, a.x, a.z, b.x, b.z);
+    best = Math.min(best, Math.hypot(x - closest.x, z - closest.z));
+  }
+  return best;
+}
+
+// True when a prop would stand in the travel lane or in the open view toward the pass.
+export function trailBlocksProp(samples, x, z) {
+  if (!samples?.length) return false;
+  const end = samples[samples.length - 1];
+  if (trailDistance(samples, x, z) < CORRIDOR_HALF - 0.05) return true;
+  if (z >= end.z - 0.5 && Math.abs(x - end.x) < CORRIDOR_HALF) return true;
+  return false;
+}
+
+function nearestSample(samples, x, z) {
+  let best = samples[0];
+  let bestDist = Infinity;
+  for (let i = 0; i < samples.length; i += 1) {
+    const dist = Math.hypot(samples[i].x - x, samples[i].z - z);
+    if (dist < bestDist) {
+      bestDist = dist;
+      best = samples[i];
+    }
+  }
+  return best;
+}
+
+function scatterTrees(rng, samples) {
+  const trees = [];
+  const minDist = 3.35;
+  const end = samples[samples.length - 1];
+  let guard = 0;
+  while (trees.length < 30 && guard < 900) {
+    guard += 1;
+    let x;
+    let z;
+    if (trees.length > 2 && rng.next() < 0.62) {
+      const anchor = trees[rng.int(0, trees.length)];
+      const along = rng.range(-2.2, 2.2);
+      const out = rng.range(0.35, 2.6);
+      x = anchor.x + anchor.nx * out + anchor.tx * along;
+      z = anchor.z + anchor.nz * out + anchor.tz * along;
+    } else {
+      const sample = pointOnTrail(samples, 0.05 + rng.next() * 0.74);
+      const side = rng.next() < 0.5 ? -1 : 1;
+      const lateral = sample.half + TRAIL_CLEARANCE / 2 + 0.85 + rng.next() * 6.5;
+      x = sample.x + sample.nx * side * lateral;
+      z = sample.z + sample.nz * side * lateral;
+    }
+    if (trailBlocksProp(samples, x, z)) continue;
+    if (z < samples[0].z + 1 || z > end.z - 8) continue;
+    let crowded = false;
+    for (let i = 0; i < trees.length; i += 1) {
+      if (Math.hypot(trees[i].x - x, trees[i].z - z) < minDist) {
+        crowded = true;
+        break;
+      }
+    }
+    if (crowded) continue;
+    const nearest = nearestSample(samples, x, z);
+    const variant = rng.int(0, DEAD_TREE_VARIANTS.length);
+    const spec = DEAD_TREE_VARIANTS[variant];
+    trees.push({
+      x,
+      z,
+      nx: nearest.nx,
+      nz: nearest.nz,
+      tx: nearest.tx,
+      tz: nearest.tz,
+      scale: 0.7 + rng.next() * 0.6,
+      rotationY: rng.next() * Math.PI * 2,
+      lean: (5 + rng.next() * 5) * (Math.PI / 180) * (rng.next() < 0.5 ? -1 : 1),
+      leanAxis: rng.next() * Math.PI * 2,
+      variant,
+      branches: spec.branches,
+      height: spec.height,
+    });
+  }
+  return trees;
+}
+
+function exteriorFromTrail(court, samples, vestibule) {
+  const polygon = [
+    [vestibule.x, vestibule.z],
+    [vestibule.x + vestibule.w, vestibule.z],
+    [vestibule.x + vestibule.w, court.z],
+    [court.x + court.w, court.z],
+    [court.x + court.w, court.z + court.d],
+  ];
+  for (let i = 0; i < samples.length; i += 1) {
+    polygon.push([samples[i].x + samples[i].half, samples[i].z]);
+  }
+  for (let i = samples.length - 1; i >= 0; i -= 1) {
+    polygon.push([samples[i].x - samples[i].half, samples[i].z]);
+  }
+  polygon.push([court.x, court.z + court.d]);
+  polygon.push([court.x, court.z]);
+  polygon.push([vestibule.x, court.z]);
+  return polygon;
+}
+
+function triggerBox(x, z, width, depth) {
+  return {
+    minX: x - width / 2,
+    maxX: x + width / 2,
+    minZ: z - depth / 2,
+    maxZ: z + depth / 2,
+  };
 }
 
 // The descent is one place: The Ancient Ruins. The fighter starts outdoors on a dirt path,
@@ -390,6 +681,7 @@ function shapeAncientRuins(layout, rng) {
   const usedNames = new Set(['Antechamber']);
   for (const room of rooms) {
     room.theme = 'stone';
+    room.lighting = 'underground';
     room.rocks = [];
     room.brazier = null;
     if (room.kind === 'corridor') {
@@ -408,6 +700,7 @@ function shapeAncientRuins(layout, rng) {
   ante.spawns = [];
   ante.role = 'antechamber';
   ante.name = 'Antechamber';
+  ante.description = 'A stone threshold under the arch. Pale daylight fails a few steps in, and the passage beyond is black.';
   ante.sconce = null;
   ante.chest = null;
 
@@ -421,12 +714,35 @@ function shapeAncientRuins(layout, rng) {
     w: courtW,
     d: COURT_DEPTH,
   };
+  const samples = buildTrailSamples(midX, court.z + court.d);
+  const end = samples[samples.length - 1];
   const path = {
     x: midX - PATH_WIDTH / 2,
-    z: court.z + court.d,
+    z: samples[0].z,
     w: PATH_WIDTH,
     d: PATH_LENGTH,
   };
+  const vestibule = {
+    x: midX - doorWidth / 2,
+    z: southZ - VESTIBULE_DEPTH,
+    w: doorWidth,
+    d: VESTIBULE_DEPTH,
+  };
+  const hub = {
+    x: end.x - 9,
+    z: end.z + 2.2,
+    w: 18,
+    d: 16,
+  };
+  const approachPoint = pointOnTrail(samples, 0.34);
+  const towardX = midX - approachPoint.x;
+  const towardZ = southZ - approachPoint.z;
+  const towardLen = Math.hypot(towardX, towardZ) || 1;
+  const innerSpawnZ = Math.min(
+    ante.rect.z + ante.rect.d - 4.6,
+    Math.max(ante.rect.z + 2.4, southZ - 5),
+  );
+  const returnPoint = pointOnTrail(samples, 0.82);
 
   layout.areaName = AREA_NAME;
   layout.enemyName = 'Skeletal Warriors';
@@ -440,10 +756,73 @@ function shapeAncientRuins(layout, rng) {
     mouthA: [ante.rect.x, southZ],
     mouthB: [ante.rect.x + ante.rect.w, southZ],
   };
-  layout.exterior = exteriorPolygon(court, path);
-  layout.approach = { court, path, southZ, midX };
+  layout.vestibule = polygonFromRect(vestibule);
+  layout.exterior = exteriorFromTrail(court, samples, vestibule);
+  layout.hub = polygonFromRect(hub);
+  layout.trees = scatterTrees(rng, samples);
+  layout.zoneLabels = { ...ZONE_LABELS };
+  layout.approach = {
+    court,
+    path,
+    samples,
+    southZ,
+    midX,
+    vestibule,
+    hub,
+    corridorWidth: PATH_WIDTH + TRAIL_CLEARANCE,
+    lighting: 'day',
+    description: 'A worn dirt path ends at a weathered stone arch. Thin clouds cross a pale blue sky, and pale sun falls between dead trees on the parched ground. Beyond the pass, scrub and dead trees follow the path until a mountain range meets it.',
+    vista: buildMountainVista(end, hub),
+  };
+  layout.transitions = [
+    {
+      id: 'ruin-entry',
+      sourceZoneId: 'worn-trail',
+      targetZoneId: 'ancient-ruins',
+      targetSpawnPoint: { x: midX, y: 0, z: innerSpawnZ, rotationY: 0 },
+      transitionType: 'fade',
+      fadeDurationMs: 600,
+      environmentalPreset: clonePreset(ENVIRONMENT_PRESETS.interior),
+      volume: triggerBox(midX, southZ - 2.05, doorWidth - 0.6, 1.1),
+      requiresGate: true,
+    },
+    {
+      id: 'ruin-exit',
+      sourceZoneId: 'ancient-ruins',
+      targetZoneId: 'worn-trail',
+      targetSpawnPoint: { x: midX, y: 0, z: southZ + 4.2, rotationY: Math.PI },
+      transitionType: 'fade',
+      fadeDurationMs: 600,
+      environmentalPreset: clonePreset(ENVIRONMENT_PRESETS.day),
+      volume: triggerBox(midX, southZ - 0.65, doorWidth - 0.6, 1.0),
+    },
+    {
+      id: 'mountain-pass',
+      sourceZoneId: 'worn-trail',
+      targetZoneId: 'world-hub',
+      targetSpawnPoint: { x: end.x, y: 0, z: hub.z + hub.d * 0.45, rotationY: Math.PI },
+      transitionType: 'fade',
+      fadeDurationMs: 300,
+      environmentalPreset: clonePreset(ENVIRONMENT_PRESETS.day),
+      volume: triggerBox(end.x, end.z - 0.2, PATH_WIDTH, 1.8),
+    },
+    {
+      id: 'mountain-return',
+      sourceZoneId: 'world-hub',
+      targetZoneId: 'worn-trail',
+      targetSpawnPoint: { x: returnPoint.x, y: 0, z: returnPoint.z, rotationY: 0 },
+      transitionType: 'fade',
+      fadeDurationMs: 300,
+      environmentalPreset: clonePreset(ENVIRONMENT_PRESETS.day),
+      volume: triggerBox(end.x, hub.z + 1.3, PATH_WIDTH, 1.6),
+    },
+  ];
   layout.gateInward = { x: 0, z: -1 };
-  layout.start = { x: midX, z: path.z + path.d - 4.2, yaw: 0 };
+  layout.start = {
+    x: approachPoint.x,
+    z: approachPoint.z,
+    yaw: Math.atan2(-towardX / towardLen, -towardZ / towardLen),
+  };
   layout.area = rooms.reduce((sum, room) => sum + room.rect.w * room.rect.d, 0);
 
   const linkedFor = (room) => doors.filter((door) => door.from === room.id || door.to === room.id);
