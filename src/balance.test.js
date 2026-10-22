@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
+import warriorDef from '../skeletelWarrior.json';
 import {
   attackRecover,
   attackWindup,
@@ -10,8 +11,13 @@ import {
   skeletonAttackRange,
   skeletonWeapon,
   stepGuardBlend,
+  SKELETON_DAMAGE,
+  SKELETON_HP,
   SKELETON_MIN_RECOVER,
   SKELETON_MIN_WINDUP,
+  SKELETON_MOVE_SPEED,
+  SKELETON_NAME,
+  SKELETON_WEAPONS,
   statsForLevel,
   xpRequired,
 } from './balance.js';
@@ -83,6 +89,17 @@ test('higher levels hit harder and swing a little faster', () => {
   assert.ok(later.damage > first.damage);
   assert.ok(later.attackInterval < first.attackInterval);
   assert.equal(statsForLevel(0).level, 1);
+});
+
+test('skeletal warrior stats come from skeletelWarrior.json', () => {
+  assert.equal(SKELETON_NAME, warriorDef.name);
+  assert.equal(SKELETON_HP, warriorDef.stats.health);
+  assert.equal(SKELETON_DAMAGE, warriorDef.stats.damage);
+  assert.equal(SKELETON_MOVE_SPEED, warriorDef.stats.moveSpeed);
+  assert.deepEqual(SKELETON_WEAPONS, warriorDef.weapons.map((weapon) => weapon.id));
+  for (const weapon of warriorDef.weapons) {
+    assert.equal(skeletonAttackRange(weapon.id), weapon.range);
+  }
 });
 
 test('weapons differ, but haste uses one attack cadence', () => {

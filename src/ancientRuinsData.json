@@ -1570,7 +1570,6 @@
   },
   "lastRoomId": "space-20",
   "areaName": "The Ancient Ruins",
-  "enemyName": "Skeletal Warriors",
   "requirements": [
     "torch",
     "mace"
@@ -2292,6 +2291,16 @@
     "world-hub": "Mountain Pass"
   },
   "approach": {
+    "shell": {
+      "facadeHeight": 13,
+      "flankHeight": 6.5,
+      "cornice": {
+        "height": 1.15,
+        "depth": 1.35,
+        "overhang": 1.2,
+        "y": 12.5
+      }
+    },
     "court": {
       "x": -6.031576942982049,
       "z": 12.5,

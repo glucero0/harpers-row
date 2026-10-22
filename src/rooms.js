@@ -1,4 +1,5 @@
 import { clearance, closestOnSegment, rectGap } from './geometry.js';
+import { SKELETON_NAME } from './balance.js';
 
 const TARGET_AREA = 10000;
 const NORTH = 3;
@@ -745,7 +746,7 @@ function shapeAncientRuins(layout, rng) {
   const returnPoint = pointOnTrail(samples, 0.82);
 
   layout.areaName = AREA_NAME;
-  layout.enemyName = 'Skeletal Warriors';
+  layout.enemyName = SKELETON_NAME;
   layout.requirements = ['torch', 'mace'];
   layout.entrance = {
     a: [midX - doorWidth / 2, southZ],
@@ -762,6 +763,11 @@ function shapeAncientRuins(layout, rng) {
   layout.trees = scatterTrees(rng, samples);
   layout.zoneLabels = { ...ZONE_LABELS };
   layout.approach = {
+    shell: {
+      facadeHeight: 13,
+      flankHeight: 6.5,
+      cornice: { height: 1.15, depth: 1.35, overhang: 1.2, y: 12.5 },
+    },
     court,
     path,
     samples,

@@ -40,8 +40,8 @@ The codebase is built from small `createX(...)` factory functions that return a 
 over private state — meshes, materials, vectors, flags — rather than classes. Modules are grouped by
 concern:
 
-- **Config/math** (`balance.js`, `geometry.js`) — pure constants and functions, no THREE, no DOM.
-- **World generation** (`rooms.js`, `ancientRuinsData.json`) — `rooms.js` can still build a procedural layout for tests. The game loads The Ancient Ruins from `ancientRuinsData.json` as a deep copy, and does not call `generateLayout()` on startup or on another descent.
+- **Config/math** (`balance.js`, `geometry.js`, `skeletelWarrior.json`) — pure constants and functions, no THREE, no DOM. Skeletal warrior name, health, damage, speed, and weapons are read from `skeletelWarrior.json`.
+- **World generation** (`rooms.js`, `ancientRuinsData.json`) — `rooms.js` can still build a procedural layout for tests. The game loads The Ancient Ruins from `ancientRuinsData.json` as a deep copy, and does not call `generateLayout()` on startup or on another descent. The outdoor wall heights and cornice are `approach.shell` in that file. The checklist area name and requirements are read from it too. The enemy name comes from `skeletelWarrior.json`.
 - **Content/rendering** (`dungeon.js`, `materials.js`, `flame.js`, `torch.js`, `sconce.js`, `dust.js`, `player-body.js`, ...) — turns config and layout into THREE objects and owns their GPU resources.
 - **Entities** (`player.js`, `skeleton.js`) — autonomous actors with their own state machines.
 - **Systems** (`input.js`, `audio.js`, `ui.js`, `impact.js`, `zone-transition.js`) — cross-cutting concerns not tied to one entity. Zone changes (the ruin arch, the mountain pass) share one fade, teleport, and lighting preset.
