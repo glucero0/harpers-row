@@ -55,6 +55,7 @@ varying vec3 vRuinNormal;
 uniform vec3 ruinTorchPos;
 uniform float ruinTorchPower;
 uniform float ruinFogLift;
+uniform float ruinFloorY;
 uniform sampler2D ruinHeight;
 uniform float ruinScale;
 float ruinHash3(vec3 p) {
@@ -129,7 +130,7 @@ const NORMAL_CHUNK = `#include <normal_fragment_begin>
 
 const FOG_CHUNK = `
 #ifdef USE_FOG
-  float ruinHeightFog = exp(-max(vRuinWorld.y, 0.0) * 0.11);
+  float ruinHeightFog = exp(-max(vRuinWorld.y - ruinFloorY, 0.0) * 0.11);
   float fogFactor;
   #ifdef FOG_EXP2
     fogFactor = 1.0 - exp(-fogDensity * fogDensity * vFogDepth * vFogDepth * (0.45 + ruinHeightFog * ruinFogLift));
@@ -150,6 +151,8 @@ export function createRuinField(heightMap) {
     ruinTorchPos: { value: torchPos },
     ruinTorchPower: { value: 0 },
     ruinFogLift: { value: 2.6 },
+    // Height of the floor the player stands on: the fog thins with height above it, not above the ground.
+    ruinFloorY: { value: 0 },
     ruinChipAmp: { value: 1 },
     ruinHeight: { value: heightMap },
     ruinScale: { value: 0.22 },
@@ -165,6 +168,8 @@ export function createRuinField(heightMap) {
       uniforms.ruinTorchPower.value = Number.isFinite(power) ? Math.max(0, Math.min(3, power)) : 0;
       const lift = Number(state?.fogLift);
       uniforms.ruinFogLift.value = Number.isFinite(lift) ? lift : 1.2;
+      const floor = Number(state?.floor);
+      uniforms.ruinFloorY.value = Number.isFinite(floor) ? floor : 0;
     },
   };
 }
@@ -175,6 +180,7 @@ export function applyRuinShader(material, field) {
     shader.uniforms.ruinTorchPos = field.uniforms.ruinTorchPos;
     shader.uniforms.ruinTorchPower = field.uniforms.ruinTorchPower;
     shader.uniforms.ruinFogLift = field.uniforms.ruinFogLift;
+    shader.uniforms.ruinFloorY = field.uniforms.ruinFloorY;
     shader.uniforms.ruinChipAmp = field.uniforms.ruinChipAmp;
     shader.uniforms.ruinHeight = field.uniforms.ruinHeight;
     shader.uniforms.ruinScale = field.uniforms.ruinScale;

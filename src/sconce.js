@@ -232,7 +232,8 @@ export function createWallSconce(materials, anchor) {
   const particles = createFlamePoints();
   particles.mesh.position.copy(flamePos);
   group.add(plate, arm, ring, torch, pitch, ...rags, ...straps, ...cage, light, particles.mesh);
-  group.position.set(anchor.x, 5.6, anchor.z);
+  const baseY = Number.isFinite(anchor.y) ? anchor.y : 0;
+  group.position.set(anchor.x, baseY + 5.6, anchor.z);
   group.rotation.y = Math.atan2(-anchor.nz, anchor.nx);
   const interactable = new SconceInteractable({
     x: anchor.x + anchor.nx * FLAME_OFFSET,
@@ -243,7 +244,8 @@ export function createWallSconce(materials, anchor) {
     particles,
     roomId: anchor.roomId,
   });
-  interactable.fireId = `${anchor.x.toFixed(2)}:${anchor.z.toFixed(2)}`;
-  interactable.lightY = 6.7;
+  interactable.fireId = `${anchor.x.toFixed(2)}:${baseY.toFixed(1)}:${anchor.z.toFixed(2)}`;
+  interactable.lightY = baseY + 6.7;
+  interactable.floorY = baseY;
   return { group, interactable, particles };
 }

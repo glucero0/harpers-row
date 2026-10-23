@@ -11,6 +11,7 @@
   <div id="hud">
     <div class="panel top-left">
       <p id="room-name" class="room">Stone Gate</p>
+      <p id="room-tag" class="sub" hidden></p>
       <p id="undead-count" class="sub">Undead here: 0</p>
       <p id="pace-readout" class="sub">Pace ×1.00</p>
     </div>
@@ -26,6 +27,7 @@
       <p id="stat-kills" class="stat">Enemies killed 0%</p>
       <p id="stat-loot" class="stat">Loot collected 0%</p>
       <p id="stat-gold" class="stat">Gold 0</p>
+      <p id="stat-complete" class="stat">Location complete 0%</p>
       <label class="slider">
         <span class="slider-title">Undead haste</span>
         <span class="slider-scale"><span>Slight</span><span>Frantic</span></span>
@@ -49,10 +51,13 @@
       <p><span class="label">Enemy</span><span id="enemy-name"></span></p>
       <p class="req-line"><span id="requirements"></span><span id="check-mark" hidden>✓</span></p>
       <button id="equip" type="button">Equip</button>
+      <label class="file-pick"><span class="label">Location file</span><input id="location-file" type="file" accept=".json,application/json" /></label>
+      <p id="location-status" class="sub" role="status"></p>
     </div>
     <p id="hint" class="hint">WASD move · Mouse look · Left click or K attack · Right click block · E lights a cleared sconce · Esc, then Equip · Xbox: RT attack, LT block, X uses, Start pauses</p>
     <div id="crosshair" class="crosshair" aria-hidden="true"><span></span><span></span></div>
     <p id="pause-label" class="pause" hidden>Paused</p>
+    <p id="complete-note" class="note" role="status" hidden>Everything here is done. Walk back out through the arch whenever you are ready.</p>
   </div>
   <div id="overlay" class="overlay">
     <div class="card">

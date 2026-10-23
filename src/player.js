@@ -22,6 +22,9 @@ import { PITCH_DOWN, PITCH_UP, PlayerBodyRig } from './player-body.js';
 import { createHeldTorch, flickerTorch } from './torch.js';
 
 const LOOK_STICK = 2.35;
+// A blow only lands on a body whose feet are within this height of the player's: the next story up
+// or down is out of reach however close it is on the map.
+const REACH_LEVEL = 4.5;
 const METRE = 3.2;
 
 function hinge(parent, x, y, z) {
@@ -447,6 +450,9 @@ export function createPlayer(camera, materials, start) {
 
   const state = {
     x: start.x,
+    // Height of the feet above the ground floor. It follows the floor under the player: level in a
+    // room, a slope on a stair.
+    y: start.y || 0,
     z: start.z,
     yaw: start.yaw,
     pitch: -0.08,
@@ -547,7 +553,7 @@ export function createPlayer(camera, materials, start) {
   camera.rotation.order = 'YXZ';
 
   function placeCamera() {
-    rig.position.set(state.x, state.gait * (state.blocking ? 0.03 : 0.07), state.z);
+    rig.position.set(state.x, state.y + state.gait * (state.blocking ? 0.03 : 0.07), state.z);
     rig.rotation.set(0, state.yaw, state.gait * 0.035);
     camera.rotation.set(state.pitch, 0, 0);
     camera.rotation.x = Math.max(-PITCH_DOWN, Math.min(PITCH_UP, camera.rotation.x));
@@ -815,7 +821,7 @@ export function createPlayer(camera, materials, start) {
       moveAmount = speed / PLAYER_SPEED;
       state.x += (mx / length) * speed * dt;
       state.z += (mz / length) * speed * dt;
-      const resolved = resolveBody(state.x, state.z, PLAYER_RADIUS, world.colliders);
+      const resolved = resolveBody(state.x, state.z, PLAYER_RADIUS, world.colliders, state.y);
       state.x = resolved.x;
       state.z = resolved.z;
     }
@@ -829,7 +835,9 @@ export function createPlayer(camera, materials, start) {
       const press = (mx / length) * world.gateInward.x + (mz / length) * world.gateInward.z;
       if (press > 0.35) denyEntry();
     }
-    state.room = world.roomAt(state.x, state.z, state.room?.id);
+    state.room = world.roomAt(state.x, state.z, state.room?.id, state.y);
+    // Stand on the floor under the new spot.
+    if (typeof world.floorY === 'function') state.y = world.floorY(state.x, state.z, state.room);
 
     if (state.equipped && input.attack && state.attackWait <= 0 && state.swing <= 0) {
       state.attackWait = state.attackInterval;
@@ -848,12 +856,14 @@ export function createPlayer(camera, materials, start) {
     if (skeletons) {
       for (const skeleton of skeletons.list) {
         if (skeleton.dead) continue;
+        // Another story is out of reach, however close it is on the map.
+        if (Number.isFinite(skeleton.y) && Math.abs(skeleton.y - state.y) > REACH_LEVEL) continue;
         const dx = skeleton.x - state.x;
         const dz = skeleton.z - state.z;
         const dist = Math.hypot(dx, dz);
         const angle = Math.atan2(forwardX * dz - forwardZ * dx, forwardX * dx + forwardZ * dz);
         const inArc = dist <= SWORD_RANGE && Math.abs(angle) <= SWORD_ARC;
-        const seen = inArc && lineOfSight(state.x, state.z, skeleton.x, skeleton.z, world.colliders);
+        const seen = inArc && lineOfSight(state.x, state.z, skeleton.x, skeleton.z, world.colliders, state.y);
         if (seen) state.aiming = true;
         if (striking && seen && !state.struck.has(skeleton.id)) {
           state.struck.add(skeleton.id);
@@ -866,11 +876,11 @@ export function createPlayer(camera, materials, start) {
     state.usePressed = !!input.use;
     state.swinging = striking;
     if (striking && world.openChestAt) {
-      const gold = world.openChestAt(state.x, state.z, forwardX, forwardZ);
+      const gold = world.openChestAt(state.x, state.z, forwardX, forwardZ, state.y);
       if (gold > 0) {
         state.gold += gold;
         connected = true;
-        audio.chestOpen({ x: state.x, y: 1.4, z: state.z });
+        audio.chestOpen({ x: state.x, y: state.y + 1.4, z: state.z });
       }
     }
     if (connected) {
@@ -919,6 +929,7 @@ export function createPlayer(camera, materials, start) {
 
   function reset(nextStart) {
     state.x = nextStart.x;
+    state.y = nextStart.y || 0;
     state.z = nextStart.z;
     state.yaw = nextStart.yaw;
     state.pitch = -0.08;
@@ -990,8 +1001,9 @@ export function createPlayer(camera, materials, start) {
     return true;
   }
 
-  function placeAt(x, z, yaw) {
+  function placeAt(x, z, yaw, y = 0) {
     state.x = x;
+    state.y = y;
     state.z = z;
     state.yaw = yaw;
     state.prevYaw = yaw;

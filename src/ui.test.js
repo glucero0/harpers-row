@@ -26,6 +26,11 @@ const HUD_HTML = `
   <p id="stat-kills"></p>
   <p id="stat-loot"></p>
   <p id="stat-gold"></p>
+  <p id="stat-complete"></p>
+  <p id="room-tag" hidden></p>
+  <p id="complete-note" hidden></p>
+  <input id="location-file" type="file" />
+  <p id="location-status"></p>
 `;
 
 function baseState(overrides = {}) {
@@ -59,6 +64,7 @@ function baseState(overrides = {}) {
 
 let onRestart;
 let onEquip;
+let onLoadLocation;
 let ui;
 
 beforeEach(() => {
@@ -66,9 +72,11 @@ beforeEach(() => {
   document.body.innerHTML = HUD_HTML;
   onRestart = vi.fn();
   onEquip = vi.fn();
+  onLoadLocation = vi.fn();
   ui = createUI({
     onRestart,
     onEquip,
+    onLoadLocation,
     areaName: 'The Ancient Ruins',
     requirements: ['torch', 'mace'],
   });
@@ -122,10 +130,52 @@ describe('createUI', () => {
     expect(document.querySelector('#banner-title').textContent).toBe('Game over');
   });
 
-  it('shows the victory banner when the crypt is cleared', () => {
-    ui.sync(baseState({ banner: 'victory' }));
-    expect(document.querySelector('#banner').hidden).toBe(false);
-    expect(document.querySelector('#banner-title').textContent).toBe('The crypt is still');
+  it('never ends the run just because everything is cleared', () => {
+    ui.sync(baseState({ banner: null, enemiesFallen: 28, enemiesTotal: 28, lootTaken: 8, lootTotal: 8 }));
+    expect(document.querySelector('#banner').hidden).toBe(true);
+    expect(document.querySelector('#stat-complete').textContent).toBe('Location complete 100%');
+    expect(document.querySelector('#complete-note').hidden).toBe(false);
+  });
+
+  it('reports how much of the location is done, enemies and chests together', () => {
+    ui.sync(baseState({ enemiesFallen: 14, enemiesTotal: 28, lootTaken: 4, lootTotal: 8 }));
+    expect(document.querySelector('#stat-complete').textContent).toBe('Location complete 50%');
+    expect(document.querySelector('#complete-note').hidden).toBe(true);
+  });
+
+  it('tags the entrance and exit rooms', () => {
+    ui.sync(baseState({ roomTag: 'Exit chamber' }));
+    expect(document.querySelector('#room-tag').textContent).toBe('Exit chamber');
+    expect(document.querySelector('#room-tag').hidden).toBe(false);
+    ui.sync(baseState({ roomTag: '' }));
+    expect(document.querySelector('#room-tag').hidden).toBe(true);
+  });
+
+  it('sets pace from how deep a room is, not where it sits in the file', () => {
+    ui.sync(baseState({ room: { name: 'Far branch', index: 20, depth: 0 }, roomCount: 6 }));
+    expect(document.querySelector('#pace-readout').textContent).toBe('Pace ×1.00');
+  });
+
+  it('hands a chosen location file to onLoadLocation, and can pick the same file again', () => {
+    const file = new File(['{}'], 'seed3000.json', { type: 'application/json' });
+    const input = document.querySelector('#location-file');
+    Object.defineProperty(input, 'files', { value: [file], configurable: true });
+    input.dispatchEvent(new Event('change'));
+    expect(onLoadLocation).toHaveBeenCalledWith(file);
+    expect(input.value).toBe('');
+  });
+
+  it('shows location messages as plain text, never markup', () => {
+    ui.setLocationStatus('<img src=x onerror=alert(1)>');
+    const status = document.querySelector('#location-status');
+    expect(status.textContent).toBe('<img src=x onerror=alert(1)>');
+    expect(status.querySelector('img')).toBeNull();
+  });
+
+  it('shows the name and requirements of a newly loaded location', () => {
+    ui.setLocation({ areaName: 'Sunken Vault', requirements: ['torch'] });
+    expect(document.querySelector('#area-name').textContent).toBe('Sunken Vault');
+    expect(document.querySelector('#requirements').textContent).toBe('Requirements: Torch');
   });
 
   it('forwards the restart button click to onRestart', () => {

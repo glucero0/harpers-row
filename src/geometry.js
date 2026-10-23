@@ -1,3 +1,21 @@
+// Every story of a location is this tall. A wall, a prop, or a chest is tagged with the story it
+// stands on, so a floor-two player is never stopped by the walls of the room under their feet.
+export const STORY_HEIGHT = 10;
+// A body whose feet are within this of the next story already counts as standing on it. This is what
+// lets the top of a stair belong to the upper story while the ramp is still rising under the player.
+const STORY_SLACK = 0.75;
+
+// The story a height belongs to: 0 is the ground floor.
+export function storyAt(y) {
+  const height = Number.isFinite(y) ? y : 0;
+  return Math.floor((height + STORY_SLACK) / STORY_HEIGHT);
+}
+
+// A collider with no `story` is always solid. A query with no height sees every story.
+function onStory(collider, story) {
+  return story === undefined || collider.story === undefined || collider.story === story;
+}
+
 export function closestOnSegment(px, pz, ax, az, bx, bz) {
   const abx = bx - ax;
   const abz = bz - az;
@@ -89,13 +107,16 @@ export function segmentsIntersect(ax, az, bx, bz, cx, cz, dx, dz) {
   return t > eps && t < 1 - eps && u >= -eps && u <= 1 + eps;
 }
 
-export function lineOfSight(x1, z1, x2, z2, colliders) {
+// `y` (optional) is the height the sight line travels at. Walls on another story do not block it.
+export function lineOfSight(x1, z1, x2, z2, colliders, y) {
   const minX = Math.min(x1, x2);
   const maxX = Math.max(x1, x2);
   const minZ = Math.min(z1, z2);
   const maxZ = Math.max(z1, z2);
+  const story = y === undefined ? undefined : storyAt(y);
   for (const wall of colliders) {
     if (wall.radius) continue;
+    if (!onStory(wall, story)) continue;
     const wallMinX = wall.minX ?? Math.min(wall.ax, wall.bx);
     const wallMaxX = wall.maxX ?? Math.max(wall.ax, wall.bx);
     const wallMinZ = wall.minZ ?? Math.min(wall.az, wall.bz);
@@ -106,11 +127,14 @@ export function lineOfSight(x1, z1, x2, z2, colliders) {
   return true;
 }
 
-export function resolveBody(x, z, radius, colliders) {
+// `y` (optional) is the height of the body's feet. Colliders on another story are ignored.
+export function resolveBody(x, z, radius, colliders, y) {
   let px = x;
   let pz = z;
+  const story = y === undefined ? undefined : storyAt(y);
   for (let pass = 0; pass < 3; pass += 1) {
     for (const collider of colliders) {
+      if (!onStory(collider, story)) continue;
       if (collider.radius) {
         const dx = px - collider.x;
         const dz = pz - collider.z;

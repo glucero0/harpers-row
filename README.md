@@ -28,7 +28,20 @@ Two sliders sit on the HUD and are saved in this browser.
 
 Armor softens every hit. Holding block (right click or left trigger) is done with the torch hand alone: the left arm snaps up in a tenth of a second, leans the torch across your body with its flame pointing away from your face, and holds it still in front of you, which slows your steps. The mace stays low in your right hand and is never moved across for the block. Letting go lowers the torch back over about two tenths of a second. The torch guards a cone of about 120 degrees ahead of you. A blow from a skeleton inside that cone lands on the torch: the weapon is driven to meet it, a flash lights the attacker amber, white sparks and orange embers fly off the flame, the torch is shoved back toward you for a moment before springing home, the view jolts, and the attacker is knocked back, and only a quarter of the damage gets through. Blows from the side or behind ignore the guard. An arrow that reaches the torch glances off it, tumbling away without hurting you, but an arrow that misses the torch, because you are turned away or the guard is down, hits for full damage.
 
-Clear the last room to finish. Reaching zero health ends the run. Dying or finishing and choosing another descent reloads The Ancient Ruins from the same baked layout. The sliders stay where you left them.
+## Exploring a location
+
+Nothing ends the run except dying. Clearing every skeleton does not finish the game: a location has an entrance and an exit, and you roam as much of it as you like.
+
+- **Entrance and exit.** You arrive at the entrance chamber. The arch you came in by is also the way out, and so is the exit chamber at the far end, which is a landmark. Walk out whenever you want, before or after clearing anything. Going back through the arch picks up where you left off: slain skeletons stay slain, opened chests stay open, and sconces stay lit.
+- **Multiple floors.** Locations can have several floors joined by stairwells. You climb and descend on foot, and the skeletons follow you up and down the stairs.
+- **Percent complete.** The HUD shows how much of the location is done: skeletons felled plus chests opened, out of every skeleton spawn and every chest in the location file. A chest is placed in each chamber that has both a sconce and a chest. The figure only reads 100 when everything is done. Until then it stops at 99, so rounding never claims a finished dungeon early.
+- **Dying** ends the run. Choosing another descent reloads the location from its layout. The sliders stay where you left them.
+
+### Loading a location file
+
+The built-in location is The Ancient Ruins. To play another, use the **Location file** picker on the HUD and choose a `.json` file made by the [block dungeon generator](https://github.com/glucero0/block-dungeon-generator) (for example `seed3000.json`). The game reads its rooms, doors, stairwells, props, scenery, and exits, and works out the completion total from the skeleton spawns and chests in it. A file that cannot be read or fails validation leaves the current run untouched and shows a short message beside the picker.
+
+Files are treated as untrusted input. They are limited to 8 MB, parsed with `JSON.parse` only, and checked field by field. Counts of rooms, props, and scenery are capped, numbers are clamped to sane ranges, unknown prop types are skipped, and file text is only ever shown as plain text.
 
 The game runs entirely in the browser. Slider values are stored locally and are ignored if they are not a number from 0 to 1.
 

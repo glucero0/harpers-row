@@ -1,15 +1,17 @@
 import * as THREE from 'three';
 import { SKELETON_NAME, SWORD_ARC, SWORD_RANGE } from './balance.js';
 import { clearDustField, createDustField } from './dust.js';
-import { clearance, closestOnSegment, lineOfSight, pointInPolygon } from './geometry.js';
+import { STORY_HEIGHT, clearance, closestOnSegment, lineOfSight, pointInPolygon, storyAt } from './geometry.js';
 import { audio } from './audio.js';
 import ancientRuinsData from './ancientRuinsData.json';
+import { floorHeightAt, hasChest, measureLocation, prepareLocation } from './location.js';
+import { createPropField } from './props.js';
 import { DEAD_TREE_VARIANTS, ENVIRONMENT_PRESETS, trailBlocksProp } from './rooms.js';
 import { SCONCE_LIGHT_CULL_DISTANCE, createWallSconce } from './sconce.js';
 
 const SCONCE_LIGHT_CULL_DISTANCE_SQ = SCONCE_LIGHT_CULL_DISTANCE * SCONCE_LIGHT_CULL_DISTANCE;
 
-const WALL_HEIGHT = 10;
+const WALL_HEIGHT = STORY_HEIGHT;
 const DOOR_HEIGHT = 7;
 const THICKNESS = 1;
 
@@ -25,6 +27,8 @@ const SUN_OUTDOOR = 2.4;
 const SKY_OUTDOOR = 1.05;
 const DAY_FILL = ENVIRONMENT_PRESETS.day.ambientLightIntensity;
 const CHEST_GOLD = 100;
+// A chest or a sconce can only be reached from its own floor: less than half a story apart.
+const SAME_FLOOR = STORY_HEIGHT / 2;
 
 function canonical(ax, az, bx, bz) {
   let dx = bx - ax;
@@ -83,34 +87,58 @@ function themeAt(covers, t) {
   return themes[0] || 'stone';
 }
 
-function polygonGeometry(polygon, y, upward) {
+// The walking surface of a stairwell: flat where the room runs past either end of the stair, and one
+// straight slope between the stair's low and high points. Heights come from the same function the
+// player and the undead stand on, so the floor you see is the floor you walk on.
+function rampGeometry(room) {
+  const { stair, rect } = room;
+  const alongX = Math.abs(stair.high[0] - stair.low[0]) >= Math.abs(stair.high[1] - stair.low[1]);
+  const lo = alongX ? rect.x : rect.z;
+  const hi = alongX ? rect.x + rect.w : rect.z + rect.d;
+  const lowAt = alongX ? stair.low[0] : stair.low[1];
+  const highAt = alongX ? stair.high[0] : stair.high[1];
+  const clamp = (value) => Math.min(hi, Math.max(lo, value));
+  const stations = lowAt <= highAt
+    ? [lo, clamp(lowAt), clamp(highAt), hi]
+    : [hi, clamp(lowAt), clamp(highAt), lo];
+  const across0 = alongX ? rect.z : rect.x;
+  const across1 = alongX ? rect.z + rect.d : rect.x + rect.w;
   const positions = [];
-  const normals = [];
   const uvs = [];
-  for (const [x, z] of polygon) {
-    positions.push(x, y, z);
-    normals.push(0, upward ? 1 : -1, 0);
-    uvs.push(x / 7, z / 7);
-  }
   const indices = [];
-  for (let i = 1; i < polygon.length - 1; i += 1) indices.push(0, i, i + 1);
-  const ax = positions[3] - positions[0];
-  const az = positions[5] - positions[2];
-  const bx = positions[6] - positions[0];
-  const bz = positions[8] - positions[2];
-  const pointsUp = az * bx - ax * bz > 0;
-  if (pointsUp !== upward) {
-    for (let i = 0; i < indices.length; i += 3) {
-      const swap = indices[i + 1];
-      indices[i + 1] = indices[i + 2];
-      indices[i + 2] = swap;
-    }
+  const corner = (along, across) => {
+    const x = alongX ? along : across;
+    const z = alongX ? across : along;
+    positions.push(x, floorHeightAt(room, x, z), z);
+    uvs.push(x / 7, z / 7);
+  };
+  for (let i = 0; i < 3; i += 1) {
+    const base = positions.length / 3;
+    corner(stations[i], across0);
+    corner(stations[i], across1);
+    corner(stations[i + 1], across0);
+    corner(stations[i + 1], across1);
+    indices.push(base, base + 1, base + 2, base + 1, base + 3, base + 2);
   }
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
   geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   geometry.setIndex(indices);
+  geometry.computeVertexNormals();
+  // computeVertexNormals follows the winding: flip every triangle if the surface came out facing down.
+  const normal = geometry.getAttribute('normal');
+  let upward = 0;
+  for (let i = 0; i < normal.count; i += 1) upward += normal.getY(i);
+  if (upward < 0) {
+    const index = geometry.getIndex();
+    for (let i = 0; i < index.count; i += 3) {
+      const second = index.array[i + 1];
+      index.array[i + 1] = index.array[i + 2];
+      index.array[i + 2] = second;
+    }
+    index.needsUpdate = true;
+    geometry.computeVertexNormals();
+  }
   return geometry;
 }
 
@@ -131,7 +159,7 @@ function scaleUvs(geometry, uScale, vScale) {
   }
 }
 
-function addWall(scene, ax, az, bx, bz, theme, materials, colliders, height, y0, collide, batch, roomIds, surface) {
+function addWall(scene, ax, az, bx, bz, theme, materials, colliders, height, y0, collide, batch, roomIds, surface, story) {
   const dx = bx - ax;
   const dz = bz - az;
   const length = Math.hypot(dx, dz);
@@ -169,7 +197,7 @@ function addWall(scene, ax, az, bx, bz, theme, materials, colliders, height, y0,
     const faceAz = az + nz * half * sign;
     const faceBx = bx + nx * half * sign;
     const faceBz = bz + nz * half * sign;
-    colliders.push({
+    const collider = {
       ax: faceAx,
       az: faceAz,
       bx: faceBx,
@@ -180,7 +208,9 @@ function addWall(scene, ax, az, bx, bz, theme, materials, colliders, height, y0,
       maxX: Math.max(faceAx, faceBx),
       minZ: Math.min(faceAz, faceBz),
       maxZ: Math.max(faceAz, faceBz),
-    });
+    };
+    if (story !== undefined) collider.story = story;
+    colliders.push(collider);
   }
 }
 
@@ -198,29 +228,37 @@ function disposeTree(node) {
   });
 }
 
+// Walls are cut one story at a time: a room is walled on every story it spans (a stairwell on two),
+// the wall between two rooms is shared only when they sit on the same story, and a doorway opens a
+// gap only in the story it is on.
 function buildWalls(root, materials, colliders, rooms, doors, batch) {
   const groups = new Map();
   for (const room of rooms) {
     const polygon = room.polygon;
-    for (let i = 0; i < polygon.length; i += 1) {
-      const a = polygon[i];
-      const b = polygon[(i + 1) % polygon.length];
-      const line = canonical(a[0], a[1], b[0], b[1]);
-      const key = `${line.dx.toFixed(4)}|${line.dz.toFixed(4)}|${line.offset.toFixed(3)}`;
-      let group = groups.get(key);
-      if (!group) {
-        group = { ...line, covers: [] };
-        groups.set(key, group);
+    for (let story = room.storyFirst; story <= room.storyLast; story += 1) {
+      for (let i = 0; i < polygon.length; i += 1) {
+        const a = polygon[i];
+        const b = polygon[(i + 1) % polygon.length];
+        const line = canonical(a[0], a[1], b[0], b[1]);
+        const key = `${story}|${line.dx.toFixed(4)}|${line.dz.toFixed(4)}|${line.offset.toFixed(3)}`;
+        let group = groups.get(key);
+        if (!group) {
+          group = { ...line, story, covers: [] };
+          groups.set(key, group);
+        }
+        const t1 = a[0] * group.dx + a[1] * group.dz;
+        const t2 = b[0] * group.dx + b[1] * group.dz;
+        group.covers.push({ t0: Math.min(t1, t2), t1: Math.max(t1, t2), room });
       }
-      const t1 = a[0] * group.dx + a[1] * group.dz;
-      const t2 = b[0] * group.dx + b[1] * group.dz;
-      group.covers.push({ t0: Math.min(t1, t2), t1: Math.max(t1, t2), room });
     }
   }
 
   for (const group of groups.values()) {
+    const story = group.story;
+    const baseY = story * STORY_HEIGHT;
     const gaps = [];
     for (const door of doors) {
+      if (storyAt(door.y ?? 0) !== story) continue;
       const distA = Math.abs(door.a[0] * group.nx + door.a[1] * group.nz - group.offset);
       const distB = Math.abs(door.b[0] * group.nx + door.b[1] * group.nz - group.offset);
       if (distA > 0.4 || distB > 0.4) continue;
@@ -241,7 +279,7 @@ function buildWalls(root, materials, colliders, rooms, doors, batch) {
         if (cover.t1 < t0 - 0.02 || cover.t0 > t1 + 0.02) continue;
         if (!roomIds.includes(cover.room.id)) roomIds.push(cover.room.id);
       }
-      addWall(root, ax, az, bx, bz, themeAt(group.covers, (t0 + t1) / 2), materials, colliders, WALL_HEIGHT, 0, true, batch, roomIds);
+      addWall(root, ax, az, bx, bz, themeAt(group.covers, (t0 + t1) / 2), materials, colliders, WALL_HEIGHT, baseY, true, batch, roomIds, undefined, story);
     }
     for (const gap of gaps) {
       const mid = (gap.t0 + gap.t1) / 2;
@@ -260,19 +298,21 @@ function buildWalls(root, materials, colliders, rooms, doors, batch) {
         materials,
         colliders,
         WALL_HEIGHT - sill,
-        sill,
+        baseY + sill,
         false,
         batch,
         group.covers.map((cover) => cover.room.id).filter((id, index, list) => list.indexOf(id) === index),
+        undefined,
+        story,
       );
     }
   }
 }
 
-function addRock(scene, materials, x, z) {
+function addRock(scene, materials, x, z, y = 0) {
   const rock = settle(new THREE.Mesh(new THREE.DodecahedronGeometry(0.9, 0), materials.surface('cave')));
   rock.scale.set(1.15, 1.55, 1.05);
-  rock.position.set(x, 0.7, z);
+  rock.position.set(x, y + 0.7, z);
   rock.rotation.y = x * 0.2;
   rock.updateMatrix();
   scene.add(rock);
@@ -723,7 +763,7 @@ function paintSky() {
 
 function buildApproach(outdoor, threshold, materials, colliders, layout, owned) {
   const { approach, entrance } = layout;
-  const ante = layout.rooms[0];
+  const ante = layout.rooms.find((room) => room.id === layout.entranceRoomId) || layout.rooms[0];
   if (!approach || !entrance || !ante) return null;
   const { court, samples, southZ, midX, vestibule, hub } = approach;
   const end = samples[samples.length - 1];
@@ -859,7 +899,11 @@ function buildApproach(outdoor, threshold, materials, colliders, layout, owned) 
   outdoor.add(cap);
 
   const wood = trackMaterial(owned, new THREE.MeshStandardMaterial({ color: 0x645c54, roughness: 1 }));
-  const trees = new THREE.BatchedMesh(96, 40000, 60000, wood);
+  // Capacities follow the file: it may place any number of trees and bushes (within the limits
+  // location.js enforces), and a fixed cap would make a bigger location fail to build.
+  const treeCount = (layout.trees?.length || 0) + (approach.vista?.trees?.length || 0);
+  const scrubCount = approach.vista?.scrub?.length || 0;
+  const trees = new THREE.BatchedMesh(Math.max(8, treeCount), 40000, 60000, wood);
   trees.name = 'dead-trees';
   trees.castShadow = false;
   trees.receiveShadow = true;
@@ -890,7 +934,7 @@ function buildApproach(outdoor, threshold, materials, colliders, layout, owned) 
   }));
   const shadowPlane = new THREE.PlaneGeometry(1.5, 1.5);
   shadowPlane.rotateX(-Math.PI / 2);
-  const shadows = new THREE.BatchedMesh(160, 4000, 6000, shadowMat);
+  const shadows = new THREE.BatchedMesh(Math.max(8, treeCount + scrubCount), 4000, 6000, shadowMat);
   shadows.name = 'contact-shadows';
   shadows.castShadow = false;
   shadows.receiveShadow = false;
@@ -919,7 +963,7 @@ function buildApproach(outdoor, threshold, materials, colliders, layout, owned) 
   trees.computeBoundingBox();
   trees.computeBoundingSphere();
   const scrubMat = trackMaterial(owned, new THREE.MeshStandardMaterial({ color: 0x5a6238, roughness: 1 }));
-  const scrub = new THREE.BatchedMesh(96, 8000, 12000, scrubMat);
+  const scrub = new THREE.BatchedMesh(Math.max(8, scrubCount), 8000, 12000, scrubMat);
   scrub.name = 'scrub-brush';
   scrub.castShadow = false;
   scrub.receiveShadow = true;
@@ -1039,92 +1083,114 @@ function buildApproach(outdoor, threshold, materials, colliders, layout, owned) 
   return { skyMap: skyTex, cap };
 }
 
+// Walls and slabs are drawn as instances of one BatchedMesh per material. `place` only records what
+// goes where; `finish` sizes each batch to exactly what was placed (a location can be any size) and
+// builds it. A part is drawn while any of its rooms is active.
 function createBatch(root) {
-  const batches = new Map();
-  const roomParts = new Map();
+  const pending = new Map();
+  const parts = [];
   const position = new THREE.Vector3();
   const quaternion = new THREE.Quaternion();
   const scale = new THREE.Vector3(1, 1, 1);
   const matrix = new THREE.Matrix4();
   const up = new THREE.Vector3(0, 1, 0);
+  let finished = false;
 
-  function getBatch(material, castShadow) {
-    let batch = batches.get(`${material.uuid}:${castShadow ? 1 : 0}`);
-    if (batch) return batch;
-    const mesh = new THREE.BatchedMesh(480, 700000, 1000000, material);
-    mesh.name = castShadow ? 'WallInstancedMesh' : 'SlabInstancedMesh';
-    mesh.castShadow = castShadow;
-    mesh.receiveShadow = true;
-    mesh.frustumCulled = true;
-    mesh.perObjectFrustumCulled = true;
-    root.add(mesh);
-    batch = { mesh };
-    batches.set(`${material.uuid}:${castShadow ? 1 : 0}`, batch);
-    return batch;
-  }
-
-  const activeSet = new Set();
-  const wanted = new Map();
   return {
     place(material, geometry, x, y, z, rotY, roomIds, castShadow) {
-      const batch = getBatch(material, castShadow);
-      const geoId = batch.mesh.addGeometry(geometry);
-      const id = batch.mesh.addInstance(geoId);
+      if (finished) throw new Error('Batch is already built.');
+      const key = `${material.uuid}:${castShadow ? 1 : 0}`;
+      let group = pending.get(key);
+      if (!group) {
+        group = { material, castShadow, items: [], vertices: 0, indices: 0 };
+        pending.set(key, group);
+      }
       position.set(x, y, z);
       quaternion.setFromAxisAngle(up, rotY);
-      matrix.compose(position, quaternion, scale);
-      batch.mesh.setMatrixAt(id, matrix);
-      batch.mesh.setVisibleAt(id, false);
-      geometry.dispose();
-      for (const roomId of roomIds) {
-        if (roomId == null) continue;
-        let list = roomParts.get(roomId);
-        if (!list) {
-          list = [];
-          roomParts.set(roomId, list);
-        }
-        list.push({ mesh: batch.mesh, id, show: false });
-      }
+      group.items.push({
+        geometry,
+        matrix: matrix.compose(position, quaternion, scale).clone(),
+        rooms: roomIds.filter((id) => id != null),
+      });
+      group.vertices += geometry.getAttribute('position').count;
+      group.indices += geometry.index ? geometry.index.count : geometry.getAttribute('position').count;
     },
-    showRooms(activeIds) {
-      activeSet.clear();
-      for (const id of activeIds) activeSet.add(id);
-      wanted.clear();
-      for (const [roomId, parts] of roomParts) {
-        const on = activeSet.has(roomId);
-        for (const part of parts) {
-          const key = `${part.mesh.uuid}:${part.id}`;
-          wanted.set(key, (wanted.get(key) || false) || on);
-          part.want = wanted.get(key);
+    showRooms(active) {
+      for (const part of parts) {
+        let want = false;
+        for (const id of part.rooms) {
+          if (active.has(id)) {
+            want = true;
+            break;
+          }
         }
-      }
-      for (const parts of roomParts.values()) {
-        for (const part of parts) {
-          if (part.show === part.want) continue;
-          part.show = part.want;
-          part.mesh.setVisibleAt(part.id, part.want);
-        }
+        if (part.show === want) continue;
+        part.show = want;
+        part.mesh.setVisibleAt(part.id, want);
       }
     },
     finish() {
-      for (const batch of batches.values()) {
-        batch.mesh.computeBoundingBox();
-        batch.mesh.computeBoundingSphere();
-        batch.mesh.updateMatrix();
-        batch.mesh.matrixAutoUpdate = false;
+      finished = true;
+      for (const group of pending.values()) {
+        const mesh = new THREE.BatchedMesh(group.items.length, group.vertices, group.indices, group.material);
+        mesh.name = group.castShadow ? 'WallInstancedMesh' : 'SlabInstancedMesh';
+        mesh.castShadow = group.castShadow;
+        mesh.receiveShadow = true;
+        mesh.frustumCulled = true;
+        mesh.perObjectFrustumCulled = true;
+        for (const item of group.items) {
+          const id = mesh.addInstance(mesh.addGeometry(item.geometry));
+          mesh.setMatrixAt(id, item.matrix);
+          mesh.setVisibleAt(id, false);
+          item.geometry.dispose();
+          if (item.rooms.length) parts.push({ mesh, id, rooms: item.rooms, show: false });
+        }
+        mesh.computeBoundingBox();
+        mesh.computeBoundingSphere();
+        mesh.updateMatrix();
+        mesh.matrixAutoUpdate = false;
+        root.add(mesh);
       }
+      pending.clear();
     },
   };
 }
 
-export function ancientRuinsLayout() {
-  const layout = JSON.parse(JSON.stringify(ancientRuinsData));
+// A location the game can load: the baked default, or any file the block-dungeon-generator wrote.
+// The data is validated and completed (see location.js), so a bad file fails here with a clear
+// message instead of halfway through building a level.
+export function locationLayout(data) {
+  const layout = JSON.parse(JSON.stringify(data));
   layout.enemyName = SKELETON_NAME;
-  return layout;
+  return prepareLocation(layout);
 }
 
+export function ancientRuinsLayout() {
+  return locationLayout(ancientRuinsData);
+}
+
+// Builds a location into `scene`. If anything goes wrong part-way, what was added so far is removed
+// again, so a bad file never leaves a half-built level behind.
 export function createDungeon(scene, materials, layout = ancientRuinsLayout(), renderer = null) {
+  const before = new Set(scene.children);
+  try {
+    return buildDungeon(scene, materials, layout, renderer);
+  } catch (error) {
+    for (const child of [...scene.children]) {
+      if (before.has(child)) continue;
+      disposeTree(child);
+      scene.remove(child);
+    }
+    audio.stopFires();
+    throw error;
+  }
+}
+
+function buildDungeon(scene, materials, layout, renderer) {
+  prepareLocation(layout);
   const { rooms, doors } = layout;
+  const entranceRoom = rooms.find((room) => room.id === layout.entranceRoomId) || rooms[0];
+  const totals = measureLocation(layout);
   const colliders = [];
   const sconces = [];
   const chests = [];
@@ -1138,28 +1204,30 @@ export function createDungeon(scene, materials, layout = ancientRuinsLayout(), r
   scene.add(root);
 
   const batch = createBatch(root);
+  const propItems = [];
   for (const room of rooms) {
     const floorMaterial = materials.floor(room.theme);
     const ceilingMaterial = room.theme === 'cave' ? materials.ceilingCave : materials.ceiling;
-    if (room.rect) {
-      addSlab(root, room.rect, 0, floorMaterial, true, batch, room.id);
-      addSlab(root, room.rect, WALL_HEIGHT, ceilingMaterial, false, batch, room.id);
+    const ceilingY = room.y + room.storyHeight;
+    if (room.stair) {
+      batch.place(floorMaterial, rampGeometry(room), 0, 0, 0, 0, [room.id], false);
     } else {
-      batch.place(floorMaterial, polygonGeometry(room.polygon, 0, true), 0, 0, 0, 0, [room.id], false);
-      batch.place(ceilingMaterial, polygonGeometry(room.polygon, WALL_HEIGHT, false), 0, 0, 0, 0, [room.id], false);
+      addSlab(root, room.rect, room.y, floorMaterial, true, batch, room.id);
     }
-    if (room.sconce && room.chest) {
-      const built = createWallSconce(materials, room.sconce);
+    addSlab(root, room.rect, ceilingY, ceilingMaterial, false, batch, room.id);
+    if (hasChest(room)) {
+      const built = createWallSconce(materials, { ...room.sconce, y: room.y });
       built.interactable.roomId = room.id;
       root.add(built.group);
       built.group.visible = false;
       const chestMesh = createChest(materials);
-      chestMesh.group.position.set(room.chest.x, 0, room.chest.z);
+      chestMesh.group.position.set(room.chest.x, room.y, room.chest.z);
       chestMesh.group.rotation.y = Math.atan2(room.sconce.nx, room.sconce.nz);
       chestMesh.group.visible = false;
       root.add(chestMesh.group);
       const chest = {
         x: room.chest.x,
+        y: room.y,
         z: room.chest.z,
         nx: room.sconce.nx,
         nz: room.sconce.nz,
@@ -1171,10 +1239,11 @@ export function createDungeon(scene, materials, layout = ancientRuinsLayout(), r
         lidAge: 0,
       };
       chests.push(chest);
-      colliders.push({ x: chest.x, z: chest.z, radius: 1.7 });
+      colliders.push({ x: chest.x, z: chest.z, radius: 1.7, story: storyAt(room.y) });
       sconces.push({
         roomId: room.id,
         x: built.interactable.x,
+        y: room.y,
         z: built.interactable.z,
         group: built.group,
         interactable: built.interactable,
@@ -1183,21 +1252,49 @@ export function createDungeon(scene, materials, layout = ancientRuinsLayout(), r
       });
     }
     for (const [x, z] of room.rocks) {
-      addRock(root, materials, x, z);
-      colliders.push({ x, z, radius: 1.05 });
+      addRock(root, materials, x, z, room.y);
+      colliders.push({ x, z, radius: 1.05, story: storyAt(room.y) });
+    }
+    for (const prop of room.props) {
+      propItems.push({ ...prop, theme: room.theme, y: room.y, roomId: room.id });
     }
   }
 
   buildWalls(root, materials, colliders, rooms, layout.entrance ? [...doors, layout.entrance] : doors, batch);
   batch.finish();
+  const approachFrom = colliders.length;
   const approachBuilt = buildApproach(outdoorGroup, thresholdGroup, materials, colliders, layout, owned);
+  // The approach, the arch and the trail are ground level. Nothing built outside lets the walls of
+  // the trail bar a player standing on an upper floor above it.
+  for (let i = approachFrom; i < colliders.length; i += 1) colliders[i].story = 0;
   const skyMap = approachBuilt?.skyMap || null;
+
+  const propMaterials = {
+    stone: materials.surface('stone'),
+    cave: materials.surface('cave'),
+    wood: materials.plank,
+    dark: materials.brazier,
+    bone: trackMaterial(owned, new THREE.MeshStandardMaterial({ color: 0xd6ccb4, roughness: 0.92 })),
+    scrub: trackMaterial(owned, new THREE.MeshStandardMaterial({ color: 0x5a6238, roughness: 1 })),
+  };
+  const resolvePropMaterial = (key) => propMaterials[key] || propMaterials.stone;
+  const roomProps = createPropField(root, resolvePropMaterial, propItems);
+  const sceneryProps = createPropField(
+    outdoorGroup,
+    resolvePropMaterial,
+    layout.scenery.map((item) => ({ ...item, theme: 'outdoor', y: 0 })),
+    { castShadow: false },
+  );
+  colliders.push(...roomProps.colliders, ...sceneryProps.colliders);
 
   const entrance = layout.entrance;
   const gateCollider = entrance
     ? segmentCollider(entrance.a[0], entrance.a[1], entrance.b[0], entrance.b[1], 0, 1)
     : null;
-  if (gateCollider) colliders.push(gateCollider);
+  if (gateCollider) {
+    gateCollider.story = 0;
+    colliders.push(gateCollider);
+  }
   let gateOpen = false;
   const activeList = [];
 
@@ -1304,7 +1401,9 @@ export function createDungeon(scene, materials, layout = ancientRuinsLayout(), r
 
   const outdoors = {
     id: 'worn-trail',
-    index: 0,
+    // Outside counts as the entrance: that is where a hunt through the doors starts from.
+    index: entranceRoom.index,
+    depth: 0,
     kind: 'exterior',
     name: layout.zoneLabels['worn-trail'],
     theme: 'outdoor',
@@ -1315,7 +1414,8 @@ export function createDungeon(scene, materials, layout = ancientRuinsLayout(), r
   };
   const hubRoom = {
     id: 'world-hub',
-    index: 0,
+    index: entranceRoom.index,
+    depth: 0,
     kind: 'exterior',
     name: layout.zoneLabels['world-hub'],
     theme: 'outdoor',
@@ -1331,25 +1431,42 @@ export function createDungeon(scene, materials, layout = ancientRuinsLayout(), r
     outdoorGroup.visible = nextZone !== 'ancient-ruins';
   }
 
-  function roomAt(x, z, previousId) {
+  // Rooms are stacked: two can share the same x, z on different stories. `y` (the walker's feet)
+  // says which story to look on; leave it out to ignore height.
+  const onLevel = (room, level) => level === null || (level >= room.storyFirst && level <= room.storyLast);
+
+  function roomAt(x, z, previousId, y) {
     if (hubRoom.polygon.length > 2 && pointInPolygon(x, z, hubRoom.polygon)) return hubRoom;
+    const previous = previousId ? rooms.find((room) => room.id === previousId) : undefined;
     if (vestibulePoly.length > 2 && pointInPolygon(x, z, vestibulePoly)) {
-      const previous = rooms.find((room) => room.id === previousId);
       if (previous && previous.theme !== 'outdoor') return previous;
       return outdoors;
     }
     if (outdoors.polygon.length > 2 && pointInPolygon(x, z, outdoors.polygon)) return outdoors;
-    const inside = rooms.filter((room) => pointInPolygon(x, z, room.polygon));
-    if (inside.length === 1) return inside[0];
-    if (inside.length > 1) return inside.find((room) => room.id === previousId) || inside[0];
-    if (previousId) {
-      const previous = rooms.find((room) => room.id === previousId);
-      if (previous && clearance(x, z, previous.polygon) > -0.8) return previous;
+    const level = Number.isFinite(y) ? storyAt(y) : null;
+    let first = null;
+    let count = 0;
+    let keep = null;
+    for (const room of rooms) {
+      if (!onLevel(room, level) || !pointInPolygon(x, z, room.polygon)) continue;
+      if (!first) first = room;
+      if (room === previous) keep = room;
+      count += 1;
     }
-    return rooms.reduce((nearest, room) => {
+    if (count === 1) return first;
+    if (count > 1) return keep || first;
+    if (previous && onLevel(previous, level) && clearance(x, z, previous.polygon) > -0.8) return previous;
+    let nearest = null;
+    let nearestDist = Infinity;
+    for (const room of rooms) {
+      if (!onLevel(room, level)) continue;
       const dist = Math.abs(clearance(x, z, room.polygon));
-      return dist < nearest.dist ? { room, dist } : nearest;
-    }, { room: rooms[0], dist: Infinity }).room;
+      if (dist < nearestDist) {
+        nearest = room;
+        nearestDist = dist;
+      }
+    }
+    return nearest || rooms[0];
   }
 
   const coinMouth = new THREE.Vector3();
@@ -1398,7 +1515,8 @@ export function createDungeon(scene, materials, layout = ancientRuinsLayout(), r
     if (!state.equipped) return false;
     for (const sconce of sconces) {
       if (sconce.interactable.lit) continue;
-      if (!lineOfSight(state.x, state.z, sconce.x, sconce.z, colliders)) continue;
+      if (Number.isFinite(state.y) && Math.abs(state.y - sconce.y) > SAME_FLOOR) continue;
+      if (!lineOfSight(state.x, state.z, sconce.x, sconce.z, colliders, state.y)) continue;
       const lit = sconce.interactable.tryIgnite({
         x: state.x,
         z: state.z,
@@ -1416,15 +1534,16 @@ export function createDungeon(scene, materials, layout = ancientRuinsLayout(), r
     return false;
   }
 
-  function openChestAt(x, z, forwardX, forwardZ) {
+  function openChestAt(x, z, forwardX, forwardZ, y) {
     for (const chest of chests) {
       if (chest.opened) continue;
+      if (Number.isFinite(y) && Math.abs(y - chest.y) > SAME_FLOOR) continue;
       const dx = chest.x - x;
       const dz = chest.z - z;
       const dist = Math.hypot(dx, dz);
       const angle = Math.atan2(forwardX * dz - forwardZ * dx, forwardX * dx + forwardZ * dz);
       if (dist > SWORD_RANGE || Math.abs(angle) > SWORD_ARC) continue;
-      if (!lineOfSight(x, z, chest.x, chest.z, colliders)) continue;
+      if (!lineOfSight(x, z, chest.x, chest.z, colliders, y)) continue;
       chest.opened = true;
       spawnLoot(chest);
       return CHEST_GOLD;
@@ -1442,6 +1561,14 @@ export function createDungeon(scene, materials, layout = ancientRuinsLayout(), r
     chests,
     sconces,
     lastRoomId: layout.lastRoomId,
+    entranceRoomId: layout.entranceRoomId,
+    exitRoomId: layout.exitRoomId,
+    exits: layout.exits,
+    // How many rooms deep the location runs from the entrance: what the undead's pace is spread over.
+    depthCount: layout.depthCount,
+    floors: layout.floors,
+    // What there is to do here: enemies placed and chests placed. Completion is measured against it.
+    totals,
     group: root,
     gateInward: layout.gateInward || { x: 0, z: -1 },
     intruded: false,
@@ -1450,6 +1577,18 @@ export function createDungeon(scene, materials, layout = ancientRuinsLayout(), r
       return this.activeRooms.has(id);
     },
     roomAt,
+    // The height of the floor under (x, z): flat in a room, a slope in a stairwell, ground outside.
+    floorY(x, z, room) {
+      return floorHeightAt(room, x, z);
+    },
+    // The room to walk into from room `from` to get to room `goal` (indexes into `rooms`), or -1.
+    nextHop(from, goal) {
+      return layout.graph.next[from * rooms.length + goal];
+    },
+    // The doorway joining two neighbouring rooms (indexes), or undefined.
+    doorBetween(from, to) {
+      return layout.graph.doorAt.get(`${from}:${to}`);
+    },
     containsInterior(x, z) {
       return rooms.some((room) => pointInPolygon(x, z, room.polygon));
     },
@@ -1494,6 +1633,8 @@ export function createDungeon(scene, materials, layout = ancientRuinsLayout(), r
         material.dispose();
       }
       owned.length = 0;
+      roomProps.dispose();
+      sceneryProps.dispose();
       disposeTree(root);
       scene.remove(root);
       scene.remove(sun);
@@ -1501,21 +1642,21 @@ export function createDungeon(scene, materials, layout = ancientRuinsLayout(), r
       scene.remove(sky);
       scene.remove(fill);
     },
-    update(time, dt, theme, x, z, moving, camera) {
-      const here = roomAt(x, z, null);
+    update(time, dt, theme, x, z, moving, camera, y = 0) {
+      const here = roomAt(x, z, null, y);
       const inInteriorRoom = !!(here && here.theme !== 'outdoor');
       const indoors = zoneId === 'ancient-ruins' || inInteriorRoom;
       outdoorGroup.visible = !indoors;
       if (indoors) this.intruded = true;
       activeList.length = 0;
       if (indoors) {
-        for (const room of rooms) {
-          if (Math.abs(room.index - here.index) <= 1) activeList.push(room.id);
-        }
+        // The room the player is in, the passages leading off it, and the chamber past each passage.
+        for (const id of layout.graph.visible[here.index]) activeList.push(id);
       }
-      batch.showRooms(activeList);
       this.activeRooms.clear();
       for (const id of activeList) this.activeRooms.add(id);
+      batch.showRooms(this.activeRooms);
+      roomProps.showRooms(this.activeRooms);
       dust.update(time, theme !== 'outdoor', camera);
       for (const chest of chests) {
         if (chest.opened) {
@@ -1547,8 +1688,8 @@ export function createDungeon(scene, materials, layout = ancientRuinsLayout(), r
             coin.rotation.x += dt * coin.userData.spin.x;
             coin.rotation.y += dt * coin.userData.spin.y;
             coin.rotation.z += dt * coin.userData.spin.z;
-            if (coin.position.y < 0.12) {
-              coin.position.y = 0.12;
+            if (coin.position.y < chest.y + 0.12) {
+              coin.position.y = chest.y + 0.12;
               if (vel.y < -1.2) vel.y *= -0.28;
               else vel.y = 0;
               vel.x *= 0.45;
@@ -1573,7 +1714,8 @@ export function createDungeon(scene, materials, layout = ancientRuinsLayout(), r
         const dz = sconce.z - z;
         const hidden = !shown || !sconce.interactable.lit
           || dx * dx + dz * dz > SCONCE_LIGHT_CULL_DISTANCE_SQ
-          || !lineOfSight(x, z, sconce.x, sconce.z, colliders);
+          || Math.abs(y - sconce.y) > SAME_FLOOR
+          || !lineOfSight(x, z, sconce.x, sconce.z, colliders, y);
         sconce.interactable.cullLight(hidden);
         sconce.interactable.update(dt, time);
       }

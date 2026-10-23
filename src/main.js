@@ -2,9 +2,11 @@ import * as THREE from 'three';
 import './style.css';
 import { audio } from './audio.js';
 import { consumeTime } from './impact.js';
-import { ancientRuinsLayout, createDungeon } from './dungeon.js';
+import ancientRuinsData from './ancientRuinsData.json';
+import { createDungeon, locationLayout } from './dungeon.js';
 import { setDustLight } from './dust.js';
 import { createInput } from './input.js';
+import { LocationError } from './location.js';
 import { createMaterials } from './materials.js';
 import { cappedPixelRatio } from './pixel-ratio.js';
 import { createPlayer } from './player.js';
@@ -38,15 +40,17 @@ scene.add(camera);
 
 const materials = createMaterials();
 const input = createInput(canvas);
-let layout = ancientRuinsLayout();
+// The location being played: the baked default, or a file the player loaded. Dying starts the same
+// location again; loading another file replaces it.
+let source = ancientRuinsData;
+let layout = locationLayout(source);
 let dungeon = createDungeon(scene, materials, layout, renderer);
 let skeletons = createSkeletons(dungeon.group, dungeon, materials);
 const player = createPlayer(camera, materials, layout.start);
-player.state.room = dungeon.roomAt(layout.start.x, layout.start.z, null);
+player.state.room = dungeon.roomAt(layout.start.x, layout.start.z, null, 0);
 
 let started = false;
 let manualPause = false;
-let victory = false;
 let last = performance.now();
 
 function clearRun() {
@@ -54,17 +58,49 @@ function clearRun() {
   skeletons = null;
 }
 
-function beginRun() {
+function beginRun(nextLayout = locationLayout(source)) {
   if (dungeon) clearRun();
-  layout = ancientRuinsLayout();
+  layout = nextLayout;
   dungeon = createDungeon(scene, materials, layout, renderer);
   skeletons = createSkeletons(dungeon.group, dungeon, materials);
   player.reset(layout.start);
   player.reconcileXp(ui.experience());
-  player.state.room = dungeon.roomAt(layout.start.x, layout.start.z, null);
+  player.state.room = dungeon.roomAt(layout.start.x, layout.start.z, null, 0);
   transitions.setRun(layout.transitions, layout.zoneLabels, 'worn-trail');
-  victory = false;
   manualPause = false;
+}
+
+// Location files come from outside the game, so they are untrusted: capped in size, parsed as data
+// only, and validated by prepareLocation before anything is built from them. Whatever goes wrong, the
+// current run is left as it was and the player is told in plain words.
+const MAX_LOCATION_BYTES = 8 * 1024 * 1024;
+
+async function loadLocationFile(file) {
+  try {
+    if (file.size > MAX_LOCATION_BYTES) throw new LocationError('That file is too large to be a location.');
+    let data;
+    try {
+      data = JSON.parse(await file.text());
+    } catch {
+      throw new LocationError('That file is not valid JSON.');
+    }
+    const next = locationLayout(data);
+    const previous = source;
+    try {
+      source = data;
+      beginRun(next);
+    } catch (error) {
+      // Valid on paper, but it would not build: put the old location back.
+      source = previous;
+      beginRun(locationLayout(previous));
+      throw error;
+    }
+    ui.setLocation(next);
+    ui.setLocationStatus(`Loaded ${next.areaName}: ${dungeon.rooms.length} rooms on ${dungeon.floors} floors.`);
+  } catch (error) {
+    if (!(error instanceof LocationError)) console.error(error);
+    ui.setLocationStatus(error instanceof LocationError ? error.message : 'That location could not be loaded.');
+  }
 }
 
 const transitions = createZoneTransitions({
@@ -80,10 +116,10 @@ const transitions = createZoneTransitions({
   },
   onCommit(config) {
     const spawn = config.targetSpawnPoint;
-    player.placeAt(spawn.x, spawn.z, spawn.rotationY);
+    player.placeAt(spawn.x, spawn.z, spawn.rotationY, spawn.y || 0);
     dungeon.showZone(config.targetZoneId);
     dungeon.applyEnvironment(config.environmentalPreset);
-    player.state.room = dungeon.roomAt(player.state.x, player.state.z, null);
+    player.state.room = dungeon.roomAt(player.state.x, player.state.z, null, player.state.y);
   },
 });
 
@@ -95,6 +131,7 @@ const ui = createUI({
     beginRun();
     input.requestLook();
   },
+  onLoadLocation: loadLocationFile,
   onEquip() {
     if (!player.equip()) return;
     dungeon.openGate();
@@ -125,7 +162,6 @@ function frame(now) {
 
     const running = started
       && player.state.alive
-      && !victory
       && !manualPause
       && (frameInput.pointerLocked || frameInput.gamepadConnected);
 
@@ -139,19 +175,17 @@ function frame(now) {
       player.update(time.dt, frameInput, dungeon, skeletons, ui.experience(), true, time);
       skeletons.update(time.dt, player.state, player.hurt, ui.pace(), true, time.realDt);
       dungeon.offerSconce(player.state, (roomId) => skeletons.livingIn(roomId));
-      if (skeletons.cryptCleared()) {
-        victory = true;
-        input.releaseLook();
-      }
+      // Clearing every enemy does not end anything: the player stays free to explore, to leave by the
+      // arch and to come back. Only dying stops the run.
       if (!player.state.alive) input.releaseLook();
     } else {
       player.update(time.dt, frameInput, dungeon, skeletons, ui.experience(), false, time);
     }
 
-    transitions.update(time.realDt, player.state.x, player.state.z);
+    transitions.update(time.realDt, player.state.x, player.state.z, player.state.y);
     dungeon.tickEnvironment(time.realDt);
     const theme = player.state.room?.theme || 'outdoor';
-    dungeon.update(now / 1000, time.dt, theme, player.state.x, player.state.z, player.state.moving, camera);
+    dungeon.update(now / 1000, time.dt, theme, player.state.x, player.state.z, player.state.moving, camera, player.state.y);
     const torchPower = player.state.equipped ? 1 : 0;
     materials.ruin.sync({
       x: player.state.guardX,
@@ -159,14 +193,20 @@ function frame(now) {
       z: player.state.guardZ,
       power: torchPower,
       fogLift: theme === 'outdoor' ? 1.35 : 1.05,
+      floor: player.state.y,
     });
     setDustLight(player.state.guardX, player.state.guardY, player.state.guardZ, torchPower);
-    audio.setListener(player.state.x, 5.5, player.state.z, player.state.yaw);
+    audio.setListener(player.state.x, player.state.y + 5.5, player.state.z, player.state.yaw);
     audio.ambience(theme !== 'outdoor');
     const enemyTotal = skeletons.list.length;
+    const roomId = player.state.room?.id;
+    let roomTag = '';
+    if (roomId === dungeon.entranceRoomId) roomTag = 'Entrance: the arch leads back out';
+    else if (roomId === dungeon.exitRoomId) roomTag = 'Exit chamber';
     ui.sync({
     room: player.state.room,
-    roomCount: dungeon.rooms.length,
+    roomTag,
+    roomCount: dungeon.depthCount,
     undead: player.state.room ? skeletons.livingIn(player.state.room.id) : 0,
     level: player.state.level,
     damage: player.state.damage,
@@ -179,7 +219,7 @@ function frame(now) {
     running,
     started,
     pointerLocked: frameInput.pointerLocked,
-    banner: !player.state.alive ? 'dead' : victory ? 'victory' : null,
+    banner: !player.state.alive ? 'dead' : null,
     outdoors: player.state.room?.kind === 'exterior',
     zoneName: transitions.zoneName(),
     lighting: transitions.lighting(),

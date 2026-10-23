@@ -1,4 +1,5 @@
 import { clampUnit, paceMultiplier, SKELETON_NAME, xpRequired } from './balance.js';
+import { completionPercent } from './location.js';
 
 const PACE_KEY = 'dungeon-combater.pace';
 const XP_KEY = 'dungeon-combater.experience';
@@ -29,7 +30,7 @@ function requirementLine(requirements) {
   return items.length ? `Requirements: ${items.join(' and ')}` : '';
 }
 
-export function createUI({ onRestart, onEquip, areaName, requirements }) {
+export function createUI({ onRestart, onEquip, onLoadLocation, areaName, requirements }) {
   const paceSlider = document.querySelector('#pace-slider');
   const xpSlider = document.querySelector('#xp-slider');
   const roomName = document.querySelector('#room-name');
@@ -63,6 +64,12 @@ export function createUI({ onRestart, onEquip, areaName, requirements }) {
   const statKills = document.querySelector('#stat-kills');
   const statLoot = document.querySelector('#stat-loot');
   const statGold = document.querySelector('#stat-gold');
+  // Both are optional so a page without them still works.
+  const locationInput = document.querySelector('#location-file');
+  const locationStatus = document.querySelector('#location-status');
+  const statComplete = document.querySelector('#stat-complete');
+  const roomTag = document.querySelector('#room-tag');
+  const completeNote = document.querySelector('#complete-note');
   let shownLevel = 1;
   let shownHealth = 100;
   let shownDeny = 0;
@@ -87,13 +94,36 @@ export function createUI({ onRestart, onEquip, areaName, requirements }) {
     onEquip();
   }
 
+  function onLocationChange() {
+    const file = locationInput.files && locationInput.files[0];
+    // Clear the picker so choosing the same file twice still loads it twice.
+    if (file && onLoadLocation) onLoadLocation(file);
+    locationInput.value = '';
+  }
+  function onLocationClick(event) {
+    event.stopPropagation();
+  }
+
   paceSlider.addEventListener('input', onPaceInput);
   xpSlider.addEventListener('input', onXpInput);
   restartButton.addEventListener('click', onRestartClick);
   equipButton.addEventListener('click', onEquipClick);
+  if (locationInput) {
+    locationInput.addEventListener('change', onLocationChange);
+    locationInput.addEventListener('click', onLocationClick);
+  }
   let disposed = false;
 
   return {
+    // The place being played changed (a location file was loaded): show its name and what it asks for.
+    setLocation(next) {
+      if (areaLabel && next.areaName) areaLabel.textContent = next.areaName;
+      if (requirementLabel) requirementLabel.textContent = requirementLine(next.requirements);
+    },
+    // Plain text only: the message may quote a short label from the file, never markup.
+    setLocationStatus(message) {
+      if (locationStatus) locationStatus.textContent = message;
+    },
     pace() {
       return clampUnit(paceSlider.value);
     },
@@ -102,9 +132,14 @@ export function createUI({ onRestart, onEquip, areaName, requirements }) {
     },
     sync(state) {
       const room = state.room;
-      const pace = room ? paceMultiplier(room.index, this.pace(), state.roomCount) : 1;
+      // Pace follows how deep a room is from the entrance, not where it sits in the file.
+      const pace = room ? paceMultiplier(room.depth ?? room.index, this.pace(), state.roomCount) : 1;
       const needed = xpRequired(state.level, this.experience());
       roomName.textContent = room ? room.name : 'The Gate';
+      if (roomTag) {
+        roomTag.textContent = state.roomTag || '';
+        roomTag.hidden = !state.roomTag;
+      }
       undeadCount.textContent = `Undead here: ${state.undead}`;
       paceReadout.textContent = `Pace ×${pace.toFixed(2)}`;
       levelText.textContent = `Level ${state.level} · Mace ${state.damage}`;
@@ -128,14 +163,12 @@ export function createUI({ onRestart, onEquip, areaName, requirements }) {
       }
       shownHealth = state.health;
 
-      const showBanner = state.banner === 'dead' || state.banner === 'victory';
+      // Nothing a player does here ends the run but dying. Clearing a place is reported, never forced.
+      const showBanner = state.banner === 'dead';
       banner.hidden = !showBanner;
       if (state.banner === 'dead') {
         bannerTitle.textContent = 'Game over';
         bannerText.textContent = 'Your health is gone. Descend again and the dungeon is built anew.';
-      } else if (state.banner === 'victory') {
-        bannerTitle.textContent = 'The crypt is still';
-        bannerText.textContent = 'The last of them is down. Another descent returns to these ruins.';
       }
       overlay.hidden = showBanner || state.pointerLocked;
       if (state.zoneName) areaTitle.textContent = state.zoneName;
@@ -147,6 +180,9 @@ export function createUI({ onRestart, onEquip, areaName, requirements }) {
       statKills.textContent = `Enemies killed ${percent(state.enemiesFallen, state.enemiesTotal)}%`;
       statLoot.textContent = `Loot collected ${percent(state.lootTaken, state.lootTotal)}%`;
       statGold.textContent = `Gold ${state.gold || 0}`;
+      const complete = completionPercent(state);
+      if (statComplete) statComplete.textContent = `Location complete ${complete}%`;
+      if (completeNote) completeNote.hidden = complete < 100;
       if (state.denySerial && state.denySerial !== shownDeny) {
         shownDeny = state.denySerial;
         checklist.classList.remove('flash');
@@ -173,6 +209,10 @@ export function createUI({ onRestart, onEquip, areaName, requirements }) {
       xpSlider.removeEventListener('input', onXpInput);
       restartButton.removeEventListener('click', onRestartClick);
       equipButton.removeEventListener('click', onEquipClick);
+      if (locationInput) {
+        locationInput.removeEventListener('change', onLocationChange);
+        locationInput.removeEventListener('click', onLocationClick);
+      }
     },
   };
 }
