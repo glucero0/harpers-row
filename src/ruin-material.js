@@ -92,23 +92,6 @@ float ruinTriHeight(vec3 pos, vec3 normal) {
   float hz = ruinHeightAt(pos.xy);
   return hx * blend.x + hy * blend.y + hz * blend.z;
 }
-vec3 ruinTriColor(sampler2D tex, vec3 pos, vec3 normal) {
-  vec3 blend = pow(abs(normal), vec3(4.0));
-  blend /= max(0.0001, blend.x + blend.y + blend.z);
-  vec3 cx = texture2D(tex, pos.zy).rgb;
-  vec3 cy = texture2D(tex, pos.xz).rgb;
-  vec3 cz = texture2D(tex, pos.xy).rgb;
-  return cx * blend.x + cy * blend.y + cz * blend.z;
-}
-`;
-
-const MAP_CHUNK = `
-#ifdef USE_MAP
-  vec3 ruinSampled = ruinTriColor(map, vRuinWorld * ruinScale, vRuinNormal);
-  float ruinShade = ruinNoise(vRuinWorld * 0.16);
-  ruinSampled *= 0.9 + ruinShade * 0.16;
-  diffuseColor.rgb *= ruinSampled;
-#endif
 `;
 
 const ROUGH_CHUNK = `
@@ -189,7 +172,6 @@ export function applyRuinShader(material, field) {
       .replace('#include <begin_vertex>', VERTEX_DISPLACE);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', FRAGMENT_PRELUDE)
-      .replace('#include <map_fragment>', MAP_CHUNK)
       .replace('#include <roughnessmap_fragment>', ROUGH_CHUNK)
       .replace('#include <normal_fragment_begin>', NORMAL_CHUNK)
       .replace('#include <fog_fragment>', FOG_CHUNK);

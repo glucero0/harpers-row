@@ -1,0 +1,5 @@
+{
+  "version": 1,
+  "hubLocation": "campfireHub.json",
+  "locations": ["smRuins.json", "lgRuins.json", "medRuins.json"]
+}

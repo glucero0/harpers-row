@@ -1,10 +1,10 @@
 ---
-description: Dungeon Combater modularity, lifecycle, and performance rules for src/**/*.js
+description: Harpers Row modularity, lifecycle, and performance rules for src/**/*.js
 globs: src/**/*.js
 alwaysApply: false
 ---
 
-# Dungeon Combater Architecture Rules
+# Harpers Row Architecture Rules
 
 Full contract and module map: [docs/ARCHITECTURE.md](../../docs/ARCHITECTURE.md). This file is the
 condensed, enforceable version.

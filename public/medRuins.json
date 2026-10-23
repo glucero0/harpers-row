@@ -1,0 +1,6101 @@
+{
+  "seed": 1,
+  "floors": 2,
+  "options": {
+    "density": "normal",
+    "clutter": 0.5
+  },
+  "area": 3452.0,
+  "rooms": [
+    {
+      "id": "space-0",
+      "index": 0,
+      "kind": "chamber",
+      "name": "Antechamber",
+      "theme": "stone",
+      "rect": {
+        "x": 0.0,
+        "z": 0.0,
+        "w": 16.0,
+        "d": 12.5
+      },
+      "run": 0.0,
+      "span": 0.0,
+      "polygon": [
+        [
+          0.0,
+          0.0
+        ],
+        [
+          16.0,
+          0.0
+        ],
+        [
+          16.0,
+          12.5
+        ],
+        [
+          0.0,
+          12.5
+        ]
+      ],
+      "spawns": [],
+      "brazier": null,
+      "sconce": null,
+      "rocks": [],
+      "props": [
+        {
+          "type": "casket",
+          "x": 15.1,
+          "z": 4.6,
+          "rotationY": -1.5708,
+          "scale": 1.029
+        }
+      ],
+      "lighting": "underground",
+      "floor": 0,
+      "y": 0.0,
+      "storyHeight": 10.0,
+      "block": "entrance",
+      "stair": null,
+      "chest": null,
+      "role": "antechamber",
+      "description": "A stone threshold under the arch. Pale daylight fails a few steps in, and the passage beyond is black."
+    },
+    {
+      "id": "space-1",
+      "index": 1,
+      "kind": "corridor",
+      "name": "Narrow Passage",
+      "theme": "stone",
+      "rect": {
+        "x": 5.0,
+        "z": -16.0,
+        "w": 6.0,
+        "d": 16.0
+      },
+      "run": 16.0,
+      "span": 6.0,
+      "polygon": [
+        [
+          5.0,
+          -16.0
+        ],
+        [
+          11.0,
+          -16.0
+        ],
+        [
+          11.0,
+          0.0
+        ],
+        [
+          5.0,
+          0.0
+        ]
+      ],
+      "spawns": [
+        [
+          9.4,
+          -8.8
+        ]
+      ],
+      "brazier": null,
+      "sconce": null,
+      "rocks": [],
+      "props": [],
+      "lighting": "underground",
+      "floor": 0,
+      "y": 0.0,
+      "storyHeight": 10.0,
+      "block": "hallway",
+      "stair": null,
+      "chest": null
+    },
+    {
+      "id": "space-2",
+      "index": 2,
+      "kind": "corridor",
+      "name": "Narrow Passage",
+      "theme": "stone",
+      "rect": {
+        "x": 5.0,
+        "z": -32.0,
+        "w": 6.0,
+        "d": 16.0
+      },
+      "run": 16.0,
+      "span": 6.0,
+      "polygon": [
+        [
+          5.0,
+          -32.0
+        ],
+        [
+          11.0,
+          -32.0
+        ],
+        [
+          11.0,
+          -16.0
+        ],
+        [
+          5.0,
+          -16.0
+        ]
+      ],
+      "spawns": [
+        [
+          8.0,
+          -22.0
+        ]
+      ],
+      "brazier": null,
+      "sconce": null,
+      "rocks": [],
+      "props": [],
+      "lighting": "underground",
+      "floor": 0,
+      "y": 0.0,
+      "storyHeight": 10.0,
+      "block": "hallway",
+      "stair": null,
+      "chest": null
+    },
+    {
+      "id": "space-3",
+      "index": 3,
+      "kind": "chamber",
+      "name": "Cave Bend",
+      "theme": "cave",
+      "rect": {
+        "x": 1.0,
+        "z": -46.0,
+        "w": 14.0,
+        "d": 14.0
+      },
+      "run": 0.0,
+      "span": 0.0,
+      "polygon": [
+        [
+          1.0,
+          -46.0
+        ],
+        [
+          15.0,
+          -46.0
+        ],
+        [
+          15.0,
+          -32.0
+        ],
+        [
+          1.0,
+          -32.0
+        ]
+      ],
+      "spawns": [
+        [
+          4.6,
+          -34.4
+        ],
+        [
+          12.6,
+          -40.4
+        ]
+      ],
+      "brazier": null,
+      "sconce": {
+        "x": 8.0,
+        "z": -45.45,
+        "nx": 0,
+        "nz": 1
+      },
+      "rocks": [],
+      "props": [
+        {
+          "type": "bone-pile",
+          "x": 10.6,
+          "z": -42.4,
+          "rotationY": 4.7722,
+          "scale": 1.099
+        },
+        {
+          "type": "bone-pile",
+          "x": 9.9618,
+          "z": -41.4094,
+          "rotationY": 1.8746,
+          "scale": 0.812
+        }
+      ],
+      "lighting": "underground",
+      "floor": 0,
+      "y": 0.0,
+      "storyHeight": 10.0,
+      "block": "hub",
+      "stair": null,
+      "chest": {
+        "x": 4.8,
+        "z": -43.05
+      }
+    },
+    {
+      "id": "space-4",
+      "index": 4,
+      "kind": "corridor",
+      "name": "Narrow Passage",
+      "theme": "stone",
+      "rect": {
+        "x": 15.0,
+        "z": -42.0,
+        "w": 16.0,
+        "d": 6.0
+      },
+      "run": 16.0,
+      "span": 6.0,
+      "polygon": [
+        [
+          15.0,
+          -42.0
+        ],
+        [
+          31.0,
+          -42.0
+        ],
+        [
+          31.0,
+          -36.0
+        ],
+        [
+          15.0,
+          -36.0
+        ]
+      ],
+      "spawns": [
+        [
+          18.0,
+          -39.0
+        ]
+      ],
+      "brazier": null,
+      "sconce": null,
+      "rocks": [],
+      "props": [],
+      "lighting": "underground",
+      "floor": 0,
+      "y": 0.0,
+      "storyHeight": 10.0,
+      "block": "hallway",
+      "stair": null,
+      "chest": null
+    },
+    {
+      "id": "space-5",
+      "index": 5,
+      "kind": "corridor",
+      "name": "Doorway",
+      "theme": "stone",
+      "rect": {
+        "x": 31.0,
+        "z": -42.0,
+        "w": 4.0,
+        "d": 6.0
+      },
+      "run": 4.0,
+      "span": 6.0,
+      "polygon": [
+        [
+          31.0,
+          -42.0
+        ],
+        [
+          35.0,
+          -42.0
+        ],
+        [
+          35.0,
+          -36.0
+        ],
+        [
+          31.0,
+          -36.0
+        ]
+      ],
+      "spawns": [],
+      "brazier": null,
+      "sconce": null,
+      "rocks": [],
+      "props": [],
+      "lighting": "underground",
+      "floor": 0,
+      "y": 0.0,
+      "storyHeight": 10.0,
+      "block": "doorway",
+      "stair": null,
+      "chest": null
+    },
+    {
+      "id": "space-6",
+      "index": 6,
+      "kind": "chamber",
+      "name": "Stone Gate",
+      "theme": "stone",
+      "rect": {
+        "x": 35.0,
+        "z": -48.0,
+        "w": 16.0,
+        "d": 16.0
+      },
+      "run": 0.0,
+      "span": 0.0,
+      "polygon": [
+        [
+          35.0,
+          -48.0
+        ],
+        [
+          51.0,
+          -48.0
+        ],
+        [
+          51.0,
+          -32.0
+        ],
+        [
+          35.0,
+          -32.0
+        ]
+      ],
+      "spawns": [
+        [
+          42.6,
+          -36.4
+        ],
+        [
+          48.6,
+          -46.4
+        ]
+      ],
+      "brazier": null,
+      "sconce": {
+        "x": 50.45,
+        "z": -40.0,
+        "nx": -1,
+        "nz": 0
+      },
+      "rocks": [],
+      "props": [
+        {
+          "type": "rubble",
+          "x": 46.6,
+          "z": -36.4,
+          "rotationY": 3.78,
+          "scale": 0.866
+        },
+        {
+          "type": "rubble",
+          "x": 45.8391,
+          "z": -37.5968,
+          "rotationY": 5.1502,
+          "scale": 1.029
+        },
+        {
+          "type": "rubble",
+          "x": 48.0436,
+          "z": -36.1308,
+          "rotationY": 5.5864,
+          "scale": 0.789
+        }
+      ],
+      "lighting": "underground",
+      "floor": 0,
+      "y": 0.0,
+      "storyHeight": 10.0,
+      "block": "small-room",
+      "stair": null,
+      "chest": {
+        "x": 48.05,
+        "z": -43.2
+      }
+    },
+    {
+      "id": "space-7",
+      "index": 7,
+      "kind": "corridor",
+      "name": "Narrow Passage",
+      "theme": "stone",
+      "rect": {
+        "x": -15.0,
+        "z": -42.0,
+        "w": 16.0,
+        "d": 6.0
+      },
+      "run": 16.0,
+      "span": 6.0,
+      "polygon": [
+        [
+          -15.0,
+          -42.0
+        ],
+        [
+          1.0,
+          -42.0
+        ],
+        [
+          1.0,
+          -36.0
+        ],
+        [
+          -15.0,
+          -36.0
+        ]
+      ],
+      "spawns": [
+        [
+          -6.4,
+          -39.0
+        ]
+      ],
+      "brazier": null,
+      "sconce": null,
+      "rocks": [],
+      "props": [],
+      "lighting": "underground",
+      "floor": 0,
+      "y": 0.0,
+      "storyHeight": 10.0,
+      "block": "hallway",
+      "stair": null,
+      "chest": null
+    },
+    {
+      "id": "space-8",
+      "index": 8,
+      "kind": "corridor",
+      "name": "Doorway",
+      "theme": "stone",
+      "rect": {
+        "x": -19.0,
+        "z": -42.0,
+        "w": 4.0,
+        "d": 6.0
+      },
+      "run": 4.0,
+      "span": 6.0,
+      "polygon": [
+        [
+          -19.0,
+          -42.0
+        ],
+        [
+          -15.0,
+          -42.0
+        ],
+        [
+          -15.0,
+          -36.0
+        ],
+        [
+          -19.0,
+          -36.0
+        ]
+      ],
+      "spawns": [],
+      "brazier": null,
+      "sconce": null,
+      "rocks": [],
+      "props": [],
+      "lighting": "underground",
+      "floor": 0,
+      "y": 0.0,
+      "storyHeight": 10.0,
+      "block": "doorway",
+      "stair": null,
+      "chest": null
+    },
+    {
+      "id": "space-9",
+      "index": 9,
+      "kind": "chamber",
+      "name": "Wood Hall",
+      "theme": "wood",
+      "rect": {
+        "x": -43.0,
+        "z": -64.0,
+        "w": 24.0,
+        "d": 28.0
+      },
+      "run": 0.0,
+      "span": 0.0,
+      "polygon": [
+        [
+          -43.0,
+          -64.0
+        ],
+        [
+          -19.0,
+          -64.0
+        ],
+        [
+          -19.0,
+          -36.0
+        ],
+        [
+          -43.0,
+          -36.0
+        ]
+      ],
+      "spawns": [
+        [
+          -25.4,
+          -56.4
+        ],
+        [
+          -35.4,
+          -46.4
+        ],
+        [
+          -41.4,
+          -50.4
+        ]
+      ],
+      "brazier": null,
+      "sconce": {
+        "x": -31.0,
+        "z": -63.45,
+        "nx": 0,
+        "nz": 1
+      },
+      "rocks": [],
+      "props": [
+        {
+          "type": "crate",
+          "x": -19.9,
+          "z": -60.9,
+          "rotationY": -1.5708,
+          "scale": 1.063
+        },
+        {
+          "type": "barrel",
+          "x": -38.4,
+          "z": -36.9,
+          "rotationY": 3.1416,
+          "scale": 1.025
+        },
+        {
+          "type": "shelf",
+          "x": -42.1,
+          "z": -57.9,
+          "rotationY": 1.5708,
+          "scale": 0.912
+        },
+        {
+          "type": "crate",
+          "x": -19.9,
+          "z": -62.4,
+          "rotationY": -1.5708,
+          "scale": 0.865
+        }
+      ],
+      "lighting": "underground",
+      "floor": 0,
+      "y": 0.0,
+      "storyHeight": 10.0,
+      "block": "big-room",
+      "stair": null,
+      "chest": {
+        "x": -34.2,
+        "z": -61.05
+      }
+    },
+    {
+      "id": "space-10",
+      "index": 10,
+      "kind": "corridor",
+      "name": "Doorway",
+      "theme": "stone",
+      "rect": {
+        "x": -47.0,
+        "z": -44.0,
+        "w": 4.0,
+        "d": 6.0
+      },
+      "run": 4.0,
+      "span": 6.0,
+      "polygon": [
+        [
+          -47.0,
+          -44.0
+        ],
+        [
+          -43.0,
+          -44.0
+        ],
+        [
+          -43.0,
+          -38.0
+        ],
+        [
+          -47.0,
+          -38.0
+        ]
+      ],
+      "spawns": [],
+      "brazier": null,
+      "sconce": null,
+      "rocks": [],
+      "props": [],
+      "lighting": "underground",
+      "floor": 0,
+      "y": 0.0,
+      "storyHeight": 10.0,
+      "block": "doorway",
+      "stair": null,
+      "chest": null
+    },
+    {
+      "id": "space-11",
+      "index": 11,
+      "kind": "stairwell",
+      "name": "Stairwell",
+      "theme": "stone",
+      "rect": {
+        "x": -63.0,
+        "z": -47.0,
+        "w": 16.0,
+        "d": 12.0
+      },
+      "run": 16.0,
+      "span": 12.0,
+      "polygon": [
+        [
+          -63.0,
+          -47.0
+        ],
+        [
+          -47.0,
+          -47.0
+        ],
+        [
+          -47.0,
+          -35.0
+        ],
+        [
+          -63.0,
+          -35.0
+        ]
+      ],
+      "spawns": [],
+      "brazier": null,
+      "sconce": null,
+      "rocks": [],
+      "props": [],
+      "lighting": "underground",
+      "floor": 0,
+      "y": 0.0,
+      "storyHeight": 20.0,
+      "block": "stairwell",
+      "stair": {
+        "axis": "x",
+        "fromY": 0.0,
+        "toY": 10.0,
+        "low": [
+          -47.8,
+          -41.0
+        ],
+        "high": [
+          -62.2,
+          -41.0
+        ]
+      },
+      "chest": null
+    },
+    {
+      "id": "space-12",
+      "index": 12,
+      "kind": "corridor",
+      "name": "Narrow Passage",
+      "theme": "stone",
+      "rect": {
+        "x": -79.0,
+        "z": -44.0,
+        "w": 16.0,
+        "d": 6.0
+      },
+      "run": 16.0,
+      "span": 6.0,
+      "polygon": [
+        [
+          -79.0,
+          -44.0
+        ],
+        [
+          -63.0,
+          -44.0
+        ],
+        [
+          -63.0,
+          -38.0
+        ],
+        [
+          -79.0,
+          -38.0
+        ]
+      ],
+      "spawns": [
+        [
+          -71.8,
+          -42.4
+        ]
+      ],
+      "brazier": null,
+      "sconce": null,
+      "rocks": [],
+      "props": [],
+      "lighting": "underground",
+      "floor": 1,
+      "y": 10.0,
+      "storyHeight": 10.0,
+      "block": "hallway",
+      "stair": null,
+      "chest": null
+    },
+    {
+      "id": "space-13",
+      "index": 13,
+      "kind": "corridor",
+      "name": "Doorway",
+      "theme": "stone",
+      "rect": {
+        "x": -83.0,
+        "z": -44.0,
+        "w": 4.0,
+        "d": 6.0
+      },
+      "run": 4.0,
+      "span": 6.0,
+      "polygon": [
+        [
+          -83.0,
+          -44.0
+        ],
+        [
+          -79.0,
+          -44.0
+        ],
+        [
+          -79.0,
+          -38.0
+        ],
+        [
+          -83.0,
+          -38.0
+        ]
+      ],
+      "spawns": [],
+      "brazier": null,
+      "sconce": null,
+      "rocks": [],
+      "props": [],
+      "lighting": "underground",
+      "floor": 1,
+      "y": 10.0,
+      "storyHeight": 10.0,
+      "block": "doorway",
+      "stair": null,
+      "chest": null
+    },
+    {
+      "id": "space-14",
+      "index": 14,
+      "kind": "chamber",
+      "name": "Stone Cells",
+      "theme": "stone",
+      "rect": {
+        "x": -99.0,
+        "z": -52.0,
+        "w": 16.0,
+        "d": 16.0
+      },
+      "run": 0.0,
+      "span": 0.0,
+      "polygon": [
+        [
+          -99.0,
+          -52.0
+        ],
+        [
+          -83.0,
+          -52.0
+        ],
+        [
+          -83.0,
+          -36.0
+        ],
+        [
+          -99.0,
+          -36.0
+        ]
+      ],
+      "spawns": [
+        [
+          -85.4,
+          -46.4
+        ],
+        [
+          -93.4,
+          -44.4
+        ]
+      ],
+      "brazier": null,
+      "sconce": {
+        "x": -91.0,
+        "z": -51.45,
+        "nx": 0,
+        "nz": 1
+      },
+      "rocks": [],
+      "props": [
+        {
+          "type": "casket",
+          "x": -85.4,
+          "z": -51.1,
+          "rotationY": 0.0,
+          "scale": 1.021
+        },
+        {
+          "type": "casket",
+          "x": -89.9,
+          "z": -36.9,
+          "rotationY": 3.1416,
+          "scale": 1.096
+        }
+      ],
+      "lighting": "underground",
+      "floor": 1,
+      "y": 10.0,
+      "storyHeight": 10.0,
+      "block": "small-room",
+      "stair": null,
+      "chest": {
+        "x": -94.2,
+        "z": -49.05
+      }
+    },
+    {
+      "id": "space-15",
+      "index": 15,
+      "kind": "corridor",
+      "name": "Doorway",
+      "theme": "stone",
+      "rect": {
+        "x": -103.0,
+        "z": -48.0,
+        "w": 4.0,
+        "d": 6.0
+      },
+      "run": 4.0,
+      "span": 6.0,
+      "polygon": [
+        [
+          -103.0,
+          -48.0
+        ],
+        [
+          -99.0,
+          -48.0
+        ],
+        [
+          -99.0,
+          -42.0
+        ],
+        [
+          -103.0,
+          -42.0
+        ]
+      ],
+      "spawns": [],
+      "brazier": null,
+      "sconce": null,
+      "rocks": [],
+      "props": [],
+      "lighting": "underground",
+      "floor": 1,
+      "y": 10.0,
+      "storyHeight": 10.0,
+      "block": "doorway",
+      "stair": null,
+      "chest": null
+    },
+    {
+      "id": "space-16",
+      "index": 16,
+      "kind": "corridor",
+      "name": "Narrow Passage",
+      "theme": "stone",
+      "rect": {
+        "x": -119.0,
+        "z": -48.0,
+        "w": 16.0,
+        "d": 6.0
+      },
+      "run": 16.0,
+      "span": 6.0,
+      "polygon": [
+        [
+          -119.0,
+          -48.0
+        ],
+        [
+          -103.0,
+          -48.0
+        ],
+        [
+          -103.0,
+          -42.0
+        ],
+        [
+          -119.0,
+          -42.0
+        ]
+      ],
+      "spawns": [
+        [
+          -109.0,
+          -46.4
+        ]
+      ],
+      "brazier": null,
+      "sconce": null,
+      "rocks": [],
+      "props": [],
+      "lighting": "underground",
+      "floor": 1,
+      "y": 10.0,
+      "storyHeight": 10.0,
+      "block": "hallway",
+      "stair": null,
+      "chest": null
+    },
+    {
+      "id": "space-17",
+      "index": 17,
+      "kind": "corridor",
+      "name": "Doorway",
+      "theme": "stone",
+      "rect": {
+        "x": -123.0,
+        "z": -48.0,
+        "w": 4.0,
+        "d": 6.0
+      },
+      "run": 4.0,
+      "span": 6.0,
+      "polygon": [
+        [
+          -123.0,
+          -48.0
+        ],
+        [
+          -119.0,
+          -48.0
+        ],
+        [
+          -119.0,
+          -42.0
+        ],
+        [
+          -123.0,
+          -42.0
+        ]
+      ],
+      "spawns": [],
+      "brazier": null,
+      "sconce": null,
+      "rocks": [],
+      "props": [],
+      "lighting": "underground",
+      "floor": 1,
+      "y": 10.0,
+      "storyHeight": 10.0,
+      "block": "doorway",
+      "stair": null,
+      "chest": null
+    },
+    {
+      "id": "space-18",
+      "index": 18,
+      "kind": "chamber",
+      "name": "Damp Gallery",
+      "theme": "cave",
+      "rect": {
+        "x": -139.0,
+        "z": -52.0,
+        "w": 16.0,
+        "d": 16.0
+      },
+      "run": 0.0,
+      "span": 0.0,
+      "polygon": [
+        [
+          -139.0,
+          -52.0
+        ],
+        [
+          -123.0,
+          -52.0
+        ],
+        [
+          -123.0,
+          -36.0
+        ],
+        [
+          -139.0,
+          -36.0
+        ]
+      ],
+      "spawns": [
+        [
+          -131.4,
+          -50.4
+        ],
+        [
+          -135.4,
+          -50.4
+        ]
+      ],
+      "brazier": null,
+      "sconce": {
+        "x": -131.0,
+        "z": -36.55,
+        "nx": 0,
+        "nz": -1
+      },
+      "rocks": [],
+      "props": [
+        {
+          "type": "stalagmite",
+          "x": -125.4,
+          "z": -40.4,
+          "rotationY": 1.9,
+          "scale": 0.949
+        },
+        {
+          "type": "stalagmite",
+          "x": -133.4,
+          "z": -42.4,
+          "rotationY": 4.9333,
+          "scale": 0.746
+        }
+      ],
+      "lighting": "underground",
+      "floor": 1,
+      "y": 10.0,
+      "storyHeight": 10.0,
+      "block": "small-room",
+      "stair": null,
+      "chest": {
+        "x": -127.8,
+        "z": -38.95
+      }
+    },
+    {
+      "id": "space-19",
+      "index": 19,
+      "kind": "corridor",
+      "name": "Doorway",
+      "theme": "stone",
+      "rect": {
+        "x": -143.0,
+        "z": -48.0,
+        "w": 4.0,
+        "d": 6.0
+      },
+      "run": 4.0,
+      "span": 6.0,
+      "polygon": [
+        [
+          -143.0,
+          -48.0
+        ],
+        [
+          -139.0,
+          -48.0
+        ],
+        [
+          -139.0,
+          -42.0
+        ],
+        [
+          -143.0,
+          -42.0
+        ]
+      ],
+      "spawns": [],
+      "brazier": null,
+      "sconce": null,
+      "rocks": [],
+      "props": [],
+      "lighting": "underground",
+      "floor": 1,
+      "y": 10.0,
+      "storyHeight": 10.0,
+      "block": "doorway",
+      "stair": null,
+      "chest": null
+    },
+    {
+      "id": "space-20",
+      "index": 20,
+      "kind": "corridor",
+      "name": "Narrow Passage",
+      "theme": "stone",
+      "rect": {
+        "x": -159.0,
+        "z": -48.0,
+        "w": 16.0,
+        "d": 6.0
+      },
+      "run": 16.0,
+      "span": 6.0,
+      "polygon": [
+        [
+          -159.0,
+          -48.0
+        ],
+        [
+          -143.0,
+          -48.0
+        ],
+        [
+          -143.0,
+          -42.0
+        ],
+        [
+          -159.0,
+          -42.0
+        ]
+      ],
+      "spawns": [
+        [
+          -156.0,
+          -45.0
+        ]
+      ],
+      "brazier": null,
+      "sconce": null,
+      "rocks": [],
+      "props": [],
+      "lighting": "underground",
+      "floor": 1,
+      "y": 10.0,
+      "storyHeight": 10.0,
+      "block": "hallway",
+      "stair": null,
+      "chest": null
+    },
+    {
+      "id": "space-21",
+      "index": 21,
+      "kind": "corridor",
+      "name": "Doorway",
+      "theme": "stone",
+      "rect": {
+        "x": -163.0,
+        "z": -48.0,
+        "w": 4.0,
+        "d": 6.0
+      },
+      "run": 4.0,
+      "span": 6.0,
+      "polygon": [
+        [
+          -163.0,
+          -48.0
+        ],
+        [
+          -159.0,
+          -48.0
+        ],
+        [
+          -159.0,
+          -42.0
+        ],
+        [
+          -163.0,
+          -42.0
+        ]
+      ],
+      "spawns": [],
+      "brazier": null,
+      "sconce": null,
+      "rocks": [],
+      "props": [],
+      "lighting": "underground",
+      "floor": 1,
+      "y": 10.0,
+      "storyHeight": 10.0,
+      "block": "doorway",
+      "stair": null,
+      "chest": null
+    },
+    {
+      "id": "space-22",
+      "index": 22,
+      "kind": "chamber",
+      "name": "Timber Barracks",
+      "theme": "wood",
+      "rect": {
+        "x": -179.0,
+        "z": -50.0,
+        "w": 16.0,
+        "d": 16.0
+      },
+      "run": 0.0,
+      "span": 0.0,
+      "polygon": [
+        [
+          -179.0,
+          -50.0
+        ],
+        [
+          -163.0,
+          -50.0
+        ],
+        [
+          -163.0,
+          -34.0
+        ],
+        [
+          -179.0,
+          -34.0
+        ]
+      ],
+      "spawns": [
+        [
+          -169.4,
+          -36.4
+        ],
+        [
+          -167.4,
+          -46.4
+        ]
+      ],
+      "brazier": null,
+      "sconce": {
+        "x": -171.0,
+        "z": -34.55,
+        "nx": 0,
+        "nz": -1
+      },
+      "rocks": [],
+      "props": [
+        {
+          "type": "shelf",
+          "x": -175.9,
+          "z": -49.1,
+          "rotationY": 0.0,
+          "scale": 1.009
+        }
+      ],
+      "lighting": "underground",
+      "floor": 1,
+      "y": 10.0,
+      "storyHeight": 10.0,
+      "block": "small-room",
+      "stair": null,
+      "chest": {
+        "x": -167.8,
+        "z": -36.95
+      }
+    },
+    {
+      "id": "space-23",
+      "index": 23,
+      "kind": "corridor",
+      "name": "Doorway",
+      "theme": "stone",
+      "rect": {
+        "x": -183.0,
+        "z": -50.0,
+        "w": 4.0,
+        "d": 6.0
+      },
+      "run": 4.0,
+      "span": 6.0,
+      "polygon": [
+        [
+          -183.0,
+          -50.0
+        ],
+        [
+          -179.0,
+          -50.0
+        ],
+        [
+          -179.0,
+          -44.0
+        ],
+        [
+          -183.0,
+          -44.0
+        ]
+      ],
+      "spawns": [],
+      "brazier": null,
+      "sconce": null,
+      "rocks": [],
+      "props": [],
+      "lighting": "underground",
+      "floor": 1,
+      "y": 10.0,
+      "storyHeight": 10.0,
+      "block": "doorway",
+      "stair": null,
+      "chest": null
+    },
+    {
+      "id": "space-24",
+      "index": 24,
+      "kind": "corridor",
+      "name": "Doorway",
+      "theme": "stone",
+      "rect": {
+        "x": -187.0,
+        "z": -50.0,
+        "w": 4.0,
+        "d": 6.0
+      },
+      "run": 4.0,
+      "span": 6.0,
+      "polygon": [
+        [
+          -187.0,
+          -50.0
+        ],
+        [
+          -183.0,
+          -50.0
+        ],
+        [
+          -183.0,
+          -44.0
+        ],
+        [
+          -187.0,
+          -44.0
+        ]
+      ],
+      "spawns": [],
+      "brazier": null,
+      "sconce": null,
+      "rocks": [],
+      "props": [],
+      "lighting": "underground",
+      "floor": 1,
+      "y": 10.0,
+      "storyHeight": 10.0,
+      "block": "doorway",
+      "stair": null,
+      "chest": null
+    },
+    {
+      "id": "space-25",
+      "index": 25,
+      "kind": "chamber",
+      "name": "Low Cave",
+      "theme": "cave",
+      "rect": {
+        "x": -203.0,
+        "z": -54.0,
+        "w": 16.0,
+        "d": 16.0
+      },
+      "run": 0.0,
+      "span": 0.0,
+      "polygon": [
+        [
+          -203.0,
+          -54.0
+        ],
+        [
+          -187.0,
+          -54.0
+        ],
+        [
+          -187.0,
+          -38.0
+        ],
+        [
+          -203.0,
+          -38.0
+        ]
+      ],
+      "spawns": [
+        [
+          -197.4,
+          -46.4
+        ],
+        [
+          -189.4,
+          -44.4
+        ],
+        [
+          -195.4,
+          -40.4
+        ],
+        [
+          -201.4,
+          -52.4
+        ]
+      ],
+      "brazier": null,
+      "sconce": null,
+      "rocks": [],
+      "props": [
+        {
+          "type": "stalagmite",
+          "x": -193.4,
+          "z": -48.4,
+          "rotationY": 0.675,
+          "scale": 0.883
+        },
+        {
+          "type": "bone-pile",
+          "x": -195.4,
+          "z": -48.4,
+          "rotationY": 0.6269,
+          "scale": 1.068
+        },
+        {
+          "type": "bone-pile",
+          "x": -194.6854,
+          "z": -49.5887,
+          "rotationY": 3.8618,
+          "scale": 0.91
+        },
+        {
+          "type": "bone-pile",
+          "x": -195.505,
+          "z": -49.1705,
+          "rotationY": 2.9495,
+          "scale": 0.761
+        }
+      ],
+      "lighting": "underground",
+      "floor": 1,
+      "y": 10.0,
+      "storyHeight": 10.0,
+      "block": "exit",
+      "stair": null,
+      "chest": null,
+      "role": "exit",
+      "description": "The last chamber. The way back to daylight is the arch you already passed through."
+    }
+  ],
+  "doors": [
+    {
+      "a": [
+        5.1011,
+        0.0
+      ],
+      "b": [
+        10.164,
+        0.0
+      ],
+      "width": 5.0629,
+      "height": 6.8619,
+      "openingWidth": 6.0,
+      "mouthA": [
+        5.0,
+        0.0
+      ],
+      "mouthB": [
+        11.0,
+        0.0
+      ],
+      "from": "space-0",
+      "to": "space-1",
+      "y": 0.0
+    },
+    {
+      "a": [
+        5.0,
+        -16.0
+      ],
+      "b": [
+        11.0,
+        -16.0
+      ],
+      "width": 6.0,
+      "height": 7.9439,
+      "openingWidth": 6.0,
+      "mouthA": [
+        5.0,
+        -16.0
+      ],
+      "mouthB": [
+        11.0,
+        -16.0
+      ],
+      "from": "space-1",
+      "to": "space-2",
+      "y": 0.0
+    },
+    {
+      "a": [
+        5.0,
+        -32.0
+      ],
+      "b": [
+        11.0,
+        -32.0
+      ],
+      "width": 6.0,
+      "height": 7.1928,
+      "openingWidth": 6.0,
+      "mouthA": [
+        5.0,
+        -32.0
+      ],
+      "mouthB": [
+        11.0,
+        -32.0
+      ],
+      "from": "space-2",
+      "to": "space-3",
+      "y": 0.0
+    },
+    {
+      "a": [
+        15.0,
+        -42.0
+      ],
+      "b": [
+        15.0,
+        -36.0
+      ],
+      "width": 6.0,
+      "height": 7.7724,
+      "openingWidth": 6.0,
+      "mouthA": [
+        15.0,
+        -42.0
+      ],
+      "mouthB": [
+        15.0,
+        -36.0
+      ],
+      "from": "space-3",
+      "to": "space-4",
+      "y": 0.0
+    },
+    {
+      "a": [
+        31.0,
+        -42.0
+      ],
+      "b": [
+        31.0,
+        -36.0
+      ],
+      "width": 6.0,
+      "height": 7.3509,
+      "openingWidth": 6.0,
+      "mouthA": [
+        31.0,
+        -42.0
+      ],
+      "mouthB": [
+        31.0,
+        -36.0
+      ],
+      "from": "space-4",
+      "to": "space-5",
+      "y": 0.0
+    },
+    {
+      "a": [
+        35.0,
+        -40.8133
+      ],
+      "b": [
+        35.0,
+        -36.2122
+      ],
+      "width": 4.6011,
+      "height": 7.5837,
+      "openingWidth": 6.0,
+      "mouthA": [
+        35.0,
+        -42.0
+      ],
+      "mouthB": [
+        35.0,
+        -36.0
+      ],
+      "from": "space-5",
+      "to": "space-6",
+      "y": 0.0
+    },
+    {
+      "a": [
+        1.0,
+        -42.0
+      ],
+      "b": [
+        1.0,
+        -36.0
+      ],
+      "width": 6.0,
+      "height": 7.5251,
+      "openingWidth": 6.0,
+      "mouthA": [
+        1.0,
+        -42.0
+      ],
+      "mouthB": [
+        1.0,
+        -36.0
+      ],
+      "from": "space-3",
+      "to": "space-7",
+      "y": 0.0
+    },
+    {
+      "a": [
+        -15.0,
+        -42.0
+      ],
+      "b": [
+        -15.0,
+        -36.0
+      ],
+      "width": 6.0,
+      "height": 7.6354,
+      "openingWidth": 6.0,
+      "mouthA": [
+        -15.0,
+        -42.0
+      ],
+      "mouthB": [
+        -15.0,
+        -36.0
+      ],
+      "from": "space-7",
+      "to": "space-8",
+      "y": 0.0
+    },
+    {
+      "a": [
+        -19.0,
+        -41.6413
+      ],
+      "b": [
+        -19.0,
+        -37.2221
+      ],
+      "width": 4.4192,
+      "height": 6.6197,
+      "openingWidth": 6.0,
+      "mouthA": [
+        -19.0,
+        -42.0
+      ],
+      "mouthB": [
+        -19.0,
+        -36.0
+      ],
+      "from": "space-8",
+      "to": "space-9",
+      "y": 0.0
+    },
+    {
+      "a": [
+        -43.0,
+        -42.5825
+      ],
+      "b": [
+        -43.0,
+        -38.1231
+      ],
+      "width": 4.4594,
+      "height": 7.4773,
+      "openingWidth": 6.0,
+      "mouthA": [
+        -43.0,
+        -44.0
+      ],
+      "mouthB": [
+        -43.0,
+        -38.0
+      ],
+      "from": "space-9",
+      "to": "space-10",
+      "y": 0.0
+    },
+    {
+      "a": [
+        -47.0,
+        -44.0
+      ],
+      "b": [
+        -47.0,
+        -38.0
+      ],
+      "width": 6.0,
+      "height": 7.2471,
+      "openingWidth": 6.0,
+      "mouthA": [
+        -47.0,
+        -44.0
+      ],
+      "mouthB": [
+        -47.0,
+        -38.0
+      ],
+      "from": "space-10",
+      "to": "space-11",
+      "y": 0.0
+    },
+    {
+      "a": [
+        -63.0,
+        -44.0
+      ],
+      "b": [
+        -63.0,
+        -38.0
+      ],
+      "width": 6.0,
+      "height": 7.1501,
+      "openingWidth": 6.0,
+      "mouthA": [
+        -63.0,
+        -44.0
+      ],
+      "mouthB": [
+        -63.0,
+        -38.0
+      ],
+      "from": "space-11",
+      "to": "space-12",
+      "y": 10.0
+    },
+    {
+      "a": [
+        -79.0,
+        -44.0
+      ],
+      "b": [
+        -79.0,
+        -38.0
+      ],
+      "width": 6.0,
+      "height": 7.9559,
+      "openingWidth": 6.0,
+      "mouthA": [
+        -79.0,
+        -44.0
+      ],
+      "mouthB": [
+        -79.0,
+        -38.0
+      ],
+      "from": "space-12",
+      "to": "space-13",
+      "y": 10.0
+    },
+    {
+      "a": [
+        -83.0,
+        -42.7803
+      ],
+      "b": [
+        -83.0,
+        -38.121
+      ],
+      "width": 4.6593,
+      "height": 7.6547,
+      "openingWidth": 6.0,
+      "mouthA": [
+        -83.0,
+        -44.0
+      ],
+      "mouthB": [
+        -83.0,
+        -38.0
+      ],
+      "from": "space-13",
+      "to": "space-14",
+      "y": 10.0
+    },
+    {
+      "a": [
+        -99.0,
+        -47.2645
+      ],
+      "b": [
+        -99.0,
+        -42.2729
+      ],
+      "width": 4.9916,
+      "height": 7.2139,
+      "openingWidth": 6.0,
+      "mouthA": [
+        -99.0,
+        -48.0
+      ],
+      "mouthB": [
+        -99.0,
+        -42.0
+      ],
+      "from": "space-14",
+      "to": "space-15",
+      "y": 10.0
+    },
+    {
+      "a": [
+        -103.0,
+        -48.0
+      ],
+      "b": [
+        -103.0,
+        -42.0
+      ],
+      "width": 6.0,
+      "height": 7.9711,
+      "openingWidth": 6.0,
+      "mouthA": [
+        -103.0,
+        -48.0
+      ],
+      "mouthB": [
+        -103.0,
+        -42.0
+      ],
+      "from": "space-15",
+      "to": "space-16",
+      "y": 10.0
+    },
+    {
+      "a": [
+        -119.0,
+        -48.0
+      ],
+      "b": [
+        -119.0,
+        -42.0
+      ],
+      "width": 6.0,
+      "height": 8.1274,
+      "openingWidth": 6.0,
+      "mouthA": [
+        -119.0,
+        -48.0
+      ],
+      "mouthB": [
+        -119.0,
+        -42.0
+      ],
+      "from": "space-16",
+      "to": "space-17",
+      "y": 10.0
+    },
+    {
+      "a": [
+        -123.0,
+        -47.7027
+      ],
+      "b": [
+        -123.0,
+        -42.2828
+      ],
+      "width": 5.42,
+      "height": 6.8068,
+      "openingWidth": 6.0,
+      "mouthA": [
+        -123.0,
+        -48.0
+      ],
+      "mouthB": [
+        -123.0,
+        -42.0
+      ],
+      "from": "space-17",
+      "to": "space-18",
+      "y": 10.0
+    },
+    {
+      "a": [
+        -139.0,
+        -47.8378
+      ],
+      "b": [
+        -139.0,
+        -42.6272
+      ],
+      "width": 5.2106,
+      "height": 8.1196,
+      "openingWidth": 6.0,
+      "mouthA": [
+        -139.0,
+        -48.0
+      ],
+      "mouthB": [
+        -139.0,
+        -42.0
+      ],
+      "from": "space-18",
+      "to": "space-19",
+      "y": 10.0
+    },
+    {
+      "a": [
+        -143.0,
+        -48.0
+      ],
+      "b": [
+        -143.0,
+        -42.0
+      ],
+      "width": 6.0,
+      "height": 7.3698,
+      "openingWidth": 6.0,
+      "mouthA": [
+        -143.0,
+        -48.0
+      ],
+      "mouthB": [
+        -143.0,
+        -42.0
+      ],
+      "from": "space-19",
+      "to": "space-20",
+      "y": 10.0
+    },
+    {
+      "a": [
+        -159.0,
+        -48.0
+      ],
+      "b": [
+        -159.0,
+        -42.0
+      ],
+      "width": 6.0,
+      "height": 7.1836,
+      "openingWidth": 6.0,
+      "mouthA": [
+        -159.0,
+        -48.0
+      ],
+      "mouthB": [
+        -159.0,
+        -42.0
+      ],
+      "from": "space-20",
+      "to": "space-21",
+      "y": 10.0
+    },
+    {
+      "a": [
+        -163.0,
+        -46.9844
+      ],
+      "b": [
+        -163.0,
+        -42.0637
+      ],
+      "width": 4.9207,
+      "height": 7.2614,
+      "openingWidth": 6.0,
+      "mouthA": [
+        -163.0,
+        -48.0
+      ],
+      "mouthB": [
+        -163.0,
+        -42.0
+      ],
+      "from": "space-21",
+      "to": "space-22",
+      "y": 10.0
+    },
+    {
+      "a": [
+        -179.0,
+        -49.6922
+      ],
+      "b": [
+        -179.0,
+        -44.4349
+      ],
+      "width": 5.2574,
+      "height": 6.6025,
+      "openingWidth": 6.0,
+      "mouthA": [
+        -179.0,
+        -50.0
+      ],
+      "mouthB": [
+        -179.0,
+        -44.0
+      ],
+      "from": "space-22",
+      "to": "space-23",
+      "y": 10.0
+    },
+    {
+      "a": [
+        -183.0,
+        -50.0
+      ],
+      "b": [
+        -183.0,
+        -44.0
+      ],
+      "width": 6.0,
+      "height": 7.4642,
+      "openingWidth": 6.0,
+      "mouthA": [
+        -183.0,
+        -50.0
+      ],
+      "mouthB": [
+        -183.0,
+        -44.0
+      ],
+      "from": "space-23",
+      "to": "space-24",
+      "y": 10.0
+    },
+    {
+      "a": [
+        -187.0,
+        -49.7425
+      ],
+      "b": [
+        -187.0,
+        -44.5201
+      ],
+      "width": 5.2224,
+      "height": 7.5598,
+      "openingWidth": 6.0,
+      "mouthA": [
+        -187.0,
+        -50.0
+      ],
+      "mouthB": [
+        -187.0,
+        -44.0
+      ],
+      "from": "space-24",
+      "to": "space-25",
+      "y": 10.0
+    }
+  ],
+  "start": {
+    "x": 9.916723505348951,
+    "z": 43.88779915247474,
+    "yaw": 0.060990141385971273
+  },
+  "lastRoomId": "space-25",
+  "areaName": "The Ancient Ruins",
+  "requirements": [
+    "torch",
+    "mace"
+  ],
+  "entrance": {
+    "a": [
+      4.8,
+      12.5
+    ],
+    "b": [
+      11.2,
+      12.5
+    ],
+    "width": 6.4,
+    "height": 7.2,
+    "openingWidth": 16.0,
+    "mouthA": [
+      0.0,
+      12.5
+    ],
+    "mouthB": [
+      16.0,
+      12.5
+    ]
+  },
+  "vestibule": [
+    [
+      4.8,
+      9.8
+    ],
+    [
+      11.2,
+      9.8
+    ],
+    [
+      11.2,
+      12.5
+    ],
+    [
+      4.8,
+      12.5
+    ]
+  ],
+  "exterior": [
+    [
+      4.8,
+      9.8
+    ],
+    [
+      11.2,
+      9.8
+    ],
+    [
+      11.2,
+      12.5
+    ],
+    [
+      32.0,
+      12.5
+    ],
+    [
+      32.0,
+      21.5
+    ],
+    [
+      14.580622401882124,
+      21.5
+    ],
+    [
+      15.014561488097424,
+      24.792323404775697
+    ],
+    [
+      15.353168539219396,
+      28.084646809551394
+    ],
+    [
+      15.59080440881345,
+      31.37697021432709
+    ],
+    [
+      15.734711423728681,
+      34.66929361910279
+    ],
+    [
+      15.802039428723848,
+      37.96161702387849
+    ],
+    [
+      15.815493003700634,
+      41.25394042865418
+    ],
+    [
+      15.798422983020963,
+      44.546263833429876
+    ],
+    [
+      15.770250441626521,
+      47.83858723820558
+    ],
+    [
+      15.74301999934914,
+      51.13091064298128
+    ],
+    [
+      15.71965054108145,
+      54.42323404775697
+    ],
+    [
+      15.69412792017723,
+      57.71555745253267
+    ],
+    [
+      15.653524631844068,
+      61.007880857308365
+    ],
+    [
+      15.581400156819651,
+      64.30020426208407
+    ],
+    [
+      15.461891288876473,
+      67.59252766685975
+    ],
+    [
+      15.283686860467096,
+      70.88485107163545
+    ],
+    [
+      15.043115033740769,
+      74.17717447641115
+    ],
+    [
+      14.745746226239616,
+      77.46949788118684
+    ],
+    [
+      14.406198092872973,
+      80.76182128596255
+    ],
+    [
+      14.04616880881434,
+      84.05414469073824
+    ],
+    [
+      13.69105923993546,
+      87.34646809551394
+    ],
+    [
+      2.308940760064541,
+      87.34646809551394
+    ],
+    [
+      2.250716454486626,
+      84.05414469073824
+    ],
+    [
+      2.199446333952605,
+      80.76182128596255
+    ],
+    [
+      2.19023490649729,
+      77.46949788118684
+    ],
+    [
+      2.250380732586728,
+      74.17717447641115
+    ],
+    [
+      2.3945162795222963,
+      70.88485107163545
+    ],
+    [
+      2.6217776714288163,
+      67.59252766685975
+    ],
+    [
+      2.9154706774026264,
+      64.30020426208407
+    ],
+    [
+      3.245291719227974,
+      61.007880857308365
+    ],
+    [
+      3.571745986755059,
+      57.71555745253267
+    ],
+    [
+      3.852048468020146,
+      54.42323404775697
+    ],
+    [
+      4.0465570285282775,
+      51.13091064298128
+    ],
+    [
+      4.124708441003472,
+      47.83858723820558
+    ],
+    [
+      4.069520421850061,
+      44.546263833429876
+    ],
+    [
+      3.879968430304782,
+      41.25394042865418
+    ],
+    [
+      3.570902610672782,
+      37.96161702387849
+    ],
+    [
+      3.170576816298942,
+      34.66929361910279
+    ],
+    [
+      2.7162492945722025,
+      31.37697021432709
+    ],
+    [
+      2.2486184191641323,
+      28.084646809551394
+    ],
+    [
+      1.8060268961486718,
+      24.792323404775697
+    ],
+    [
+      1.419377598117877,
+      21.5
+    ],
+    [
+      -16.0,
+      21.5
+    ],
+    [
+      -16.0,
+      12.5
+    ],
+    [
+      4.8,
+      12.5
+    ]
+  ],
+  "hub": [
+    [
+      -1.0,
+      89.54646809551394
+    ],
+    [
+      17.0,
+      89.54646809551394
+    ],
+    [
+      17.0,
+      105.54646809551394
+    ],
+    [
+      -1.0,
+      105.54646809551394
+    ]
+  ],
+  "trees": [
+    {
+      "x": 18.489519156262148,
+      "z": 55.2064835782363,
+      "nx": -0.9992102299854319,
+      "nz": -0.03973557967943021,
+      "tx": -0.03973557967943021,
+      "tz": 0.9992102299854319,
+      "scale": 0.829643570451639,
+      "rotationY": 0.1672777417039403,
+      "lean": 0.12403790990594471,
+      "leanAxis": 2.907622940229743,
+      "variant": 1,
+      "branches": 5,
+      "height": 6.2
+    },
+    {
+      "x": 0.06291324306194923,
+      "z": 58.75114322801718,
+      "nx": -0.9986972101187412,
+      "nz": -0.05102825198890065,
+      "tx": -0.05102825198890065,
+      "tz": 0.9986972101187412,
+      "scale": 1.1853461172762778,
+      "rotationY": 4.612187553387727,
+      "lean": 0.14771731322334664,
+      "leanAxis": 1.5638413295103881,
+      "variant": 4,
+      "branches": 2,
+      "height": 1.35
+    },
+    {
+      "x": 0.43078118924332465,
+      "z": 48.48395553775775,
+      "nx": -0.9999822951175638,
+      "nz": -0.0059505841233915896,
+      "tx": -0.0059505841233915896,
+      "tz": 0.9999822951175638,
+      "scale": 0.8452843190593882,
+      "rotationY": 3.0128581267799617,
+      "lean": 0.13337087642553605,
+      "leanAxis": 3.6884885114766597,
+      "variant": 4,
+      "branches": 2,
+      "height": 1.35
+    },
+    {
+      "x": 20.7682667742966,
+      "z": 41.381999598705924,
+      "nx": -0.99929433602203,
+      "nz": 0.037561016949626914,
+      "tx": 0.037561016949626914,
+      "tz": 0.99929433602203,
+      "scale": 1.1865204594106682,
+      "rotationY": 3.199547958011014,
+      "lean": 0.15077453376667999,
+      "leanAxis": 0.40683210450061946,
+      "variant": 0,
+      "branches": 3,
+      "height": 4.4
+    },
+    {
+      "x": -4.409496615269749,
+      "z": 56.380261028062236,
+      "nx": -0.9986972101187412,
+      "nz": -0.05102825198890065,
+      "tx": -0.05102825198890065,
+      "tz": 0.9986972101187412,
+      "scale": 0.7550808363956251,
+      "rotationY": 0.5404252901685004,
+      "lean": -0.13788376755584283,
+      "leanAxis": 6.063179984174139,
+      "variant": 2,
+      "branches": 4,
+      "height": 5.0
+    },
+    {
+      "x": -1.836556711815696,
+      "z": 28.03632278149872,
+      "nx": -0.9936900079203231,
+      "nz": 0.11216134877625292,
+      "tx": 0.11216134877625292,
+      "tz": 0.9936900079203231,
+      "scale": 0.9346828012083988,
+      "rotationY": 3.3322168031877113,
+      "lean": 0.112961983963037,
+      "leanAxis": 0.5174162002395658,
+      "variant": 3,
+      "branches": 7,
+      "height": 7.1
+    },
+    {
+      "x": 22.655106017883973,
+      "z": 72.11565884445695,
+      "nx": -0.9982047748777341,
+      "nz": -0.0598934671837592,
+      "tx": -0.0598934671837592,
+      "tz": 0.9982047748777341,
+      "scale": 0.8426086038974869,
+      "rotationY": 3.1420957526519335,
+      "lean": 0.1487564585983293,
+      "leanAxis": 1.900198572895081,
+      "variant": 0,
+      "branches": 3,
+      "height": 4.4
+    },
+    {
+      "x": -5.06095579796108,
+      "z": 67.8580743944822,
+      "nx": -0.9980733455360651,
+      "nz": -0.06204512011791421,
+      "tx": -0.06204512011791421,
+      "tz": 0.9980733455360651,
+      "scale": 1.282719250068031,
+      "rotationY": 3.8517515765418597,
+      "lean": -0.12636931102107749,
+      "leanAxis": 5.010916529177376,
+      "variant": 2,
+      "branches": 4,
+      "height": 5.0
+    },
+    {
+      "x": -1.814025876521164,
+      "z": 66.34663510676414,
+      "nx": -0.9980733455360651,
+      "nz": -0.06204512011791421,
+      "tx": -0.06204512011791421,
+      "tz": 0.9980733455360651,
+      "scale": 0.8852901900026998,
+      "rotationY": 4.713681653254225,
+      "lean": 0.17331925569387852,
+      "leanAxis": 3.7585525959927937,
+      "variant": 4,
+      "branches": 2,
+      "height": 1.35
+    },
+    {
+      "x": -4.578722713418111,
+      "z": 32.85568466235069,
+      "nx": -0.9951371476253086,
+      "nz": 0.0984990224122297,
+      "tx": 0.0984990224122297,
+      "tz": 0.9951371476253086,
+      "scale": 0.9950368156689382,
+      "rotationY": 1.8739634766263589,
+      "lean": -0.12146391163111254,
+      "leanAxis": 4.139454505146693,
+      "variant": 3,
+      "branches": 7,
+      "height": 7.1
+    },
+    {
+      "x": -4.101195468593797,
+      "z": 60.315633483581195,
+      "nx": -0.9982994387593922,
+      "nz": -0.058294344259821704,
+      "tx": -0.058294344259821704,
+      "tz": 0.9982994387593922,
+      "scale": 0.871621005837948,
+      "rotationY": 5.220939340581981,
+      "lean": 0.17015647367497674,
+      "leanAxis": 1.1804634317344105,
+      "variant": 4,
+      "branches": 2,
+      "height": 1.35
+    },
+    {
+      "x": 23.007090050248404,
+      "z": 37.30775745700133,
+      "nx": -0.9982047748777341,
+      "nz": 0.05989346718375927,
+      "tx": 0.05989346718375927,
+      "tz": 0.9982047748777341,
+      "scale": 1.2406860114198557,
+      "rotationY": 1.7624155704311968,
+      "lean": -0.17044326889827352,
+      "leanAxis": 4.590497382495363,
+      "variant": 4,
+      "branches": 2,
+      "height": 1.35
+    },
+    {
+      "x": 20.554128065838533,
+      "z": 67.7403105860768,
+      "nx": -0.9980733455360651,
+      "nz": -0.06204512011791421,
+      "tx": -0.06204512011791421,
+      "tz": 0.9980733455360651,
+      "scale": 1.1191505731777456,
+      "rotationY": 5.947951878247385,
+      "lean": -0.14383292592890098,
+      "leanAxis": 2.104755255928458,
+      "variant": 2,
+      "branches": 4,
+      "height": 5.0
+    },
+    {
+      "x": 21.966948560611442,
+      "z": 33.58943694288943,
+      "nx": -0.9967405742667363,
+      "nz": 0.08067358682007876,
+      "tx": 0.08067358682007876,
+      "tz": 0.9967405742667363,
+      "scale": 1.135577945569752,
+      "rotationY": 2.5428411453756787,
+      "lean": -0.11367189749395855,
+      "leanAxis": 3.2149511561847364,
+      "variant": 4,
+      "branches": 2,
+      "height": 1.35
+    },
+    {
+      "x": 18.359856028452857,
+      "z": 23.711035536647856,
+      "nx": -0.9926840923223539,
+      "nz": 0.12074060149818926,
+      "tx": 0.12074060149818926,
+      "tz": 0.9926840923223539,
+      "scale": 1.0024792080898233,
+      "rotationY": 1.382142081397937,
+      "lean": 0.16856507928774841,
+      "leanAxis": 3.417257923784997,
+      "variant": 0,
+      "branches": 3,
+      "height": 4.4
+    },
+    {
+      "x": -3.383300161644561,
+      "z": 48.389111096520175,
+      "nx": -0.9999822951175638,
+      "nz": -0.0059505841233915896,
+      "tx": -0.0059505841233915896,
+      "tz": 0.9999822951175638,
+      "scale": 1.0683422475479585,
+      "rotationY": 0.5253091698603553,
+      "lean": 0.11750561868841698,
+      "leanAxis": 2.3628706440299974,
+      "variant": 3,
+      "branches": 7,
+      "height": 7.1
+    },
+    {
+      "x": -1.155304601623456,
+      "z": 35.556337089759985,
+      "nx": -0.9967405742667363,
+      "nz": 0.08067358682007876,
+      "tx": 0.08067358682007876,
+      "tz": 0.9967405742667363,
+      "scale": 1.0391719124717091,
+      "rotationY": 2.681693021548762,
+      "lean": 0.1398039521998224,
+      "leanAxis": 4.7702087366309,
+      "variant": 3,
+      "branches": 7,
+      "height": 7.1
+    },
+    {
+      "x": -1.9802194566956448,
+      "z": 41.103025957382485,
+      "nx": -0.99929433602203,
+      "nz": 0.037561016949626914,
+      "tx": 0.037561016949626914,
+      "tz": 0.99929433602203,
+      "scale": 0.8581212318843925,
+      "rotationY": 1.9681661003279647,
+      "lean": 0.09476224476204229,
+      "leanAxis": 5.344087464987742,
+      "variant": 2,
+      "branches": 4,
+      "height": 5.0
+    },
+    {
+      "x": 20.528342664360878,
+      "z": 63.39636379487542,
+      "nx": -0.9980898319492836,
+      "nz": -0.06177934411638672,
+      "tx": -0.06177934411638672,
+      "tz": 0.9980898319492836,
+      "scale": 1.053236287541122,
+      "rotationY": 2.9173581098913575,
+      "lean": -0.1641629078533073,
+      "leanAxis": 4.762326721918041,
+      "variant": 4,
+      "branches": 2,
+      "height": 1.35
+    },
+    {
+      "x": 19.881263848756433,
+      "z": 59.28526436100366,
+      "nx": -0.9986972101187412,
+      "nz": -0.05102825198890065,
+      "tx": -0.05102825198890065,
+      "tz": 0.9986972101187412,
+      "scale": 1.1763099679233076,
+      "rotationY": 1.5435901632396554,
+      "lean": -0.09769605185904778,
+      "leanAxis": 2.61833582554832,
+      "variant": 2,
+      "branches": 4,
+      "height": 5.0
+    },
+    {
+      "x": 23.341029715054255,
+      "z": 61.283248517049955,
+      "nx": -0.9982994387593922,
+      "nz": -0.058294344259821704,
+      "tx": -0.058294344259821704,
+      "tz": 0.9982994387593922,
+      "scale": 1.0859231008564934,
+      "rotationY": 3.011577010342071,
+      "lean": 0.16511118663644783,
+      "leanAxis": 3.0093927586613543,
+      "variant": 4,
+      "branches": 2,
+      "height": 1.35
+    },
+    {
+      "x": -4.737967491692107,
+      "z": 72.26043466483415,
+      "nx": -0.998415546263183,
+      "nz": -0.0562707471070901,
+      "tx": -0.0562707471070901,
+      "tz": 0.998415546263183,
+      "scale": 1.2200862325269612,
+      "rotationY": 5.552067809383378,
+      "lean": -0.10032725894851918,
+      "leanAxis": 3.832319524772699,
+      "variant": 0,
+      "branches": 3,
+      "height": 4.4
+    },
+    {
+      "x": 20.440416779020016,
+      "z": 51.642119630118394,
+      "nx": -0.9996988710998476,
+      "nz": -0.0245390937422378,
+      "tx": -0.0245390937422378,
+      "tz": 0.9996988710998476,
+      "scale": 0.8767985159962183,
+      "rotationY": 2.5855987264996254,
+      "lean": 0.172425806346132,
+      "leanAxis": 6.029744598189626,
+      "variant": 2,
+      "branches": 4,
+      "height": 5.0
+    },
+    {
+      "x": 22.656849852376475,
+      "z": 29.415139385772612,
+      "nx": -0.9951371476253086,
+      "nz": 0.0984990224122297,
+      "tx": 0.0984990224122297,
+      "tz": 0.9951371476253086,
+      "scale": 0.7244219763280988,
+      "rotationY": 4.354550929814995,
+      "lean": -0.1026486980331798,
+      "leanAxis": 3.7647046454693416,
+      "variant": 0,
+      "branches": 3,
+      "height": 4.4
+    },
+    {
+      "x": 18.170664437608092,
+      "z": 47.36840571339623,
+      "nx": -0.9999822951175638,
+      "nz": -0.0059505841233915896,
+      "tx": -0.0059505841233915896,
+      "tz": 0.9999822951175638,
+      "scale": 1.204687983433875,
+      "rotationY": 4.0226473208288285,
+      "lean": -0.1053525894789599,
+      "leanAxis": 3.855754129183575,
+      "variant": 2,
+      "branches": 4,
+      "height": 5.0
+    },
+    {
+      "x": -4.763871002427109,
+      "z": 45.28993226743146,
+      "nx": -0.9998852784528617,
+      "nz": 0.015146944683446907,
+      "tx": 0.015146944683446907,
+      "tz": 0.9998852784528617,
+      "scale": 0.7308284118685249,
+      "rotationY": 2.9267031063120807,
+      "lean": -0.09054417261231071,
+      "leanAxis": 1.72354934122642,
+      "variant": 4,
+      "branches": 2,
+      "height": 1.35
+    }
+  ],
+  "scenery": [
+    {
+      "type": "boulder",
+      "x": 18.2982,
+      "z": 39.0863,
+      "rotationY": 2.7633,
+      "scale": 1.219
+    },
+    {
+      "type": "boulder",
+      "x": -0.8779,
+      "z": 51.2104,
+      "rotationY": 1.1713,
+      "scale": 1.26
+    },
+    {
+      "type": "boulder",
+      "x": 1.331,
+      "z": 53.6396,
+      "rotationY": 4.9363,
+      "scale": 1.635
+    },
+    {
+      "type": "scrub",
+      "x": 21.5948,
+      "z": 46.6371,
+      "rotationY": 1.017,
+      "scale": 0.83,
+      "variant": 1
+    },
+    {
+      "type": "standing-stone",
+      "x": 18.4648,
+      "z": 29.3052,
+      "rotationY": 0.5447,
+      "scale": 1.003
+    },
+    {
+      "type": "scrub",
+      "x": 18.8315,
+      "z": 73.9995,
+      "rotationY": 5.9272,
+      "scale": 1.177,
+      "variant": 1
+    },
+    {
+      "type": "scrub",
+      "x": 19.8535,
+      "z": 76.9883,
+      "rotationY": 5.5317,
+      "scale": 0.731,
+      "variant": 1
+    },
+    {
+      "type": "boulder",
+      "x": 20.3957,
+      "z": 57.1058,
+      "rotationY": 5.162,
+      "scale": 0.903
+    }
+  ],
+  "zoneLabels": {
+    "worn-trail": "Worn Trail",
+    "ancient-ruins": "The Ancient Ruins",
+    "world-hub": "Mountain Pass",
+    "exit-trail": "Exit Trail",
+    "exit-pass": "Open Country"
+  },
+  "approach": {
+    "shell": {
+      "facadeHeight": 13,
+      "flankHeight": 6.5,
+      "cornice": {
+        "height": 1.15,
+        "depth": 1.35,
+        "overhang": 1.2,
+        "y": 12.5
+      }
+    },
+    "court": {
+      "x": -16.0,
+      "z": 12.5,
+      "w": 48.0,
+      "d": 9
+    },
+    "path": {
+      "x": 2.0,
+      "z": 21.5,
+      "w": 12,
+      "d": 65.84646809551394
+    },
+    "samples": [
+      {
+        "x": 8.0,
+        "z": 21.5,
+        "half": 6.580622401882123,
+        "t": 0.0,
+        "tx": 0.12366488327273942,
+        "tz": 0.9923240381272338,
+        "nx": -0.9923240381272338,
+        "nz": 0.12366488327273942
+      },
+      {
+        "x": 8.410294192123049,
+        "z": 24.792323404775697,
+        "half": 6.604267295974377,
+        "t": 0.05,
+        "tx": 0.12074060149818926,
+        "tz": 0.9926840923223539,
+        "nx": -0.9926840923223539,
+        "nz": 0.12074060149818926
+      },
+      {
+        "x": 8.800893479191764,
+        "z": 28.084646809551394,
+        "half": 6.552275060027632,
+        "t": 0.1,
+        "tx": 0.11216134877625292,
+        "tz": 0.9936900079203231,
+        "nx": -0.9936900079203231,
+        "nz": 0.11216134877625292
+      },
+      {
+        "x": 9.153526851692826,
+        "z": 31.37697021432709,
+        "half": 6.437277557120623,
+        "t": 0.15,
+        "tx": 0.0984990224122297,
+        "tz": 0.9951371476253086,
+        "nx": -0.9951371476253086,
+        "nz": 0.0984990224122297
+      },
+      {
+        "x": 9.452644120013812,
+        "z": 34.66929361910279,
+        "half": 6.28206730371487,
+        "t": 0.2,
+        "tx": 0.08067358682007876,
+        "tz": 0.9967405742667363,
+        "nx": -0.9967405742667363,
+        "nz": 0.08067358682007876
+      },
+      {
+        "x": 9.686471019698315,
+        "z": 37.96161702387849,
+        "half": 6.115568409025533,
+        "t": 0.25,
+        "tx": 0.05989346718375927,
+        "tz": 0.9982047748777341,
+        "nx": -0.9982047748777341,
+        "nz": 0.05989346718375927
+      },
+      {
+        "x": 9.847730717002708,
+        "z": 41.25394042865418,
+        "half": 5.967762286697926,
+        "t": 0.3,
+        "tx": 0.037561016949626914,
+        "tz": 0.99929433602203,
+        "nx": -0.99929433602203,
+        "nz": 0.037561016949626914
+      },
+      {
+        "x": 9.933971702435512,
+        "z": 44.546263833429876,
+        "half": 5.864451280585451,
+        "t": 0.35,
+        "tx": 0.015146944683446907,
+        "tz": 0.9998852784528617,
+        "nx": -0.9998852784528617,
+        "nz": 0.015146944683446907
+      },
+      {
+        "x": 9.947479441314997,
+        "z": 47.83858723820558,
+        "half": 5.8227710003115245,
+        "t": 0.4,
+        "tx": -0.0059505841233915896,
+        "tz": 0.9999822951175638,
+        "nx": -0.9999822951175638,
+        "nz": -0.0059505841233915896
+      },
+      {
+        "x": 9.894788513938709,
+        "z": 51.13091064298128,
+        "half": 5.848231485410431,
+        "t": 0.45,
+        "tx": -0.0245390937422378,
+        "tz": 0.9996988710998476,
+        "nx": -0.9996988710998476,
+        "nz": -0.0245390937422378
+      },
+      {
+        "x": 9.785849504550798,
+        "z": 54.42323404775697,
+        "half": 5.933801036530652,
+        "t": 0.5,
+        "tx": -0.03973557967943021,
+        "tz": 0.9992102299854319,
+        "nx": -0.9992102299854319,
+        "nz": -0.03973557967943021
+      },
+      {
+        "x": 9.632936953466144,
+        "z": 57.71555745253267,
+        "half": 6.061190966711085,
+        "t": 0.55,
+        "tx": -0.05102825198890065,
+        "tz": 0.9986972101187412,
+        "nx": -0.9986972101187412,
+        "nz": -0.05102825198890065
+      },
+      {
+        "x": 9.449408175536021,
+        "z": 61.007880857308365,
+        "half": 6.204116456308047,
+        "t": 0.6,
+        "tx": -0.058294344259821704,
+        "tz": 0.9982994387593922,
+        "nx": -0.9982994387593922,
+        "nz": -0.058294344259821704
+      },
+      {
+        "x": 9.24843541711114,
+        "z": 64.30020426208407,
+        "half": 6.332964739708513,
+        "t": 0.65,
+        "tx": -0.06177934411638672,
+        "tz": 0.9980898319492836,
+        "nx": -0.9980898319492836,
+        "nz": -0.06177934411638672
+      },
+      {
+        "x": 9.041834480152644,
+        "z": 67.59252766685975,
+        "half": 6.420056808723828,
+        "t": 0.7,
+        "tx": -0.06204512011791421,
+        "tz": 0.9980733455360651,
+        "nx": -0.9980733455360651,
+        "nz": -0.06204512011791421
+      },
+      {
+        "x": 8.839101569994696,
+        "z": 70.88485107163545,
+        "half": 6.4445852904724,
+        "t": 0.75,
+        "tx": -0.0598934671837592,
+        "tz": 0.9982047748777341,
+        "nx": -0.9982047748777341,
+        "nz": -0.0598934671837592
+      },
+      {
+        "x": 8.646747883163748,
+        "z": 74.17717447641115,
+        "half": 6.39636715057702,
+        "t": 0.8,
+        "tx": -0.0562707471070901,
+        "tz": 0.998415546263183,
+        "nx": -0.998415546263183,
+        "nz": -0.0562707471070901
+      },
+      {
+        "x": 8.467990566368453,
+        "z": 77.46949788118684,
+        "half": 6.277755659871163,
+        "t": 0.85,
+        "tx": -0.05216035139793218,
+        "tz": 0.9986387223325782,
+        "nx": -0.9986387223325782,
+        "nz": -0.05216035139793218
+      },
+      {
+        "x": 8.302822213412789,
+        "z": 80.76182128596255,
+        "half": 6.103375879460184,
+        "t": 0.9,
+        "tx": -0.04847219989100933,
+        "tz": 0.9988245320564197,
+        "nx": -0.9988245320564197,
+        "nz": -0.04847219989100933
+      },
+      {
+        "x": 8.148442631650482,
+        "z": 84.05414469073824,
+        "half": 5.8977261771638565,
+        "t": 0.95,
+        "tx": -0.04594057884402182,
+        "tz": 0.9989441742237032,
+        "nx": -0.9989441742237032,
+        "nz": -0.04594057884402182
+      },
+      {
+        "x": 8.0,
+        "z": 87.34646809551394,
+        "half": 5.691059239935459,
+        "t": 1.0,
+        "tx": -0.045041740998569585,
+        "tz": 0.9989851057787686,
+        "nx": -0.9989851057787686,
+        "nz": -0.045041740998569585
+      }
+    ],
+    "southZ": 12.5,
+    "midX": 8.0,
+    "vestibule": {
+      "x": 4.8,
+      "z": 9.8,
+      "w": 6.4,
+      "d": 2.7
+    },
+    "hub": {
+      "x": -1.0,
+      "z": 89.54646809551394,
+      "w": 18,
+      "d": 16
+    },
+    "corridorWidth": 15,
+    "lighting": "day",
+    "description": "A worn dirt path ends at a weathered stone arch. Thin clouds cross a pale blue sky, and pale sun falls between dead trees on the parched ground. Beyond the pass, scrub and dead trees follow the path until a mountain range meets it.",
+    "dressing": "overgrown",
+    "vista": {
+      "description": "Scrub and dead trees follow a long dirt path away from the pass until the mountain range meets it.",
+      "path": [
+        {
+          "x": 8.0,
+          "z": 87.34646809551394,
+          "half": 5.691059239935459,
+          "t": 0.0,
+          "tx": -0.09677206054578924,
+          "tz": 0.9953065700063083,
+          "nx": -0.9953065700063083,
+          "nz": -0.09677206054578924
+        },
+        {
+          "x": 7.478502243862286,
+          "z": 92.7101044591503,
+          "half": 5.630102001756574,
+          "t": 0.045454545454545456,
+          "tx": -0.09579614579709354,
+          "tz": 0.9954009737037743,
+          "nx": -0.9954009737037743,
+          "nz": -0.09579614579709354
+        },
+        {
+          "x": 6.967620678164193,
+          "z": 98.07374082278668,
+          "half": 5.5691447635776905,
+          "t": 0.09090909090909091,
+          "tx": -0.0928866406618234,
+          "tz": 0.9956766904907243,
+          "nx": -0.9956766904907243,
+          "nz": -0.0928866406618234
+        },
+        {
+          "x": 6.477755378322559,
+          "z": 103.43737718642303,
+          "half": 5.508187525398806,
+          "t": 0.13636363636363635,
+          "tx": -0.08809817841065483,
+          "tz": 0.99611179641681,
+          "nx": -0.99611179641681,
+          "nz": -0.08809817841065483
+        },
+        {
+          "x": 6.0188785891872865,
+          "z": 108.8010135500594,
+          "half": 5.447230287219921,
+          "t": 0.18181818181818182,
+          "tx": -0.08152148743097729,
+          "tz": 0.9966715843682115,
+          "nx": -0.9966715843682115,
+          "nz": -0.08152148743097729
+        },
+        {
+          "x": 5.600331718893787,
+          "z": 114.16464991369575,
+          "half": 5.386273049041036,
+          "t": 0.22727272727272727,
+          "tx": -0.07328274477321634,
+          "tz": 0.9973112048495713,
+          "nx": -0.9973112048495713,
+          "nz": -0.07328274477321634
+        },
+        {
+          "x": 5.23063517473173,
+          "z": 119.52828627733211,
+          "half": 5.325315810862152,
+          "t": 0.2727272727272727,
+          "tx": -0.0635423879877679,
+          "tz": 0.997979140527903,
+          "nx": -0.997979140527903,
+          "nz": -0.0635423879877679
+        },
+        {
+          "x": 4.9173149122234605,
+          "z": 124.89192264096849,
+          "half": 5.264358572683268,
+          "t": 0.3181818181818182,
+          "tx": -0.05249316594477135,
+          "tz": 0.9986212833347259,
+          "nx": -0.9986212833347259,
+          "nz": -0.05249316594477135
+        },
+        {
+          "x": 4.666749228372622,
+          "z": 130.25555900460486,
+          "half": 5.203401334504383,
+          "t": 0.36363636363636365,
+          "tx": -0.04035722982984884,
+          "tz": 0.9991853151445235,
+          "nx": -0.9991853151445235,
+          "nz": -0.04035722982984884
+        },
+        {
+          "x": 4.484038917930654,
+          "z": 135.6191953682412,
+          "half": 5.142444096325498,
+          "t": 0.4090909090909091,
+          "tx": -0.02738213329982846,
+          "tz": 0.9996250390901332,
+          "nx": -0.9996250390901332,
+          "nz": -0.02738213329982846
+        },
+        {
+          "x": 4.37290343592513,
+          "z": 140.98283173187758,
+          "half": 5.081486858146614,
+          "t": 0.45454545454545453,
+          "tx": -0.013835718884138655,
+          "tz": 0.9999042818604985,
+          "nx": -0.9999042818604985,
+          "nz": -0.013835718884138655
+        },
+        {
+          "x": 4.335605180281414,
+          "z": 146.34646809551396,
+          "half": 5.020529619967729,
+          "t": 0.5,
+          "tx": -8.279629336187614e-17,
+          "tz": 1.0,
+          "nx": -1.0,
+          "nz": -8.279629336187614e-17
+        },
+        {
+          "x": 4.372903435925129,
+          "z": 151.7101044591503,
+          "half": 4.959572381788845,
+          "t": 0.5454545454545454,
+          "tx": 0.013835718884138691,
+          "tz": 0.9999042818604985,
+          "nx": -0.9999042818604985,
+          "nz": 0.013835718884138691
+        },
+        {
+          "x": 4.484038917930654,
+          "z": 157.07374082278668,
+          "half": 4.898615143609961,
+          "t": 0.5909090909090909,
+          "tx": 0.02738213329982846,
+          "tz": 0.9996250390901332,
+          "nx": -0.9996250390901332,
+          "nz": 0.02738213329982846
+        },
+        {
+          "x": 4.6667492283726215,
+          "z": 162.43737718642302,
+          "half": 4.837657905431076,
+          "t": 0.6363636363636364,
+          "tx": 0.04035722982984876,
+          "tz": 0.9991853151445236,
+          "nx": -0.9991853151445236,
+          "nz": 0.04035722982984876
+        },
+        {
+          "x": 4.91731491222346,
+          "z": 167.8010135500594,
+          "half": 4.776700667252191,
+          "t": 0.6818181818181818,
+          "tx": 0.052493165944771436,
+          "tz": 0.9986212833347259,
+          "nx": -0.9986212833347259,
+          "nz": 0.052493165944771436
+        },
+        {
+          "x": 5.23063517473173,
+          "z": 173.16464991369577,
+          "half": 4.7157434290733065,
+          "t": 0.7272727272727273,
+          "tx": 0.06354238798776798,
+          "tz": 0.997979140527903,
+          "nx": -0.997979140527903,
+          "nz": 0.06354238798776798
+        },
+        {
+          "x": 5.600331718893786,
+          "z": 178.5282862773321,
+          "half": 4.654786190894423,
+          "t": 0.7727272727272727,
+          "tx": 0.07328274477321642,
+          "tz": 0.9973112048495713,
+          "nx": -0.9973112048495713,
+          "nz": 0.07328274477321642
+        },
+        {
+          "x": 6.018878589187287,
+          "z": 183.8919226409685,
+          "half": 4.593828952715538,
+          "t": 0.8181818181818182,
+          "tx": 0.08152148743097737,
+          "tz": 0.9966715843682115,
+          "nx": -0.9966715843682115,
+          "nz": 0.08152148743097737
+        },
+        {
+          "x": 6.477755378322559,
+          "z": 189.25555900460483,
+          "half": 4.532871714536653,
+          "t": 0.8636363636363636,
+          "tx": 0.08809817841065458,
+          "tz": 0.99611179641681,
+          "nx": -0.99611179641681,
+          "nz": 0.08809817841065458
+        },
+        {
+          "x": 6.967620678164192,
+          "z": 194.6191953682412,
+          "half": 4.471914476357769,
+          "t": 0.9090909090909091,
+          "tx": 0.09288664066182327,
+          "tz": 0.9956766904907243,
+          "nx": -0.9956766904907243,
+          "nz": 0.09288664066182327
+        },
+        {
+          "x": 7.478502243862286,
+          "z": 199.98283173187758,
+          "half": 4.410957238178884,
+          "t": 0.9545454545454546,
+          "tx": 0.0957961457970935,
+          "tz": 0.9954009737037743,
+          "nx": -0.9954009737037743,
+          "nz": 0.0957961457970935
+        },
+        {
+          "x": 7.999999999999999,
+          "z": 205.34646809551396,
+          "half": 4.35,
+          "t": 1.0,
+          "tx": 0.09677206054578881,
+          "tz": 0.9953065700063083,
+          "nx": -0.9953065700063083,
+          "nz": 0.09677206054578881
+        }
+      ],
+      "mountains": [
+        {
+          "x": -88.0,
+          "z": 227.34646809551396,
+          "height": 62,
+          "radius": 38,
+          "yaw": 0.4,
+          "depth": 0.82
+        },
+        {
+          "x": -54.0,
+          "z": 215.34646809551396,
+          "height": 90,
+          "radius": 42,
+          "yaw": 0.2,
+          "depth": 0.74
+        },
+        {
+          "x": -26.0,
+          "z": 207.34646809551396,
+          "height": 108,
+          "radius": 36,
+          "yaw": -0.3,
+          "depth": 0.7
+        },
+        {
+          "x": -6.000000000000001,
+          "z": 211.34646809551396,
+          "height": 74,
+          "radius": 28,
+          "yaw": 0.15,
+          "depth": 0.78
+        },
+        {
+          "x": 7.999999999999999,
+          "z": 219.34646809551396,
+          "height": 86,
+          "radius": 32,
+          "yaw": 0.05,
+          "depth": 0.66
+        },
+        {
+          "x": 24.0,
+          "z": 211.34646809551396,
+          "height": 78,
+          "radius": 28,
+          "yaw": -0.2,
+          "depth": 0.76
+        },
+        {
+          "x": 48.0,
+          "z": 209.34646809551396,
+          "height": 114,
+          "radius": 40,
+          "yaw": 0.35,
+          "depth": 0.72
+        },
+        {
+          "x": 80.0,
+          "z": 219.34646809551396,
+          "height": 96,
+          "radius": 44,
+          "yaw": -0.15,
+          "depth": 0.8
+        },
+        {
+          "x": 112.0,
+          "z": 231.34646809551396,
+          "height": 64,
+          "radius": 36,
+          "yaw": 0.5,
+          "depth": 0.84
+        },
+        {
+          "x": -40.0,
+          "z": 203.34646809551396,
+          "height": 28,
+          "radius": 30,
+          "yaw": 0.25,
+          "depth": 0.7
+        },
+        {
+          "x": -14.0,
+          "z": 197.34646809551396,
+          "height": 22,
+          "radius": 26,
+          "yaw": 0.6,
+          "depth": 0.62
+        },
+        {
+          "x": 7.999999999999999,
+          "z": 203.34646809551396,
+          "height": 16,
+          "radius": 20,
+          "yaw": 0.1,
+          "depth": 0.55
+        },
+        {
+          "x": 30.0,
+          "z": 197.34646809551396,
+          "height": 20,
+          "radius": 24,
+          "yaw": -0.4,
+          "depth": 0.6
+        },
+        {
+          "x": 58.0,
+          "z": 203.34646809551396,
+          "height": 30,
+          "radius": 32,
+          "yaw": -0.55,
+          "depth": 0.68
+        }
+      ],
+      "scrub": [
+        {
+          "x": 13.491154977924108,
+          "z": 109.41219891468613,
+          "scale": 0.75,
+          "rotationY": 5.24,
+          "variant": 0
+        },
+        {
+          "x": -2.151067908607283,
+          "z": 108.13276314423096,
+          "scale": 0.75,
+          "rotationY": 5.640000000000001,
+          "variant": 1
+        },
+        {
+          "x": 13.6304528399288,
+          "z": 115.90780622053083,
+          "scale": 0.97,
+          "rotationY": 0.2668146928204145,
+          "variant": 1
+        },
+        {
+          "x": -1.2021040283302233,
+          "z": 114.8179052206972,
+          "scale": 0.97,
+          "rotationY": 0.6668146928204148,
+          "variant": 0
+        },
+        {
+          "x": 11.965534856594196,
+          "z": 118.80477577291971,
+          "scale": 1.19,
+          "rotationY": 1.576814692820414,
+          "variant": 0
+        },
+        {
+          "x": 16.733594895332413,
+          "z": 119.45907193444577,
+          "scale": 0.6,
+          "rotationY": 4.62,
+          "variant": 0
+        },
+        {
+          "x": -2.0567024131284017,
+          "z": 117.9119650869389,
+          "scale": 1.19,
+          "rotationY": 1.9768146928204136,
+          "variant": 1
+        },
+        {
+          "x": -6.869242123458054,
+          "z": 117.95625432378239,
+          "scale": 0.6,
+          "rotationY": 4.62,
+          "variant": 0
+        },
+        {
+          "x": 12.221589056846778,
+          "z": 125.27587647930392,
+          "scale": 1.4100000000000001,
+          "rotationY": 2.8868146928204137,
+          "variant": 1
+        },
+        {
+          "x": -3.085994130734166,
+          "z": 124.47122358647172,
+          "scale": 1.4100000000000001,
+          "rotationY": 3.286814692820414,
+          "variant": 0
+        },
+        {
+          "x": 12.567260232955931,
+          "z": 131.7255993626067,
+          "scale": 0.75,
+          "rotationY": 4.196814692820414,
+          "variant": 0
+        },
+        {
+          "x": -1.9277239636170063,
+          "z": 131.14014499319723,
+          "scale": 0.75,
+          "rotationY": 4.5968146928204145,
+          "variant": 1
+        },
+        {
+          "x": 11.005538054805339,
+          "z": 134.6474035429748,
+          "scale": 0.97,
+          "rotationY": 5.506814692820415,
+          "variant": 1
+        },
+        {
+          "x": 15.794154495783037,
+          "z": 135.12870654649555,
+          "scale": 0.6,
+          "rotationY": 0.6468146928204135,
+          "variant": 1
+        },
+        {
+          "x": -2.674218839717517,
+          "z": 134.2726821102904,
+          "scale": 0.97,
+          "rotationY": 5.906814692820415,
+          "variant": 0
+        },
+        {
+          "x": -7.482002774005097,
+          "z": 134.4911166341328,
+          "scale": 0.6,
+          "rotationY": 0.6468146928204135,
+          "variant": 1
+        },
+        {
+          "x": 11.503707681417804,
+          "z": 141.08150097927282,
+          "scale": 1.19,
+          "rotationY": 0.533629385640829,
+          "variant": 0
+        },
+        {
+          "x": -3.4578338068698935,
+          "z": 140.87447748126343,
+          "scale": 1.19,
+          "rotationY": 0.9336293856408293,
+          "variant": 1
+        },
+        {
+          "x": 12.106134800249144,
+          "z": 147.49646809551396,
+          "scale": 1.4100000000000001,
+          "rotationY": 1.8436293856408277,
+          "variant": 1
+        },
+        {
+          "x": -2.034924439686316,
+          "z": 147.49646809551396,
+          "scale": 1.4100000000000001,
+          "rotationY": 2.243629385640828,
+          "variant": 0
+        },
+        {
+          "x": 10.66596080046778,
+          "z": 150.47291706525715,
+          "scale": 0.75,
+          "rotationY": 3.153629385640828,
+          "variant": 0
+        },
+        {
+          "x": 15.470343855007622,
+          "z": 150.75647211326446,
+          "scale": 0.6,
+          "rotationY": 2.956814692820414,
+          "variant": 0
+        },
+        {
+          "x": -2.65190907935339,
+          "z": 150.65719700798317,
+          "scale": 0.75,
+          "rotationY": 3.5536293856408285,
+          "variant": 1
+        },
+        {
+          "x": -7.446607130674335,
+          "z": 151.07357495727823,
+          "scale": 0.6,
+          "rotationY": 2.956814692820414,
+          "variant": 0
+        },
+        {
+          "x": 11.430048602484053,
+          "z": 156.88347291667515,
+          "scale": 0.97,
+          "rotationY": 4.463629385640829,
+          "variant": 1
+        },
+        {
+          "x": -3.1617082939858383,
+          "z": 157.28317622220808,
+          "scale": 0.97,
+          "rotationY": 4.863629385640827,
+          "variant": 0
+        },
+        {
+          "x": 12.294636398123934,
+          "z": 163.28022344487948,
+          "scale": 1.19,
+          "rotationY": 5.773629385640827,
+          "variant": 0
+        },
+        {
+          "x": -1.4694568715677043,
+          "z": 163.83615703103717,
+          "scale": 1.19,
+          "rotationY": 6.173629385640826,
+          "variant": 1
+        },
+        {
+          "x": 10.975201454326077,
+          "z": 166.33098915940445,
+          "scale": 1.4100000000000001,
+          "rotationY": 0.8004440784612434,
+          "variant": 1
+        },
+        {
+          "x": 15.786956222413432,
+          "z": 166.42853941203668,
+          "scale": 0.6,
+          "rotationY": 5.2668146928204145,
+          "variant": 1
+        },
+        {
+          "x": -1.9603408098864397,
+          "z": 167.01095420520582,
+          "scale": 1.4100000000000001,
+          "rotationY": 1.200444078461242,
+          "variant": 0
+        },
+        {
+          "x": -6.735350361812453,
+          "z": 167.61243885090786,
+          "scale": 0.6,
+          "rotationY": 5.2668146928204145,
+          "variant": 1
+        },
+        {
+          "x": 11.982705987110617,
+          "z": 172.7347384196999,
+          "scale": 0.75,
+          "rotationY": 2.110444078461242,
+          "variant": 0
+        },
+        {
+          "x": -2.2200210360166883,
+          "z": 173.63904107928306,
+          "scale": 0.75,
+          "rotationY": 2.5104440784612407,
+          "variant": 1
+        },
+        {
+          "x": 13.069483113077368,
+          "z": 179.13255110638156,
+          "scale": 0.97,
+          "rotationY": 3.420444078461241,
+          "variant": 1
+        },
+        {
+          "x": -0.30403367552200006,
+          "z": 180.11524137675417,
+          "scale": 0.97,
+          "rotationY": 3.8204440784612395,
+          "variant": 0
+        }
+      ],
+      "trees": [
+        {
+          "x": 13.900737820693962,
+          "z": 111.15137742619913,
+          "nx": -0.9966715843682115,
+          "nz": -0.08152148743097729,
+          "tx": -0.08152148743097729,
+          "tz": 0.9966715843682115,
+          "scale": 1.1800000000000002,
+          "rotationY": 4.68,
+          "lean": 0.10471975511965978,
+          "leanAxis": 2.92,
+          "variant": 4,
+          "branches": 2,
+          "height": 1.35
+        },
+        {
+          "x": 20.65627617635266,
+          "z": 108.29258370764857,
+          "nx": -0.9966715843682115,
+          "nz": -0.08152148743097729,
+          "tx": -0.08152148743097729,
+          "tz": 0.9966715843682115,
+          "scale": 0.6396,
+          "rotationY": 4.983629385640825,
+          "lean": -0.15707963267948966,
+          "leanAxis": 4.666814692820413,
+          "variant": 1,
+          "branches": 5,
+          "height": 6.2
+        },
+        {
+          "x": -3.386795097365528,
+          "z": 111.7996896994202,
+          "nx": -0.9973112048495713,
+          "nz": -0.07328274477321634,
+          "tx": -0.07328274477321634,
+          "tz": 0.9973112048495713,
+          "scale": 0.78,
+          "rotationY": 5.85,
+          "lean": -0.12217304763960307,
+          "leanAxis": 3.65,
+          "variant": 0,
+          "branches": 3,
+          "height": 4.4
+        },
+        {
+          "x": 15.489298089071923,
+          "z": 119.32974499243466,
+          "nx": -0.997979140527903,
+          "nz": -0.0635423879877679,
+          "tx": -0.0635423879877679,
+          "tz": 0.997979140527903,
+          "scale": 0.88,
+          "rotationY": 0.7368146928204133,
+          "lean": 0.13962634015954636,
+          "leanAxis": 4.38,
+          "variant": 1,
+          "branches": 5,
+          "height": 6.2
+        },
+        {
+          "x": 21.92215147271369,
+          "z": 120.59105278380386,
+          "nx": -0.997979140527903,
+          "nz": -0.0635423879877679,
+          "tx": -0.0635423879877679,
+          "tz": 0.997979140527903,
+          "scale": 0.8036,
+          "rotationY": 1.0404440784612419,
+          "lean": -0.12217304763960307,
+          "leanAxis": 6.126814692820414,
+          "variant": 3,
+          "branches": 7,
+          "height": 7.1
+        },
+        {
+          "x": -6.38144436573876,
+          "z": 124.29799613885397,
+          "nx": -0.9986212833347259,
+          "nz": -0.05249316594477135,
+          "tx": -0.05249316594477135,
+          "tz": 0.9986212833347259,
+          "scale": 0.98,
+          "rotationY": 1.9068146928204133,
+          "lean": -0.15707963267948966,
+          "leanAxis": 5.109999999999999,
+          "variant": 2,
+          "branches": 4,
+          "height": 5.0
+        },
+        {
+          "x": 12.429489604633208,
+          "z": 131.41979018358887,
+          "nx": -0.9991853151445235,
+          "nz": -0.04035722982984884,
+          "tx": -0.04035722982984884,
+          "tz": 0.9991853151445235,
+          "scale": 1.08,
+          "rotationY": 3.076814692820413,
+          "lean": 0.10471975511965978,
+          "leanAxis": 5.84,
+          "variant": 3,
+          "branches": 7,
+          "height": 7.1
+        },
+        {
+          "x": 18.889890507717237,
+          "z": 132.5314196953557,
+          "nx": -0.9991853151445235,
+          "nz": -0.04035722982984884,
+          "tx": -0.04035722982984884,
+          "tz": 0.9991853151445235,
+          "scale": 0.9676000000000001,
+          "rotationY": 3.380444078461238,
+          "lean": -0.15707963267948966,
+          "leanAxis": 1.3036293856408268,
+          "variant": 0,
+          "branches": 3,
+          "height": 4.4
+        },
+        {
+          "x": -4.451620486075255,
+          "z": 137.07506384508758,
+          "nx": -0.9996250390901332,
+          "nz": -0.02738213329982846,
+          "tx": -0.02738213329982846,
+          "tz": 0.9996250390901332,
+          "scale": 1.1800000000000002,
+          "rotationY": 4.246814692820413,
+          "lean": -0.12217304763960307,
+          "leanAxis": 0.28681469282041405,
+          "variant": 4,
+          "branches": 2,
+          "height": 1.35
+        },
+        {
+          "x": 14.376955606823259,
+          "z": 139.4210954989298,
+          "nx": -0.9999042818604985,
+          "nz": -0.013835718884138655,
+          "tx": -0.013835718884138655,
+          "tz": 0.9999042818604985,
+          "scale": 0.78,
+          "rotationY": 5.416814692820413,
+          "lean": 0.13962634015954636,
+          "leanAxis": 1.0168146928204136,
+          "variant": 0,
+          "branches": 3,
+          "height": 4.4
+        },
+        {
+          "x": 20.86457307786498,
+          "z": 140.3609463112581,
+          "nx": -0.9999042818604985,
+          "nz": -0.013835718884138655,
+          "tx": -0.013835718884138655,
+          "tz": 0.9999042818604985,
+          "scale": 0.7215999999999999,
+          "rotationY": 5.720444078461242,
+          "lean": -0.12217304763960307,
+          "leanAxis": 2.7636293856408276,
+          "variant": 2,
+          "branches": 4,
+          "height": 5.0
+        },
+        {
+          "x": -6.734924439686315,
+          "z": 145.49646809551396,
+          "nx": -1.0,
+          "nz": -8.279629336187614e-17,
+          "tx": -8.279629336187614e-17,
+          "tz": 1.0,
+          "scale": 0.88,
+          "rotationY": 0.30362938564082675,
+          "lean": -0.15707963267948966,
+          "leanAxis": 1.7468146928204131,
+          "variant": 1,
+          "branches": 5,
+          "height": 6.2
+        },
+        {
+          "x": 11.931752229510163,
+          "z": 151.60551234079156,
+          "nx": -0.9999042818604985,
+          "nz": 0.013835718884138691,
+          "tx": 0.013835718884138691,
+          "tz": 0.9999042818604985,
+          "scale": 0.98,
+          "rotationY": 1.4736293856408267,
+          "lean": 0.10471975511965978,
+          "leanAxis": 2.4768146928204136,
+          "variant": 2,
+          "branches": 4,
+          "height": 5.0
+        },
+        {
+          "x": 18.44289042265492,
+          "z": 152.3654988076261,
+          "nx": -0.9999042818604985,
+          "nz": 0.013835718884138691,
+          "tx": 0.013835718884138691,
+          "tz": 0.9999042818604985,
+          "scale": 0.8856,
+          "rotationY": 1.7772587712816517,
+          "lean": -0.15707963267948966,
+          "leanAxis": 4.223629385640827,
+          "variant": 4,
+          "branches": 2,
+          "height": 1.35
+        },
+        {
+          "x": -4.138058519771117,
+          "z": 158.1602396387345,
+          "nx": -0.9996250390901332,
+          "nz": 0.02738213329982846,
+          "tx": 0.02738213329982846,
+          "tz": 0.9996250390901332,
+          "scale": 1.08,
+          "rotationY": 2.6436293856408266,
+          "lean": -0.12217304763960307,
+          "leanAxis": 3.206814692820414,
+          "variant": 3,
+          "branches": 7,
+          "height": 7.1
+        },
+        {
+          "x": 14.465081302091074,
+          "z": 163.7430073240748,
+          "nx": -0.9991853151445236,
+          "nz": 0.04035722982984876,
+          "tx": 0.04035722982984876,
+          "tz": 0.9991853151445236,
+          "scale": 1.1800000000000002,
+          "rotationY": 3.8136293856408265,
+          "lean": 0.13962634015954636,
+          "leanAxis": 3.9368146928204126,
+          "variant": 4,
+          "branches": 2,
+          "height": 1.35
+        },
+        {
+          "x": 20.82257126910899,
+          "z": 160.08345525868938,
+          "nx": -0.9991853151445236,
+          "nz": 0.04035722982984876,
+          "tx": 0.04035722982984876,
+          "tz": 0.9991853151445236,
+          "scale": 0.6396,
+          "rotationY": 4.117258771281655,
+          "lean": -0.12217304763960307,
+          "leanAxis": 5.6836293856408275,
+          "variant": 1,
+          "branches": 5,
+          "height": 6.2
+        },
+        {
+          "x": -5.983697184494966,
+          "z": 166.6716851631508,
+          "nx": -0.9986212833347259,
+          "nz": 0.052493165944771436,
+          "tx": 0.052493165944771436,
+          "tz": 0.9986212833347259,
+          "scale": 0.78,
+          "rotationY": 4.983629385640825,
+          "lean": -0.15707963267948966,
+          "leanAxis": 4.666814692820413,
+          "variant": 0,
+          "branches": 3,
+          "height": 4.4
+        },
+        {
+          "x": 12.477583484611358,
+          "z": 171.8515078368579,
+          "nx": -0.997979140527903,
+          "nz": 0.06354238798776798,
+          "tx": 0.06354238798776798,
+          "tz": 0.997979140527903,
+          "scale": 0.88,
+          "rotationY": 6.153629385640826,
+          "lean": 0.10471975511965978,
+          "leanAxis": 5.3968146928204135,
+          "variant": 1,
+          "branches": 5,
+          "height": 6.2
+        },
+        {
+          "x": 19.01845892783233,
+          "z": 172.28676458438613,
+          "nx": -0.997979140527903,
+          "nz": 0.06354238798776798,
+          "tx": 0.06354238798776798,
+          "tz": 0.997979140527903,
+          "scale": 0.8036,
+          "rotationY": 0.17407346410206515,
+          "lean": -0.15707963267948966,
+          "leanAxis": 0.8604440784612422,
+          "variant": 3,
+          "branches": 7,
+          "height": 7.1
+        },
+        {
+          "x": -2.7818557236501693,
+          "z": 179.14421207863288,
+          "nx": -0.9973112048495713,
+          "nz": 0.07328274477321642,
+          "tx": 0.07328274477321642,
+          "tz": 0.9973112048495713,
+          "scale": 0.98,
+          "rotationY": 1.0404440784612419,
+          "lean": -0.12217304763960307,
+          "leanAxis": 6.126814692820414,
+          "variant": 2,
+          "branches": 4,
+          "height": 5.0
+        }
+      ]
+    }
+  },
+  "transitions": [
+    {
+      "id": "ruin-entry",
+      "sourceZoneId": "worn-trail",
+      "targetZoneId": "ancient-ruins",
+      "targetSpawnPoint": {
+        "x": 8.0,
+        "y": 0,
+        "z": 7.5,
+        "rotationY": 0
+      },
+      "transitionType": "fade",
+      "fadeDurationMs": 600,
+      "environmentalPreset": {
+        "clearColor": "#000000",
+        "ambientLightIntensity": 0.012,
+        "fog": {
+          "color": "#000000",
+          "near": 8,
+          "far": 20
+        },
+        "skyboxVisible": false
+      },
+      "volume": {
+        "minX": 5.1,
+        "maxX": 10.9,
+        "minZ": 9.899999999999999,
+        "maxZ": 11.0
+      },
+      "requiresGate": true
+    },
+    {
+      "id": "ruin-exit",
+      "sourceZoneId": "ancient-ruins",
+      "targetZoneId": "worn-trail",
+      "targetSpawnPoint": {
+        "x": 8.0,
+        "y": 0,
+        "z": 16.7,
+        "rotationY": 3.141592653589793
+      },
+      "transitionType": "fade",
+      "fadeDurationMs": 600,
+      "environmentalPreset": {
+        "clearColor": "#c5d0d6",
+        "ambientLightIntensity": 0.55,
+        "fog": {
+          "color": "#c5d0d6",
+          "near": 28,
+          "far": 110,
+          "density": 0.009
+        },
+        "skyboxVisible": true
+      },
+      "volume": {
+        "minX": 5.1,
+        "maxX": 10.9,
+        "minZ": 11.35,
+        "maxZ": 12.35
+      }
+    },
+    {
+      "id": "mountain-pass",
+      "sourceZoneId": "worn-trail",
+      "targetZoneId": "world-hub",
+      "targetSpawnPoint": {
+        "x": 8.0,
+        "y": 0,
+        "z": 96.74646809551395,
+        "rotationY": 3.141592653589793
+      },
+      "transitionType": "fade",
+      "fadeDurationMs": 300,
+      "environmentalPreset": {
+        "clearColor": "#c5d0d6",
+        "ambientLightIntensity": 0.55,
+        "fog": {
+          "color": "#c5d0d6",
+          "near": 28,
+          "far": 110,
+          "density": 0.009
+        },
+        "skyboxVisible": true
+      },
+      "volume": {
+        "minX": 2.0,
+        "maxX": 14.0,
+        "minZ": 86.24646809551393,
+        "maxZ": 88.04646809551394
+      }
+    },
+    {
+      "id": "mountain-return",
+      "sourceZoneId": "world-hub",
+      "targetZoneId": "worn-trail",
+      "targetSpawnPoint": {
+        "x": 8.57524495644563,
+        "y": 0,
+        "z": 75.49410383832142,
+        "rotationY": 0
+      },
+      "transitionType": "fade",
+      "fadeDurationMs": 300,
+      "environmentalPreset": {
+        "clearColor": "#c5d0d6",
+        "ambientLightIntensity": 0.55,
+        "fog": {
+          "color": "#c5d0d6",
+          "near": 28,
+          "far": 110,
+          "density": 0.009
+        },
+        "skyboxVisible": true
+      },
+      "volume": {
+        "minX": 2.0,
+        "maxX": 14.0,
+        "minZ": 90.04646809551394,
+        "maxZ": 91.64646809551394
+      }
+    },
+    {
+      "id": "ruin-leave",
+      "sourceZoneId": "ancient-ruins",
+      "targetZoneId": "exit-trail",
+      "targetSpawnPoint": {
+        "x": -263.0,
+        "y": 0,
+        "z": -59.3,
+        "rotationY": 3.1416
+      },
+      "transitionType": "fade",
+      "fadeDurationMs": 600,
+      "environmentalPreset": {
+        "clearColor": "#c5d0d6",
+        "ambientLightIntensity": 0.55,
+        "fog": {
+          "color": "#c5d0d6",
+          "near": 28,
+          "far": 110,
+          "density": 0.009
+        },
+        "skyboxVisible": true
+      },
+      "volume": {
+        "minX": -202.85,
+        "maxX": -201.85,
+        "minZ": -48.9,
+        "maxZ": -43.1
+      },
+      "y": 10.0,
+      "floor": 1
+    },
+    {
+      "id": "ruin-return",
+      "sourceZoneId": "exit-trail",
+      "targetZoneId": "ancient-ruins",
+      "targetSpawnPoint": {
+        "x": -200.0,
+        "y": 10.0,
+        "z": -46.0,
+        "rotationY": -1.5708
+      },
+      "transitionType": "fade",
+      "fadeDurationMs": 600,
+      "environmentalPreset": {
+        "clearColor": "#000000",
+        "ambientLightIntensity": 0.012,
+        "fog": {
+          "color": "#000000",
+          "near": 8,
+          "far": 20
+        },
+        "skyboxVisible": false
+      },
+      "volume": {
+        "minX": -265.9,
+        "maxX": -260.1,
+        "minZ": -64.65,
+        "maxZ": -63.65
+      }
+    },
+    {
+      "id": "exit-pass",
+      "sourceZoneId": "exit-trail",
+      "targetZoneId": "world-hub",
+      "targetSpawnPoint": {
+        "x": 8.0,
+        "y": 0,
+        "z": 96.74646809551395,
+        "rotationY": 3.141592653589793
+      },
+      "transitionType": "fade",
+      "fadeDurationMs": 300,
+      "environmentalPreset": {
+        "clearColor": "#c5d0d6",
+        "ambientLightIntensity": 0.55,
+        "fog": {
+          "color": "#c5d0d6",
+          "near": 28,
+          "far": 110,
+          "density": 0.009
+        },
+        "skyboxVisible": true
+      },
+      "volume": {
+        "minX": -269.0,
+        "maxX": -257.0,
+        "minZ": 10.2676,
+        "maxZ": 12.0676
+      }
+    }
+  ],
+  "gateInward": {
+    "x": 0,
+    "z": -1
+  },
+  "exitGate": {
+    "a": [
+      -203.0,
+      -49.2
+    ],
+    "b": [
+      -203.0,
+      -42.8
+    ],
+    "width": 6.4,
+    "height": 7.0,
+    "openingWidth": 6.4,
+    "mouthA": [
+      -203.0,
+      -49.2
+    ],
+    "mouthB": [
+      -203.0,
+      -42.8
+    ],
+    "name": "Exit Gate",
+    "type": "stone_portal",
+    "from": "space-25",
+    "y": 10.0,
+    "wall": "W",
+    "facing": [
+      -1,
+      0
+    ]
+  },
+  "exitArea": {
+    "name": "Exit Trail",
+    "origin": {
+      "x": -271.0,
+      "z": -76.0,
+      "w": 16.0,
+      "d": 12.5
+    },
+    "arch": {
+      "a": [
+        -266.2,
+        -63.5
+      ],
+      "b": [
+        -259.8,
+        -63.5
+      ],
+      "width": 6.4,
+      "height": 7.2,
+      "openingWidth": 16.0,
+      "mouthA": [
+        -271.0,
+        -63.5
+      ],
+      "mouthB": [
+        -255.0,
+        -63.5
+      ],
+      "name": "Exit Arch",
+      "type": "stone_portal"
+    },
+    "vestibule": [
+      [
+        -266.2,
+        -66.2
+      ],
+      [
+        -259.8,
+        -66.2
+      ],
+      [
+        -259.8,
+        -63.5
+      ],
+      [
+        -266.2,
+        -63.5
+      ]
+    ],
+    "exterior": [
+      [
+        -266.2,
+        -66.2
+      ],
+      [
+        -259.8,
+        -66.2
+      ],
+      [
+        -259.8,
+        -63.5
+      ],
+      [
+        -239.0,
+        -63.5
+      ],
+      [
+        -239.0,
+        -54.5
+      ],
+      [
+        -257.2484059179202,
+        -54.5
+      ],
+      [
+        -257.89570668927723,
+        -51.20661811616587
+      ],
+      [
+        -258.454761723785,
+        -47.913236232331734
+      ],
+      [
+        -258.9188177847734,
+        -44.6198543484976
+      ],
+      [
+        -259.2928818316875,
+        -41.32647246466347
+      ],
+      [
+        -259.5904217005192,
+        -38.03309058082934
+      ],
+      [
+        -259.82888721469067,
+        -34.7397086969952
+      ],
+      [
+        -260.02490289506716,
+        -31.44632681316107
+      ],
+      [
+        -260.19001846348107,
+        -28.152944929326935
+      ],
+      [
+        -260.32778240034327,
+        -24.859563045492802
+      ],
+      [
+        -260.4326498822377,
+        -21.56618116165867
+      ],
+      [
+        -260.49089550062604,
+        -18.272799277824532
+      ],
+      [
+        -260.4833341416347,
+        -14.979417393990403
+      ],
+      [
+        -260.3893253344519,
+        -11.686035510156266
+      ],
+      [
+        -260.1913050340709,
+        -8.392653626322137
+      ],
+      [
+        -259.87899460861996,
+        -5.099271742488
+      ],
+      [
+        -259.45249577153083,
+        -1.8058898586538703
+      ],
+      [
+        -258.92368122206256,
+        1.4874920251802592
+      ],
+      [
+        -258.3155976207391,
+        4.780873909014396
+      ],
+      [
+        -257.6599553470949,
+        8.074255792848525
+      ],
+      [
+        -256.993124418289,
+        11.367637676682662
+      ],
+      [
+        -269.006875581711,
+        11.367637676682662
+      ],
+      [
+        -269.397525610982,
+        8.074255792848525
+      ],
+      [
+        -269.78501370286136,
+        4.780873909014396
+      ],
+      [
+        -270.1905685286814,
+        1.4874920251802592
+      ],
+      [
+        -270.6293090802752,
+        -1.8058898586538703
+      ],
+      [
+        -271.1058300295128,
+        -5.099271742488
+      ],
+      [
+        -271.61161994445666,
+        -8.392653626322137
+      ],
+      [
+        -272.124784980145,
+        -11.686035510156266
+      ],
+      [
+        -272.6121623323777,
+        -14.979417393990403
+      ],
+      [
+        -273.03350454494534,
+        -18.272799277824532
+      ],
+      [
+        -273.34706613193123,
+        -21.56618116165867
+      ],
+      [
+        -273.5156871547571,
+        -24.859563045492802
+      ],
+      [
+        -273.5123842829086,
+        -28.152944929326935
+      ],
+      [
+        -273.32454224025037,
+        -31.44632681316107
+      ],
+      [
+        -272.9560327405288,
+        -34.7397086969952
+      ],
+      [
+        -272.4269335599969,
+        -38.03309058082934
+      ],
+      [
+        -271.77091799681045,
+        -41.32647246466347
+      ],
+      [
+        -271.0307667866912,
+        -44.6198543484976
+      ],
+      [
+        -270.2527558721927,
+        -47.913236232331734
+      ],
+      [
+        -269.48084377832873,
+        -51.20661811616587
+      ],
+      [
+        -268.7515940820798,
+        -54.5
+      ],
+      [
+        -287.0,
+        -54.5
+      ],
+      [
+        -287.0,
+        -63.5
+      ],
+      [
+        -266.2,
+        -63.5
+      ]
+    ],
+    "hub": [
+      [
+        -272.0,
+        13.567637676682661
+      ],
+      [
+        -254.0,
+        13.567637676682661
+      ],
+      [
+        -254.0,
+        29.56763767668266
+      ],
+      [
+        -272.0,
+        29.56763767668266
+      ]
+    ],
+    "trees": [
+      {
+        "x": -274.06634033934745,
+        "z": -4.610955177229996,
+        "nx": -0.991573031402947,
+        "nz": 0.12954892278352037,
+        "tx": 0.12954892278352037,
+        "tz": 0.991573031402947,
+        "scale": 1.2968873619007033,
+        "rotationY": 3.357774167923451,
+        "lean": 0.13065154289578745,
+        "leanAxis": 2.043964391241982,
+        "variant": 0,
+        "branches": 3,
+        "height": 4.4
+      },
+      {
+        "x": -255.22131179753805,
+        "z": -6.775275599446629,
+        "nx": -0.991573031402947,
+        "nz": 0.12954892278352037,
+        "tx": 0.12954892278352037,
+        "tz": 0.991573031402947,
+        "scale": 1.198786396258467,
+        "rotationY": 6.023641711780449,
+        "lean": -0.09791594605873058,
+        "leanAxis": 5.0741637778085975,
+        "variant": 0,
+        "branches": 3,
+        "height": 4.4
+      },
+      {
+        "x": -275.3309334072937,
+        "z": -40.68132216023958,
+        "nx": -0.991573031402947,
+        "nz": -0.12954892278352037,
+        "tx": -0.12954892278352037,
+        "tz": 0.991573031402947,
+        "scale": 1.1897108051178575,
+        "rotationY": 4.77540189573594,
+        "lean": -0.11456875910737505,
+        "leanAxis": 3.3438969818080007,
+        "variant": 1,
+        "branches": 5,
+        "height": 6.2
+      },
+      {
+        "x": -252.1299017610673,
+        "z": -21.469412445125432,
+        "nx": -0.9997068125207859,
+        "nz": 0.024213405368315174,
+        "tx": 0.024213405368315174,
+        "tz": 0.9997068125207859,
+        "scale": 0.9613722219001442,
+        "rotationY": 3.3099717763098484,
+        "lean": 0.12589764356651725,
+        "leanAxis": 1.3013311037082935,
+        "variant": 0,
+        "branches": 3,
+        "height": 4.4
+      },
+      {
+        "x": -256.36662537800294,
+        "z": -20.036648969923615,
+        "nx": -0.998653894235541,
+        "nz": 0.05186906137755981,
+        "tx": 0.05186906137755981,
+        "tz": 0.998653894235541,
+        "scale": 1.1456676613440058,
+        "rotationY": 1.7826573498386398,
+        "lean": 0.14966365002806484,
+        "leanAxis": 6.059456148604621,
+        "variant": 0,
+        "branches": 3,
+        "height": 4.4
+      },
+      {
+        "x": -252.26002298846825,
+        "z": -40.4577982336575,
+        "nx": -0.9879041945949693,
+        "nz": -0.15506547746569918,
+        "tx": -0.15506547746569918,
+        "tz": 0.9879041945949693,
+        "scale": 1.2517865140078306,
+        "rotationY": 3.683234958672949,
+        "lean": 0.11246024641587049,
+        "leanAxis": 1.9171254444581292,
+        "variant": 1,
+        "branches": 5,
+        "height": 6.2
+      },
+      {
+        "x": -254.56470132159478,
+        "z": -17.123783846192033,
+        "nx": -0.9970721613875219,
+        "nz": 0.07646636506344137,
+        "tx": 0.07646636506344137,
+        "tz": 0.9970721613875219,
+        "scale": 1.2413605890492803,
+        "rotationY": 2.8877148312942533,
+        "lean": 0.14278241811889425,
+        "leanAxis": 1.5897923993987408,
+        "variant": 4,
+        "branches": 2,
+        "height": 1.35
+      },
+      {
+        "x": -253.85972346107246,
+        "z": -13.689009153365166,
+        "nx": -0.9952208251173597,
+        "nz": 0.09764993216957067,
+        "tx": 0.09764993216957067,
+        "tz": 0.9952208251173597,
+        "scale": 0.8106093895107053,
+        "rotationY": 1.1105157497149334,
+        "lean": -0.10242715528340927,
+        "leanAxis": 4.104817354166212,
+        "variant": 4,
+        "branches": 2,
+        "height": 1.35
+      },
+      {
+        "x": -252.57704612287185,
+        "z": -29.740802542449376,
+        "nx": -0.9975835085365702,
+        "nz": -0.06947764745489628,
+        "tx": -0.06947764745489628,
+        "tz": 0.9975835085365702,
+        "scale": 0.8263711895520546,
+        "rotationY": 1.3626457102551157,
+        "lean": 0.11163107438488815,
+        "leanAxis": 4.92800213850074,
+        "variant": 2,
+        "branches": 4,
+        "height": 5.0
+      },
+      {
+        "x": -255.11979505879796,
+        "z": -33.79425870409389,
+        "nx": -0.9949263803509203,
+        "nz": -0.10060565432328325,
+        "tx": -0.10060565432328325,
+        "tz": 0.9949263803509203,
+        "scale": 1.0752550665319167,
+        "rotationY": 0.5149221657954562,
+        "lean": 0.09762032473427282,
+        "leanAxis": 5.794429248107091,
+        "variant": 2,
+        "branches": 4,
+        "height": 5.0
+      },
+      {
+        "x": -273.26258472994755,
+        "z": -47.212541957669615,
+        "nx": -0.9843775358610111,
+        "nz": -0.17607063040781093,
+        "tx": -0.17607063040781093,
+        "tz": 0.9843775358610111,
+        "scale": 0.7496961755370839,
+        "rotationY": 5.420781692761811,
+        "lean": 0.161894380204538,
+        "leanAxis": 4.064020809290956,
+        "variant": 1,
+        "branches": 5,
+        "height": 6.2
+      },
+      {
+        "x": -277.2555696941488,
+        "z": -49.367941316513786,
+        "nx": -0.9814543086496219,
+        "nz": -0.1916962180980437,
+        "tx": -0.1916962180980437,
+        "tz": 0.9814543086496219,
+        "scale": 1.0514865004216578,
+        "rotationY": 0.8647054474352339,
+        "lean": 0.1605303235511239,
+        "leanAxis": 3.3861282119987615,
+        "variant": 2,
+        "branches": 4,
+        "height": 5.0
+      },
+      {
+        "x": -252.75359060633224,
+        "z": -47.494810555989986,
+        "nx": -0.9795257058645204,
+        "nz": -0.20131912862570525,
+        "tx": -0.20131912862570525,
+        "tz": 0.9795257058645204,
+        "scale": 1.180613778471721,
+        "rotationY": 0.3797128974941933,
+        "lean": 0.09676785079610993,
+        "leanAxis": 1.5226123918004246,
+        "variant": 0,
+        "branches": 3,
+        "height": 4.4
+      },
+      {
+        "x": -276.3600160373812,
+        "z": -16.27539173620289,
+        "nx": -0.998653894235541,
+        "nz": 0.05186906137755981,
+        "tx": 0.05186906137755981,
+        "tz": 0.998653894235541,
+        "scale": 1.048388265596182,
+        "rotationY": 0.18961891884746904,
+        "lean": -0.1737750197763561,
+        "leanAxis": 4.157423468690826,
+        "variant": 2,
+        "branches": 4,
+        "height": 5.0
+      },
+      {
+        "x": -257.8855915281448,
+        "z": -16.10122660649276,
+        "nx": -0.9970721613875219,
+        "nz": 0.07646636506344137,
+        "tx": 0.07646636506344137,
+        "tz": 0.9970721613875219,
+        "scale": 1.2976258297898604,
+        "rotationY": 5.779052414541021,
+        "lean": 0.11767141363359732,
+        "leanAxis": 0.6861707753162878,
+        "variant": 1,
+        "branches": 5,
+        "height": 6.2
+      },
+      {
+        "x": -280.782673352621,
+        "z": -15.09286959840019,
+        "nx": -0.9970721613875219,
+        "nz": 0.07646636506344137,
+        "tx": 0.07646636506344137,
+        "tz": 0.9970721613875219,
+        "scale": 1.2526533609031272,
+        "rotationY": 4.179518950449191,
+        "lean": 0.1646491117829989,
+        "leanAxis": 6.069231185461895,
+        "variant": 0,
+        "branches": 3,
+        "height": 4.4
+      },
+      {
+        "x": -253.173095457648,
+        "z": -24.86482073325688,
+        "nx": -0.9999827788290342,
+        "nz": -0.005868734562314367,
+        "tx": -0.005868734562314367,
+        "tz": 0.9999827788290342,
+        "scale": 1.2543526758000307,
+        "rotationY": 4.133751041796642,
+        "lean": 0.12484064691739456,
+        "leanAxis": 1.830513397605245,
+        "variant": 1,
+        "branches": 5,
+        "height": 6.2
+      },
+      {
+        "x": -278.00490157866636,
+        "z": -6.398465073861066,
+        "nx": -0.9933291615223032,
+        "nz": 0.11531338547366549,
+        "tx": 0.11531338547366549,
+        "tz": 0.9933291615223032,
+        "scale": 1.2183729571321293,
+        "rotationY": 3.662815737076592,
+        "lean": -0.1475884810364197,
+        "leanAxis": 5.506476830059809,
+        "variant": 3,
+        "branches": 7,
+        "height": 7.1
+      },
+      {
+        "x": -255.58326370171133,
+        "z": -44.078649843969195,
+        "nx": -0.9843775358610111,
+        "nz": -0.17607063040781093,
+        "tx": -0.17607063040781093,
+        "tz": 0.9843775358610111,
+        "scale": 1.272880909956616,
+        "rotationY": 4.466608092679412,
+        "lean": -0.13984148539036373,
+        "leanAxis": 4.049213620245338,
+        "variant": 0,
+        "branches": 3,
+        "height": 4.4
+      },
+      {
+        "x": -278.5557308035716,
+        "z": -36.911315172351514,
+        "nx": -0.9949263803509203,
+        "nz": -0.10060565432328325,
+        "tx": -0.10060565432328325,
+        "tz": 0.9949263803509203,
+        "scale": 1.1948021269836864,
+        "rotationY": 6.032777177731667,
+        "lean": -0.13777775698902803,
+        "leanAxis": 1.2914412965771016,
+        "variant": 0,
+        "branches": 3,
+        "height": 4.4
+      },
+      {
+        "x": -277.5777004900839,
+        "z": -23.34947287719905,
+        "nx": -0.9999827788290342,
+        "nz": -0.005868734562314367,
+        "tx": -0.005868734562314367,
+        "tz": 0.9999827788290342,
+        "scale": 1.220231243226547,
+        "rotationY": 4.840585330351196,
+        "lean": -0.129677867400772,
+        "leanAxis": 1.9083144538936294,
+        "variant": 2,
+        "branches": 4,
+        "height": 5.0
+      },
+      {
+        "x": -281.05782154062376,
+        "z": -23.861539466080508,
+        "nx": -0.9999827788290342,
+        "nz": -0.005868734562314367,
+        "tx": -0.005868734562314367,
+        "tz": 0.9999827788290342,
+        "scale": 0.7807541401591519,
+        "rotationY": 4.253292939760576,
+        "lean": -0.1337849662875146,
+        "leanAxis": 4.793983016399729,
+        "variant": 4,
+        "branches": 2,
+        "height": 1.35
+      },
+      {
+        "x": -279.8016865062155,
+        "z": -44.69319688047466,
+        "nx": -0.9879041945949693,
+        "nz": -0.15506547746569918,
+        "tx": -0.15506547746569918,
+        "tz": 0.9879041945949693,
+        "scale": 1.14626191716378,
+        "rotationY": 0.5524024147446434,
+        "lean": 0.10182460566543765,
+        "leanAxis": 5.404475445868836,
+        "variant": 1,
+        "branches": 5,
+        "height": 6.2
+      },
+      {
+        "x": -255.77281904540004,
+        "z": -27.93594514612379,
+        "nx": -0.999297567027978,
+        "nz": -0.037474958731983005,
+        "tx": -0.037474958731983005,
+        "tz": 0.999297567027978,
+        "scale": 0.8132350027860135,
+        "rotationY": 2.9237304251361445,
+        "lean": -0.1356561174757803,
+        "leanAxis": 5.424230083200678,
+        "variant": 1,
+        "branches": 5,
+        "height": 6.2
+      }
+    ],
+    "scenery": [
+      {
+        "type": "scrub",
+        "x": -251.6462,
+        "z": -10.3398,
+        "rotationY": 6.0472,
+        "scale": 0.77,
+        "variant": 0
+      },
+      {
+        "type": "rubble",
+        "x": -284.2876,
+        "z": -60.0616,
+        "rotationY": 5.2352,
+        "scale": 0.708
+      },
+      {
+        "type": "fallen-column",
+        "x": -272.5695,
+        "z": -55.967,
+        "rotationY": 0.8268,
+        "scale": 0.958
+      },
+      {
+        "type": "scrub",
+        "x": -280.33,
+        "z": -20.4659,
+        "rotationY": 1.334,
+        "scale": 1.221,
+        "variant": 1
+      },
+      {
+        "type": "broken-statue",
+        "x": -281.0634,
+        "z": -59.7574,
+        "rotationY": 1.4646,
+        "scale": 0.971
+      },
+      {
+        "type": "broken-statue",
+        "x": -253.6068,
+        "z": -61.3173,
+        "rotationY": 0.0294,
+        "scale": 0.931
+      }
+    ],
+    "approach": {
+      "shell": {
+        "facadeHeight": 13,
+        "flankHeight": 6.5,
+        "cornice": {
+          "height": 1.15,
+          "depth": 1.35,
+          "overhang": 1.2,
+          "y": 12.5
+        }
+      },
+      "court": {
+        "x": -287.0,
+        "z": -63.5,
+        "w": 48.0,
+        "d": 9
+      },
+      "path": {
+        "x": -269.0,
+        "z": -54.5,
+        "w": 12,
+        "d": 65.86763767668266
+      },
+      "samples": [
+        {
+          "x": -263.0,
+          "z": -54.5,
+          "half": 5.751594082079812,
+          "t": 0.0,
+          "tx": -0.20456779298846844,
+          "tz": 0.9788523985115566,
+          "nx": -0.9788523985115566,
+          "nz": -0.20456779298846844
+        },
+        {
+          "x": -263.688275233803,
+          "z": -51.20661811616587,
+          "half": 5.79256854452576,
+          "t": 0.05,
+          "tx": -0.20131912862570525,
+          "tz": 0.9795257058645204,
+          "nx": -0.9795257058645204,
+          "nz": -0.20131912862570525
+        },
+        {
+          "x": -264.35375879798886,
+          "z": -47.913236232331734,
+          "half": 5.898997074203859,
+          "t": 0.1,
+          "tx": -0.1916962180980437,
+          "tz": 0.9814543086496219,
+          "nx": -0.9814543086496219,
+          "nz": -0.1916962180980437
+        },
+        {
+          "x": -264.9747922857323,
+          "z": -44.6198543484976,
+          "half": 6.055974500958865,
+          "t": 0.15,
+          "tx": -0.17607063040781093,
+          "tz": 0.9843775358610111,
+          "nx": -0.9843775358610111,
+          "nz": -0.17607063040781093
+        },
+        {
+          "x": -265.531899914249,
+          "z": -41.32647246466347,
+          "half": 6.239018082561476,
+          "t": 0.2,
+          "tx": -0.15506547746569918,
+          "tz": 0.9879041945949693,
+          "nx": -0.9879041945949693,
+          "nz": -0.15506547746569918
+        },
+        {
+          "x": -266.00867763025803,
+          "z": -38.03309058082934,
+          "half": 6.418255929738842,
+          "t": 0.25,
+          "tx": -0.12954892278352037,
+          "tz": 0.991573031402947,
+          "nx": -0.991573031402947,
+          "nz": -0.12954892278352037
+        },
+        {
+          "x": -266.39245997760975,
+          "z": -34.7397086969952,
+          "half": 6.5635727629190725,
+          "t": 0.3,
+          "tx": -0.10060565432328325,
+          "tz": 0.9949263803509203,
+          "nx": -0.9949263803509203,
+          "nz": -0.10060565432328325
+        },
+        {
+          "x": -266.67472256765876,
+          "z": -31.44632681316107,
+          "half": 6.649819672591618,
+          "t": 0.35,
+          "tx": -0.06947764745489628,
+          "tz": 0.9975835085365702,
+          "nx": -0.9975835085365702,
+          "nz": -0.06947764745489628
+        },
+        {
+          "x": -266.85120137319484,
+          "z": -28.152944929326935,
+          "half": 6.661182909713765,
+          "t": 0.4,
+          "tx": -0.037474958731983005,
+          "tz": 0.999297567027978,
+          "nx": -0.999297567027978,
+          "nz": -0.037474958731983005
+        },
+        {
+          "x": -266.92173477755017,
+          "z": -24.859563045492802,
+          "half": 6.593952377206883,
+          "t": 0.45,
+          "tx": -0.005868734562314367,
+          "tz": 0.9999827788290342,
+          "nx": -0.9999827788290342,
+          "nz": -0.005868734562314367
+        },
+        {
+          "x": -266.88985800708446,
+          "z": -21.56618116165867,
+          "half": 6.457208124846757,
+          "t": 0.5,
+          "tx": 0.024213405368315174,
+          "tz": 0.9997068125207859,
+          "nx": -0.9997068125207859,
+          "nz": 0.024213405368315174
+        },
+        {
+          "x": -266.7622000227857,
+          "z": -18.272799277824532,
+          "half": 6.271304522159638,
+          "t": 0.55,
+          "tx": 0.05186906137755981,
+          "tz": 0.998653894235541,
+          "nx": -0.998653894235541,
+          "nz": 0.05186906137755981
+        },
+        {
+          "x": -266.5477482370062,
+          "z": -14.979417393990403,
+          "half": 6.064414095371484,
+          "t": 0.6,
+          "tx": 0.07646636506344137,
+          "tz": 0.9970721613875219,
+          "nx": -0.9970721613875219,
+          "nz": 0.07646636506344137
+        },
+        {
+          "x": -266.25705515729845,
+          "z": -11.686035510156266,
+          "half": 5.867729822846572,
+          "t": 0.65,
+          "tx": 0.09764993216957067,
+          "tz": 0.9952208251173597,
+          "nx": -0.9952208251173597,
+          "nz": 0.09764993216957067
+        },
+        {
+          "x": -265.9014624892638,
+          "z": -8.392653626322137,
+          "half": 5.710157455192882,
+          "t": 0.7,
+          "tx": 0.11531338547366549,
+          "tz": 0.9933291615223032,
+          "nx": -0.9933291615223032,
+          "nz": 0.11531338547366549
+        },
+        {
+          "x": -265.4924123190664,
+          "z": -5.099271742488,
+          "half": 5.613417710446412,
+          "t": 0.75,
+          "tx": 0.12954892278352037,
+          "tz": 0.991573031402947,
+          "nx": -0.991573031402947,
+          "nz": 0.12954892278352037
+        },
+        {
+          "x": -265.040902425903,
+          "z": -1.8058898586538703,
+          "half": 5.588406654372217,
+          "t": 0.8,
+          "tx": 0.14058478533439195,
+          "tz": 0.9900686431417182,
+          "nx": -0.9900686431417182,
+          "nz": 0.14058478533439195
+        },
+        {
+          "x": -264.557124875372,
+          "z": 1.4874920251802592,
+          "half": 5.633443653309449,
+          "t": 0.85,
+          "tx": 0.1487195803039784,
+          "tz": 0.9888794094500141,
+          "nx": -0.9888794094500141,
+          "nz": 0.1487195803039784
+        },
+        {
+          "x": -264.0503056618002,
+          "z": 4.780873909014396,
+          "half": 5.734708041061122,
+          "t": 0.9,
+          "tx": 0.15426011170796208,
+          "tz": 0.9880302717709853,
+          "nx": -0.9880302717709853,
+          "nz": 0.15426011170796208
+        },
+        {
+          "x": -263.52874047903845,
+          "z": 8.074255792848525,
+          "half": 5.868785131943514,
+          "t": 0.95,
+          "tx": 0.15746764855678608,
+          "tz": 0.9875241463670631,
+          "nx": -0.9875241463670631,
+          "nz": 0.15746764855678608
+        },
+        {
+          "x": -263.0,
+          "z": 11.367637676682662,
+          "half": 6.0068755817109745,
+          "t": 1.0,
+          "tx": 0.15851646704527111,
+          "tz": 0.9873563336888489,
+          "nx": -0.9873563336888489,
+          "nz": 0.15851646704527111
+        }
+      ],
+      "southZ": -63.5,
+      "midX": -263.0,
+      "vestibule": {
+        "x": -266.2,
+        "z": -66.2,
+        "w": 6.4,
+        "d": 2.7
+      },
+      "hub": {
+        "x": -272.0,
+        "z": 13.567637676682661,
+        "w": 18,
+        "d": 16
+      },
+      "corridorWidth": 15,
+      "lighting": "day",
+      "description": "A weathered stone arch opens onto a worn dirt path. Dead trees and scrub follow the path away from the ruins until a mountain range meets it.",
+      "dressing": "fallen-hall",
+      "vista": {
+        "description": "Scrub and dead trees follow a long dirt path away from the pass until the mountain range meets it.",
+        "path": [
+          {
+            "x": -263.0,
+            "z": 11.367637676682662,
+            "half": 6.0068755817109745,
+            "t": 0.0,
+            "tx": 0.08965311068998992,
+            "tz": 0.9959730517155615,
+            "nx": -0.9959730517155615,
+            "nz": 0.08965311068998992
+          },
+          {
+            "x": -262.51718906070636,
+            "z": 16.731274040319025,
+            "half": 5.931563055269566,
+            "t": 0.045454545454545456,
+            "tx": 0.08874779526913115,
+            "tz": 0.9960541294703156,
+            "nx": -0.9960541294703156,
+            "nz": 0.08874779526913115
+          },
+          {
+            "x": -262.044206759825,
+            "z": 22.09491040395539,
+            "half": 5.856250528828158,
+            "t": 0.09090909090909091,
+            "tx": 0.08604898277086481,
+            "tz": 0.9962909075988295,
+            "nx": -0.9962909075988295,
+            "nz": 0.08604898277086481
+          },
+          {
+            "x": -261.59068165303347,
+            "z": 27.458546767591752,
+            "half": 5.78093800238675,
+            "t": 0.13636363636363635,
+            "tx": 0.08160795515238811,
+            "tz": 0.9966645080747311,
+            "nx": -0.9966645080747311,
+            "nz": 0.08160795515238811
+          },
+          {
+            "x": -261.1658462036477,
+            "z": 32.822183131228115,
+            "half": 5.705625475945343,
+            "t": 0.18181818181818182,
+            "tx": 0.07550974780427225,
+            "tz": 0.9971450636625221,
+            "nx": -0.9971450636625221,
+            "nz": 0.07550974780427225
+          },
+          {
+            "x": -260.7783488362928,
+            "z": 38.185819494864475,
+            "half": 5.630312949503935,
+            "t": 0.22727272727272727,
+            "tx": 0.06787237584826952,
+            "tz": 0.9976940115068904,
+            "nx": -0.9976940115068904,
+            "nz": 0.06787237584826952
+          },
+          {
+            "x": -260.4360778799182,
+            "z": 43.54945585850084,
+            "half": 5.555000423062527,
+            "t": 0.2727272727272727,
+            "tx": 0.058845530710610224,
+            "tz": 0.9982671002869856,
+            "nx": -0.9982671002869856,
+            "nz": 0.058845530710610224
+          },
+          {
+            "x": -260.14600098416753,
+            "z": 48.91309222213721,
+            "half": 5.479687896621119,
+            "t": 0.3181818181818182,
+            "tx": 0.04860857895347672,
+            "tz": 0.9988179043510002,
+            "nx": -0.9988179043510002,
+            "nz": 0.04860857895347672
+          },
+          {
+            "x": -259.91402327812574,
+            "z": 54.276728585773576,
+            "half": 5.404375370179711,
+            "t": 0.36363636363636365,
+            "tx": 0.037367714681941853,
+            "tz": 0.9993015830566111,
+            "nx": -0.9993015830566111,
+            "nz": 0.037367714681941853
+          },
+          {
+            "x": -259.7448671589193,
+            "z": 59.640364949409935,
+            "half": 5.329062843738303,
+            "t": 0.4090909090909091,
+            "tx": 0.025352173554949366,
+            "tz": 0.9996785819932523,
+            "nx": -0.9996785819932523,
+            "nz": 0.025352173554949366
+          },
+          {
+            "x": -259.64197615732934,
+            "z": 65.0040013130463,
+            "half": 5.253750317296895,
+            "t": 0.45454545454545453,
+            "tx": 0.012809504349732782,
+            "tz": 0.9999179549334606,
+            "nx": -0.9999179549334606,
+            "nz": 0.012809504349732782
+          },
+          {
+            "x": -259.607444837435,
+            "z": 70.36763767668266,
+            "half": 5.178437790855487,
+            "t": 0.5,
+            "tx": 0.0,
+            "tz": 1.0,
+            "nx": -1.0,
+            "nz": 0.0
+          },
+          {
+            "x": -259.64197615732934,
+            "z": 75.73127404031902,
+            "half": 5.103125264414079,
+            "t": 0.5454545454545454,
+            "tx": -0.012809504349732773,
+            "tz": 0.9999179549334606,
+            "nx": -0.9999179549334606,
+            "nz": -0.012809504349732773
+          },
+          {
+            "x": -259.7448671589193,
+            "z": 81.0949104039554,
+            "half": 5.027812737972671,
+            "t": 0.5909090909090909,
+            "tx": -0.025352173554949353,
+            "tz": 0.9996785819932523,
+            "nx": -0.9996785819932523,
+            "nz": -0.025352173554949353
+          },
+          {
+            "x": -259.91402327812574,
+            "z": 86.45854676759176,
+            "half": 4.952500211531263,
+            "t": 0.6363636363636364,
+            "tx": -0.03736771468194188,
+            "tz": 0.9993015830566111,
+            "nx": -0.9993015830566111,
+            "nz": -0.03736771468194188
+          },
+          {
+            "x": -260.14600098416753,
+            "z": 91.82218313122812,
+            "half": 4.877187685089855,
+            "t": 0.6818181818181818,
+            "tx": -0.04860857895347672,
+            "tz": 0.9988179043510002,
+            "nx": -0.9988179043510002,
+            "nz": -0.04860857895347672
+          },
+          {
+            "x": -260.4360778799182,
+            "z": 97.18581949486449,
+            "half": 4.801875158648447,
+            "t": 0.7272727272727273,
+            "tx": -0.0588455307106103,
+            "tz": 0.9982671002869856,
+            "nx": -0.9982671002869856,
+            "nz": -0.0588455307106103
+          },
+          {
+            "x": -260.7783488362928,
+            "z": 102.54945585850083,
+            "half": 4.726562632207039,
+            "t": 0.7727272727272727,
+            "tx": -0.06787237584826956,
+            "tz": 0.9976940115068904,
+            "nx": -0.9976940115068904,
+            "nz": -0.06787237584826956
+          },
+          {
+            "x": -261.1658462036477,
+            "z": 107.91309222213721,
+            "half": 4.651250105765631,
+            "t": 0.8181818181818182,
+            "tx": -0.07550974780427218,
+            "tz": 0.9971450636625221,
+            "nx": -0.9971450636625221,
+            "nz": -0.07550974780427218
+          },
+          {
+            "x": -261.59068165303347,
+            "z": 113.27672858577357,
+            "half": 4.575937579324224,
+            "t": 0.8636363636363636,
+            "tx": -0.08160795515238817,
+            "tz": 0.9966645080747311,
+            "nx": -0.9966645080747311,
+            "nz": -0.08160795515238817
+          },
+          {
+            "x": -262.044206759825,
+            "z": 118.64036494940993,
+            "half": 4.500625052882816,
+            "t": 0.9090909090909091,
+            "tx": -0.08604898277086476,
+            "tz": 0.9962909075988295,
+            "nx": -0.9962909075988295,
+            "nz": -0.08604898277086476
+          },
+          {
+            "x": -262.51718906070636,
+            "z": 124.0040013130463,
+            "half": 4.425312526441408,
+            "t": 0.9545454545454546,
+            "tx": -0.08874779526913121,
+            "tz": 0.9960541294703156,
+            "nx": -0.9960541294703156,
+            "nz": -0.08874779526913121
+          },
+          {
+            "x": -263.0,
+            "z": 129.36763767668265,
+            "half": 4.35,
+            "t": 1.0,
+            "tx": -0.08965311068999021,
+            "tz": 0.9959730517155615,
+            "nx": -0.9959730517155615,
+            "nz": -0.08965311068999021
+          }
+        ],
+        "mountains": [
+          {
+            "x": -359.0,
+            "z": 151.36763767668265,
+            "height": 62,
+            "radius": 38,
+            "yaw": 0.4,
+            "depth": 0.82
+          },
+          {
+            "x": -325.0,
+            "z": 139.36763767668265,
+            "height": 90,
+            "radius": 42,
+            "yaw": 0.2,
+            "depth": 0.74
+          },
+          {
+            "x": -297.0,
+            "z": 131.36763767668265,
+            "height": 108,
+            "radius": 36,
+            "yaw": -0.3,
+            "depth": 0.7
+          },
+          {
+            "x": -277.0,
+            "z": 135.36763767668265,
+            "height": 74,
+            "radius": 28,
+            "yaw": 0.15,
+            "depth": 0.78
+          },
+          {
+            "x": -263.0,
+            "z": 143.36763767668265,
+            "height": 86,
+            "radius": 32,
+            "yaw": 0.05,
+            "depth": 0.66
+          },
+          {
+            "x": -247.0,
+            "z": 135.36763767668265,
+            "height": 78,
+            "radius": 28,
+            "yaw": -0.2,
+            "depth": 0.76
+          },
+          {
+            "x": -223.0,
+            "z": 133.36763767668265,
+            "height": 114,
+            "radius": 40,
+            "yaw": 0.35,
+            "depth": 0.72
+          },
+          {
+            "x": -191.0,
+            "z": 143.36763767668265,
+            "height": 96,
+            "radius": 44,
+            "yaw": -0.15,
+            "depth": 0.8
+          },
+          {
+            "x": -159.0,
+            "z": 155.36763767668265,
+            "height": 64,
+            "radius": 36,
+            "yaw": 0.5,
+            "depth": 0.84
+          },
+          {
+            "x": -311.0,
+            "z": 127.36763767668265,
+            "height": 28,
+            "radius": 30,
+            "yaw": 0.25,
+            "depth": 0.7
+          },
+          {
+            "x": -285.0,
+            "z": 121.36763767668265,
+            "height": 22,
+            "radius": 26,
+            "yaw": 0.6,
+            "depth": 0.62
+          },
+          {
+            "x": -263.0,
+            "z": 127.36763767668265,
+            "height": 16,
+            "radius": 20,
+            "yaw": 0.1,
+            "depth": 0.55
+          },
+          {
+            "x": -241.0,
+            "z": 121.36763767668265,
+            "height": 20,
+            "radius": 24,
+            "yaw": -0.4,
+            "depth": 0.6
+          },
+          {
+            "x": -213.0,
+            "z": 127.36763767668265,
+            "height": 30,
+            "radius": 32,
+            "yaw": -0.55,
+            "depth": 0.68
+          }
+        ],
+        "scrub": [
+          {
+            "x": -253.4323625446935,
+            "z": 32.236557807475094,
+            "scale": 0.75,
+            "rotationY": 5.24,
+            "variant": 0
+          },
+          {
+            "x": -269.59733140716565,
+            "z": 33.460665278444125,
+            "scale": 0.75,
+            "rotationY": 5.640000000000001,
+            "variant": 1
+          },
+          {
+            "x": -252.3393075597936,
+            "z": 38.76437585786255,
+            "scale": 0.97,
+            "rotationY": 0.2668146928204145,
+            "variant": 1
+          },
+          {
+            "x": -267.6645120322314,
+            "z": 39.80693803214467,
+            "scale": 0.97,
+            "rotationY": 0.6668146928204148,
+            "variant": 0
+          },
+          {
+            "x": -253.61071549042433,
+            "z": 41.9951202787187,
+            "scale": 1.19,
+            "rotationY": 1.576814692820414,
+            "variant": 0
+          },
+          {
+            "x": -248.79843747329812,
+            "z": 42.062055216408226,
+            "scale": 0.6,
+            "rotationY": 4.62,
+            "variant": 0
+          },
+          {
+            "x": -268.0955719602473,
+            "z": 42.848968979120336,
+            "scale": 1.19,
+            "rotationY": 1.9768146928204136,
+            "variant": 1
+          },
+          {
+            "x": -272.8666581058761,
+            "z": 43.48082101163171,
+            "scale": 0.6,
+            "rotationY": 4.62,
+            "variant": 0
+          },
+          {
+            "x": -252.62521389884733,
+            "z": 48.54708479351926,
+            "scale": 1.4100000000000001,
+            "rotationY": 2.8868146928204137,
+            "variant": 1
+          },
+          {
+            "x": -268.36596060253345,
+            "z": 49.313125656022585,
+            "scale": 1.4100000000000001,
+            "rotationY": 3.286814692820414,
+            "variant": 0
+          },
+          {
+            "x": -251.72237018998308,
+            "z": 55.121215034046344,
+            "scale": 0.75,
+            "rotationY": 4.196814692820414,
+            "variant": 0
+          },
+          {
+            "x": -266.6207084062207,
+            "z": 55.678320977976284,
+            "scale": 0.75,
+            "rotationY": 4.5968146928204145,
+            "variant": 1
+          },
+          {
+            "x": -253.09710608583538,
+            "z": 58.32140581971883,
+            "scale": 0.97,
+            "rotationY": 5.506814692820415,
+            "variant": 1
+          },
+          {
+            "x": -248.28977563152353,
+            "z": 58.54960289035271,
+            "scale": 0.6,
+            "rotationY": 0.6468146928204135,
+            "variant": 1
+          },
+          {
+            "x": -267.1507132385749,
+            "z": 58.67780986200503,
+            "scale": 0.97,
+            "rotationY": 5.906814692820415,
+            "variant": 0
+          },
+          {
+            "x": -271.94029717139824,
+            "z": 59.14938779876642,
+            "scale": 0.6,
+            "rotationY": 0.6468146928204135,
+            "variant": 1
+          },
+          {
+            "x": -252.33882507671322,
+            "z": 64.91044389158752,
+            "scale": 1.19,
+            "rotationY": 0.533629385640829,
+            "variant": 0
+          },
+          {
+            "x": -267.6450698063989,
+            "z": 65.1065253875499,
+            "scale": 1.19,
+            "rotationY": 0.9336293856408293,
+            "variant": 1
+          },
+          {
+            "x": -251.67900704657953,
+            "z": 71.51763767668267,
+            "scale": 1.4100000000000001,
+            "rotationY": 1.8436293856408277,
+            "variant": 1
+          },
+          {
+            "x": -266.1358826282905,
+            "z": 71.51763767668267,
+            "scale": 1.4100000000000001,
+            "rotationY": 2.243629385640828,
+            "variant": 0
+          },
+          {
+            "x": -253.17464941000478,
+            "z": 74.66402972828944,
+            "scale": 0.75,
+            "rotationY": 3.153629385640828,
+            "variant": 0
+          },
+          {
+            "x": -248.37952655284656,
+            "z": 75.07548663339485,
+            "scale": 0.6,
+            "rotationY": 2.956814692820414,
+            "variant": 0
+          },
+          {
+            "x": -266.77978361310295,
+            "z": 74.48974040295685,
+            "scale": 0.75,
+            "rotationY": 3.5536293856408285,
+            "variant": 1
+          },
+          {
+            "x": -271.5838731233059,
+            "z": 74.77822606630484,
+            "scale": 0.6,
+            "rotationY": 2.956814692820414,
+            "variant": 0
+          },
+          {
+            "x": -252.669329357409,
+            "z": 81.2743483408779,
+            "scale": 0.97,
+            "rotationY": 4.463629385640829,
+            "variant": 1
+          },
+          {
+            "x": -267.5201799678249,
+            "z": 80.89772594554442,
+            "scale": 0.97,
+            "rotationY": 4.863629385640827,
+            "variant": 0
+          },
+          {
+            "x": -252.25987549513292,
+            "z": 87.89556841834896,
+            "scale": 1.19,
+            "rotationY": 5.773629385640827,
+            "variant": 0
+          },
+          {
+            "x": -266.2550945886078,
+            "z": 87.37223355841948,
+            "scale": 1.19,
+            "rotationY": 6.173629385640826,
+            "variant": 1
+          },
+          {
+            "x": -253.87027456474922,
+            "z": 90.97623728547327,
+            "scale": 1.4100000000000001,
+            "rotationY": 0.8004440784612434,
+            "variant": 1
+          },
+          {
+            "x": -249.09296162649812,
+            "z": 91.5591447309728,
+            "scale": 0.6,
+            "rotationY": 5.2668146928204145,
+            "variant": 1
+          },
+          {
+            "x": -267.0091002050385,
+            "z": 90.33682179170822,
+            "scale": 1.4100000000000001,
+            "rotationY": 1.200444078461242,
+            "variant": 0
+          },
+          {
+            "x": -271.82043914855706,
+            "z": 90.45308687925439,
+            "scale": 0.6,
+            "rotationY": 5.2668146928204145,
+            "variant": 1
+          },
+          {
+            "x": -253.59607633376575,
+            "z": 97.58902172493801,
+            "scale": 0.75,
+            "rotationY": 2.110444078461242,
+            "variant": 0
+          },
+          {
+            "x": -267.97486639627147,
+            "z": 96.74142539329355,
+            "scale": 0.75,
+            "rotationY": 2.5104440784612407,
+            "variant": 1
+          },
+          {
+            "x": -253.39708030370917,
+            "z": 104.20425604076004,
+            "scale": 0.97,
+            "rotationY": 3.420444078461241,
+            "variant": 1
+          },
+          {
+            "x": -266.91895221721785,
+            "z": 103.28437322889505,
+            "scale": 0.97,
+            "rotationY": 3.8204440784612395,
+            "variant": 0
+          }
+        ],
+        "trees": [
+          {
+            "x": -252.75556618841182,
+            "z": 33.89017405440903,
+            "nx": -0.9971450636625221,
+            "nz": 0.07550974780427225,
+            "tx": 0.07550974780427225,
+            "tz": 0.9971450636625221,
+            "scale": 1.1800000000000002,
+            "rotationY": 4.68,
+            "lean": 0.10471975511965978,
+            "leanAxis": 2.92,
+            "variant": 4,
+            "branches": 2,
+            "height": 1.35
+          },
+          {
+            "x": -246.53085641713997,
+            "z": 30.009067477228687,
+            "nx": -0.9971450636625221,
+            "nz": 0.07550974780427225,
+            "tx": 0.07550974780427225,
+            "tz": 0.9971450636625221,
+            "scale": 0.6396,
+            "rotationY": 4.983629385640825,
+            "lean": -0.15707963267948966,
+            "leanAxis": 4.666814692820413,
+            "variant": 1,
+            "branches": 5,
+            "height": 6.2
+          },
+          {
+            "x": -270.2524139310155,
+            "z": 37.12640380138588,
+            "nx": -0.9976940115068904,
+            "nz": 0.06787237584826952,
+            "tx": 0.06787237584826952,
+            "tz": 0.9976940115068904,
+            "scale": 0.78,
+            "rotationY": 5.85,
+            "lean": -0.12217304763960307,
+            "leanAxis": 3.65,
+            "variant": 0,
+            "branches": 3,
+            "height": 4.4
+          },
+          {
+            "x": -250.04921362519235,
+            "z": 42.08569877478213,
+            "nx": -0.9982671002869856,
+            "nz": 0.058845530710610224,
+            "tx": 0.058845530710610224,
+            "tz": 0.9982671002869856,
+            "scale": 0.88,
+            "rotationY": 0.7368146928204133,
+            "lean": 0.13962634015954636,
+            "leanAxis": 4.38,
+            "variant": 1,
+            "branches": 5,
+            "height": 6.2
+          },
+          {
+            "x": -243.51045877222293,
+            "z": 42.55172986040711,
+            "nx": -0.9982671002869856,
+            "nz": 0.058845530710610224,
+            "tx": 0.058845530710610224,
+            "tz": 0.9982671002869856,
+            "scale": 0.8036,
+            "rotationY": 1.0404440784612419,
+            "lean": -0.12217304763960307,
+            "leanAxis": 6.126814692820414,
+            "variant": 3,
+            "branches": 7,
+            "height": 7.1
+          },
+          {
+            "x": -271.6620596868917,
+            "z": 49.473533966569065,
+            "nx": -0.9988179043510002,
+            "nz": 0.04860857895347672,
+            "tx": 0.04860857895347672,
+            "tz": 0.9988179043510002,
+            "scale": 0.98,
+            "rotationY": 1.9068146928204133,
+            "lean": -0.15707963267948966,
+            "leanAxis": 5.109999999999999,
+            "variant": 2,
+            "branches": 4,
+            "height": 5.0
+          },
+          {
+            "x": -251.88347574184615,
+            "z": 54.82702971633166,
+            "nx": -0.9993015830566111,
+            "nz": 0.037367714681941853,
+            "tx": 0.037367714681941853,
+            "tz": 0.9993015830566111,
+            "scale": 1.08,
+            "rotationY": 3.076814692820413,
+            "lean": 0.10471975511965978,
+            "leanAxis": 5.84,
+            "variant": 3,
+            "branches": 7,
+            "height": 7.1
+          },
+          {
+            "x": -245.35625289449854,
+            "z": 55.43354591649715,
+            "nx": -0.9993015830566111,
+            "nz": 0.037367714681941853,
+            "tx": 0.037367714681941853,
+            "tz": 0.9993015830566111,
+            "scale": 0.9676000000000001,
+            "rotationY": 3.380444078461238,
+            "lean": -0.15707963267948966,
+            "leanAxis": 1.3036293856408268,
+            "variant": 0,
+            "branches": 3,
+            "height": 4.4
+          },
+          {
+            "x": -268.7779131333318,
+            "z": 61.569992515729204,
+            "nx": -0.9996785819932523,
+            "nz": 0.025352173554949366,
+            "tx": 0.025352173554949366,
+            "tz": 0.9996785819932523,
+            "scale": 1.1800000000000002,
+            "rotationY": 4.246814692820413,
+            "lean": -0.12217304763960307,
+            "leanAxis": 0.28681469282041405,
+            "variant": 4,
+            "branches": 2,
+            "height": 1.35
+          },
+          {
+            "x": -249.51083506254741,
+            "z": 63.17407628080391,
+            "nx": -0.9999179549334606,
+            "nz": 0.012809504349732782,
+            "tx": 0.012809504349732782,
+            "tz": 0.9999179549334606,
+            "scale": 0.78,
+            "rotationY": 5.416814692820413,
+            "lean": 0.13962634015954636,
+            "leanAxis": 1.0168146928204136,
+            "variant": 0,
+            "branches": 3,
+            "height": 4.4
+          },
+          {
+            "x": -243.0004802767826,
+            "z": 63.94074476422408,
+            "nx": -0.9999179549334606,
+            "nz": 0.012809504349732782,
+            "tx": 0.012809504349732782,
+            "tz": 0.9999179549334606,
+            "scale": 0.7215999999999999,
+            "rotationY": 5.720444078461242,
+            "lean": -0.12217304763960307,
+            "leanAxis": 2.7636293856408276,
+            "variant": 2,
+            "branches": 4,
+            "height": 5.0
+          },
+          {
+            "x": -270.8358826282905,
+            "z": 69.51763767668267,
+            "nx": -1.0,
+            "nz": 0.0,
+            "tx": 0.0,
+            "tz": 1.0,
+            "scale": 0.88,
+            "rotationY": 0.30362938564082675,
+            "lean": -0.15707963267948966,
+            "leanAxis": 1.7468146928204131,
+            "variant": 1,
+            "branches": 5,
+            "height": 6.2
+          },
+          {
+            "x": -251.93948289634014,
+            "z": 75.82994725690007,
+            "nx": -0.9999179549334606,
+            "nz": -0.012809504349732773,
+            "tx": -0.012809504349732773,
+            "tz": 0.9999179549334606,
+            "scale": 0.98,
+            "rotationY": 1.4736293856408267,
+            "lean": 0.10471975511965978,
+            "leanAxis": 2.4768146928204136,
+            "variant": 2,
+            "branches": 4,
+            "height": 5.0
+          },
+          {
+            "x": -245.45090426796992,
+            "z": 76.76313929686678,
+            "nx": -0.9999179549334606,
+            "nz": -0.012809504349732773,
+            "tx": -0.012809504349732773,
+            "tz": 0.9999179549334606,
+            "scale": 0.8856,
+            "rotationY": 1.7772587712816517,
+            "lean": -0.15707963267948966,
+            "leanAxis": 4.223629385640827,
+            "variant": 4,
+            "branches": 2,
+            "height": 1.35
+          },
+          {
+            "x": -268.54140789733987,
+            "z": 81.72210056668374,
+            "nx": -0.9996785819932523,
+            "nz": -0.025352173554949353,
+            "tx": -0.025352173554949353,
+            "tz": 0.9996785819932523,
+            "scale": 1.08,
+            "rotationY": 2.6436293856408266,
+            "lean": -0.12217304763960307,
+            "leanAxis": 3.206814692820414,
+            "variant": 3,
+            "branches": 7,
+            "height": 7.1
+          },
+          {
+            "x": -250.13192933463625,
+            "z": 88.52552487559626,
+            "nx": -0.9993015830566111,
+            "nz": -0.03736771468194188,
+            "tx": -0.03736771468194188,
+            "tz": 0.9993015830566111,
+            "scale": 1.1800000000000002,
+            "rotationY": 3.8136293856408265,
+            "lean": 0.13962634015954636,
+            "leanAxis": 3.9368146928204126,
+            "variant": 4,
+            "branches": 2,
+            "height": 1.35
+          },
+          {
+            "x": -243.50941881484968,
+            "z": 85.37078963863641,
+            "nx": -0.9993015830566111,
+            "nz": -0.03736771468194188,
+            "tx": -0.03736771468194188,
+            "tz": 0.9993015830566111,
+            "scale": 0.6396,
+            "rotationY": 4.117258771281655,
+            "lean": -0.12217304763960307,
+            "leanAxis": 5.6836293856408275,
+            "variant": 1,
+            "branches": 5,
+            "height": 6.2
+          },
+          {
+            "x": -270.97763710401813,
+            "z": 89.59303762850126,
+            "nx": -0.9988179043510002,
+            "nz": -0.04860857895347672,
+            "tx": -0.04860857895347672,
+            "tz": 0.9988179043510002,
+            "scale": 0.78,
+            "rotationY": 4.983629385640825,
+            "lean": -0.15707963267948966,
+            "leanAxis": 4.666814692820413,
+            "variant": 0,
+            "branches": 3,
+            "height": 4.4
+          },
+          {
+            "x": -252.9970107275039,
+            "z": 96.7728597315849,
+            "nx": -0.9982671002869856,
+            "nz": -0.0588455307106103,
+            "tx": -0.0588455307106103,
+            "tz": 0.9982671002869856,
+            "scale": 0.88,
+            "rotationY": 6.153629385640826,
+            "lean": 0.10471975511965978,
+            "leanAxis": 5.3968146928204135,
+            "variant": 1,
+            "branches": 5,
+            "height": 6.2
+          },
+          {
+            "x": -246.55829327674252,
+            "z": 98.0038827164478,
+            "nx": -0.9982671002869856,
+            "nz": -0.0588455307106103,
+            "tx": -0.0588455307106103,
+            "tz": 0.9982671002869856,
+            "scale": 0.8036,
+            "rotationY": 0.17407346410206515,
+            "lean": -0.15707963267948966,
+            "leanAxis": 0.8604440784612422,
+            "variant": 3,
+            "branches": 7,
+            "height": 7.1
+          },
+          {
+            "x": -269.23536461260886,
+            "z": 101.97413141362628,
+            "nx": -0.9976940115068904,
+            "nz": -0.06787237584826956,
+            "tx": -0.06787237584826956,
+            "tz": 0.9976940115068904,
+            "scale": 0.98,
+            "rotationY": 1.0404440784612419,
+            "lean": -0.12217304763960307,
+            "leanAxis": 6.126814692820414,
+            "variant": 2,
+            "branches": 4,
+            "height": 5.0
+          }
+        ]
+      }
+    }
+  }
+}

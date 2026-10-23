@@ -1,6 +1,6 @@
 # Architecture
 
-Dungeon Combater is built from small factory functions — `createX(...)` calls that return a plain
+Harpers Row is built from small factory functions — `createX(...)` calls that return a plain
 object closing over private state (meshes, materials, vectors, flags). There is no class hierarchy and
 none is planned: closures already give each module private state and a stable public shape, with far
 less risk than retrofitting inheritance onto ~5,000 lines of working gameplay code.
@@ -13,10 +13,11 @@ assisted changes.
 
 | Layer | Files | Responsibility |
 | --- | --- | --- |
-| Config / math | `balance.js`, `geometry.js`, `pixel-ratio.js`, `skeletelWarrior.json` | Pure constants and pure functions. No THREE, no DOM. Skeletal warrior name, health, damage, speed, and weapons are read from `skeletelWarrior.json` by `balance.js`. Fully unit-testable, and fully unit-tested. |
+| Config / math | `balance.js`, `geometry.js`, `pixel-ratio.js`, `fire-description.js`, `gear-description.js`, `skeletelWarrior.json` | Pure constants and pure functions. No THREE, no DOM. Skeletal warrior name, health, damage, speed, and weapons are read from `skeletelWarrior.json` by `balance.js`. `fire-description.js` reads the shared flame block (particle emitter and flickering point light) used by campfires, torches, and sconces. `gear-description.js` reads the equipment files in `src/gear/` the same way: known fields only, finite numbers, no evaluated text. Fully unit-testable, and fully unit-tested. |
 | World generation | `rooms.js`, `ancientRuinsData.json`, `location.js` | `location.js` (pure, no THREE, no DOM) validates and prepares a generator JSON file (such as `seed3000.json`): it clamps numbers, caps room, prop, and scenery counts, and builds the room graph (`layout.graph`: neighbors, door table, a BFS next-hop table, and per-room visibility sets), the floors, and the entrance, exit, and last room ids. It also measures the location (`measureLocation`: enemy spawns, and chests in rooms with both a sconce and a chest) and computes `completionPercent`, which reads 100 only when everything is done. Bad input throws `LocationError` with a short message. `rooms.js` is a pure procedural layout generator (no THREE, no DOM) kept for tests. The playable Ancient Ruins are the baked `ancientRuinsData.json`. That file owns the rooms, doors, approach, and the outdoor shell (`approach.shell`: facade height, flank height, cornice). `ancientRuinsLayout()` deep-copies that file, then sets `enemyName` from `skeletelWarrior.json`. Loading the ruins does not call `generateLayout()`. |
-| Content / rendering | `dungeon.js`, `materials.js`, `ruin-material.js`, `subsurface.js`, `flame.js`, `torch.js`, `sconce.js`, `dust.js`, `player-body.js`, `props.js` | Turn config + layout data into THREE objects (geometry, materials, meshes, particles) and own their GPU resources. `props.js` is the prop kit and instanced prop field for generated locations. Multi-floor locations are built one story at a time, with stairwells as ramps. Wall batches are created only when their size is known, so capacities are exact. Colliders carry an optional `story`, and `lineOfSight` and `resolveBody` in `geometry.js` take an optional `y`, so floors that overlap in plan do not block each other. |
+| Content / rendering | `dungeon.js`, `hub.js`, `places.js`, `path-mesh.js`, `materials.js`, `ruin-material.js`, `subsurface.js`, `flame.js`, `gear.js`, `item-mesh.js`, `sconce.js`, `dust.js`, `player-body.js`, `props.js`, `src/gear/` | Turn config + layout data into THREE objects and own their GPU resources. `hub.js` draws the plaza, spokes, and structure. `places.js` builds the hub and every connected location and shows one at a time, removing the hidden place's lights. `path-mesh.js` is the sloped path ribbon. Multi-floor locations are built one story at a time. Colliders carry an optional `story`, and `lineOfSight` and `resolveBody` take an optional `y`, so overlapping floors do not block each other. `src/gear/*.json` describes each held item. `gear.js` builds any of them. The torch's tip, and a hub fire-pit's `vfx` and `light`, are the same flame description. Guard timing stays in `balance.js`. Right-hand damage and reach are read from the equipped weapon. |
 | Entities | `player.js`, `skeleton.js` | Autonomous actors: own state machines, animation, and combat behavior. |
+| Game state / data | `game-state.js`, `master-config.js`, `world.js`, `public/master_config.json` | `master-config.js` (pure, no THREE, no DOM) fetches and validates the hub file name and the location list; only bare `.json` file names survive. `world.js` (also pure) checks that the hub's spoke count equals the location count, pairs them in order, points each spoke at that location's trail, and builds the exit path that runs around the outside of the rooms back to the entrance trail. A mismatch throws `WorldError`. `game-state.js` holds the hub, the list, and the spoke pairing (`spokes`), and is exposed as `window.gameState`. |
 | Systems | `input.js`, `audio.js`, `ui.js`, `impact.js`, `zone-transition.js` | Cross-cutting concerns not tied to a specific entity or the dungeon: hardware input, sound, HUD, hit-stop/time control, and zone changes. `createZoneTransitions` fades the screen, then asks the caller to teleport and apply a lighting preset. It does not own dungeon meshes. |
 | Composition root ("Engine") | `main.js` | Renderer/camera setup, the `requestAnimationFrame` loop, window resize, and the restart cycle (`beginRun`/`clearRun`) that wires every module together. |
 
@@ -72,12 +73,15 @@ tests and the Cursor rule both check against this contract.
   flow has something to call.
 - `player.js` is reset in place via `reset()` on every new run rather than recreated, so it does not need
   a `dispose()` — its view-model meshes live for the whole session, the same as `materials.js`'s output.
-- `flame.js` holds the one fire/smoke/embers billboard assembly (`createFlamePoints()`) shared by both
-  `sconce.js`'s wall torches and `torch.js`'s held torch, so the visual and its shaders exist in exactly
-  one place. Its `disposeFlamePoints(flame)` helper is used by `torch.js`'s own `dispose()`; `sconce.js`
-  does not yet dispose it since wall sconces, like `player.js`, live for the whole session today.
+- `flame.js` holds the one fire/smoke/embers billboard assembly (`createFlamePoints()`). The hub
+  campfire, wall sconces, and the held torch each pass a fire description from `fire-description.js`,
+  so the particle colors, lifetime, rate, and light flicker live in one place. `disposeFlamePoints`
+  is used by `torch.js` and `hub.js`. `sconce.js` does not yet dispose its flames, since wall sconces,
+  like `player.js`, live for the whole session today.
 - `torch.js`'s `createHeldTorch()` exposes `dispose()` for the same testability/future-teardown reasons
   as `input.js`/`ui.js`, even though `player.js` does not call it during normal play today.
+- `mace.js`'s `createMace()` returns the group the right hand parents, and hangs `dispose()` on that
+  group's `userData`. It disposes the mace geometries and the trail material, and a second call is a no-op.
 
 ## Extend, don't break
 

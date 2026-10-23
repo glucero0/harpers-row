@@ -21,6 +21,15 @@ describe('createMaterials', () => {
     expect(materials.surface('not-a-real-theme')).toBe(materials.surface('stone'));
     expect(materials.floor('wood')).toBeTruthy();
     expect(materials.floor('not-a-real-theme')).toBe(materials.floor('stone'));
+    expect(materials.surface('stone').map).toBeTruthy();
+    expect(materials.floor('stone').map).toBe(materials.surface('stone').map);
+    expect(materials.ceilingFor('stone').map).toBe(materials.surface('stone').map);
+    expect(materials.ceilingFor('wood').map).toBe(materials.surface('wood').map);
+    expect(materials.ceilingFor('wood').map).not.toBe(materials.surface('stone').map);
+    expect(materials.floor('wood').map).toBe(materials.surface('wood').map);
+    expect(materials.ceilingFor('cave').map).toBe(materials.surface('cave').map);
+    expect(materials.floor('cave').map).toBe(materials.surface('cave').map);
+    expect(materials.ceilingFor('not-a-real-theme')).toBe(materials.ceilingFor('stone'));
   });
 
   it('flags every reusable prop/surface material as shared, so per-mesh disposal skips them', () => {

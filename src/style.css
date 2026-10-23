@@ -167,12 +167,6 @@ body[data-lighting="day"] #area-title {
 
 .checklist .label { color: #d9cbb4; }
 
-#check-mark {
-  color: #fff;
-  font-size: 18px;
-  line-height: 1;
-}
-
 .checklist button {
   width: 100%;
   margin-top: 4px;
@@ -185,32 +179,55 @@ body[data-lighting="day"] #area-title {
   cursor: default;
 }
 
-.checklist .file-pick {
-  display: block;
-  margin-top: 10px;
+#gear {
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  background: rgba(8, 6, 5, 0.55);
+  pointer-events: auto;
+}
+
+.gear-card { width: min(720px, calc(100% - 32px)); }
+
+.gear-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 32px;
+}
+
+.gear-column {
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.gear-column legend {
+  margin-bottom: 8px;
   font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
-.checklist .file-pick input {
-  display: block;
-  width: 100%;
-  margin-top: 4px;
-  color: #d9cbb4;
-  font-size: 12px;
+.gear-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 0;
+  font-size: 16px;
+  cursor: pointer;
 }
 
-.checklist #location-status {
-  margin: 6px 0 0;
-  font-size: 12px;
-  overflow-wrap: anywhere;
+.gear-item input {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: #e09a45;
 }
-
-@keyframes requirement-flash {
-  0%, 100% { background: rgba(18, 14, 11, 0.78); border-color: rgba(201, 160, 96, 0.45); }
-  40% { background: rgba(148, 42, 24, 0.95); border-color: #fff; }
-}
-
-.checklist.flash { animation: requirement-flash 0.42s ease-in-out 3; }
 
 .room {
   margin: 0;

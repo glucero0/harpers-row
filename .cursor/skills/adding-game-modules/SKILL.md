@@ -2,20 +2,20 @@
 name: adding-game-modules
 description: >-
   Guides adding or changing a gameplay system, entity, or content module (enemy types, chamber themes,
-  areas, UI/input/audio systems) in Dungeon Combater while keeping the codebase modular, reusable, and
+  areas, UI/input/audio systems) in Harpers Row while keeping the codebase modular, reusable, and
   regression-safe. Use when the user asks to add a feature, enemy, area, weapon, system, or otherwise
   extend or modify src/*.js gameplay code in this project.
 ---
 
-# Adding Game Modules (Dungeon Combater)
+# Adding Game Modules (Harpers Row)
 
 Full contract: [docs/ARCHITECTURE.md](../../../docs/ARCHITECTURE.md). Enforced rule:
 [.cursor/rules/game-architecture.mdc](../../rules/game-architecture.mdc).
 
 ## Workflow
 
-1. **Find the right layer.** Config/math → `balance.js`/`geometry.js`. World generation → `rooms.js`.
-   Rendering/content → `dungeon.js`, `materials.js`, `flame.js`, `torch.js`, `sconce.js`, `dust.js`,
+1. **Find the right layer.** Config/math → `balance.js`/`geometry.js`/`fire-description.js`. World generation → `rooms.js`.
+   Rendering/content → `dungeon.js`, `materials.js`, `flame.js`, `gear.js`, `sconce.js`, `dust.js`,
    `player-body.js`. Render budget (pixel-ratio cap) → `pixel-ratio.js`, applied from `main.js`.
    Entities → `player.js`, `skeleton.js`. Systems → `input.js`, `audio.js`, `ui.js`, `impact.js`. New
    content is a new file in the matching layer, not a special case in `main.js`.

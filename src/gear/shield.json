@@ -1,0 +1,182 @@
+{
+  "version": 1,
+  "kind": "shield",
+  "id": "shield",
+  "name": "Ash-gripped Bronze Round Shield",
+  "seed": 1,
+  "hand": "left",
+  "parent": "leftHandSocket",
+  "castShadow": false,
+  "materials": {
+    "ash": {
+      "color": "#c4a574",
+      "roughness": 0.72,
+      "metalness": 0.04
+    },
+    "bronze": {
+      "color": "#a56b3c",
+      "roughness": 0.42,
+      "metalness": 0.74
+    },
+    "leather": {
+      "color": "#6b4634",
+      "roughness": 0.84,
+      "metalness": 0.02
+    }
+  },
+  "parts": [
+    {
+      "name": "board",
+      "material": "ash",
+      "geometry": {
+        "type": "shield",
+        "outline": "round",
+        "width": 0.6713,
+        "height": 0.6713,
+        "thickness": 0.04
+      },
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "plank1",
+      "material": "ash",
+      "geometry": {
+        "type": "box",
+        "width": 0.047,
+        "height": 0.4699,
+        "depth": 0.008
+      },
+      "position": [
+        -0.2081,
+        0.0,
+        0.02
+      ]
+    },
+    {
+      "name": "plank2",
+      "material": "ash",
+      "geometry": {
+        "type": "box",
+        "width": 0.047,
+        "height": 0.4699,
+        "depth": 0.008
+      },
+      "position": [
+        0.0,
+        0.0,
+        0.02
+      ]
+    },
+    {
+      "name": "plank3",
+      "material": "ash",
+      "geometry": {
+        "type": "box",
+        "width": 0.047,
+        "height": 0.4699,
+        "depth": 0.008
+      },
+      "position": [
+        0.2081,
+        0.0,
+        0.02
+      ]
+    },
+    {
+      "name": "boss",
+      "material": "bronze",
+      "geometry": {
+        "type": "lathe",
+        "points": [
+          [
+            0.012,
+            0.0
+          ],
+          [
+            0.0364,
+            0.0146
+          ],
+          [
+            0.052,
+            0.0286
+          ],
+          [
+            0.0156,
+            0.0426
+          ],
+          [
+            0.01,
+            0.052
+          ]
+        ],
+        "segments": 12
+      },
+      "position": [
+        0.0,
+        0.0,
+        0.02
+      ],
+      "rotation": {
+        "x": 90.0,
+        "y": 0.0,
+        "z": 0.0,
+        "unit": "degrees"
+      }
+    },
+    {
+      "name": "rim",
+      "material": "bronze",
+      "geometry": {
+        "type": "torus",
+        "radius": 0.3217,
+        "tube": 0.012,
+        "radialSegments": 8,
+        "tubularSegments": 24
+      },
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "grip",
+      "material": "leather",
+      "geometry": {
+        "type": "cylinder",
+        "radiusTop": 0.014,
+        "radiusBottom": 0.014,
+        "height": 0.2148,
+        "radialSegments": 8
+      },
+      "position": [
+        0.0,
+        0.0,
+        -0.038
+      ],
+      "rotation": {
+        "x": 0.0,
+        "y": 0.0,
+        "z": 90.0,
+        "unit": "degrees"
+      }
+    }
+  ],
+  "grip": {
+    "restRotation": {
+      "x": 0.0,
+      "y": -12.0,
+      "z": 8.0,
+      "unit": "degrees"
+    }
+  },
+  "options": {
+    "kind": "shield",
+    "seed": 1,
+    "tier": 1
+  }
+}

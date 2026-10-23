@@ -1,14 +1,16 @@
 import { clampUnit, paceMultiplier, SKELETON_NAME, xpRequired } from './balance.js';
+import { leftGear, rightGear } from './gear-description.js';
 import { completionPercent } from './location.js';
 
-const PACE_KEY = 'dungeon-combater.pace';
-const XP_KEY = 'dungeon-combater.experience';
+const PACE_KEY = 'harpers-row.pace';
+const XP_KEY = 'harpers-row.experience';
+const LIGHT_KEY = 'harpers-row.ambient';
 
-function readSlider(key) {
+function readSlider(key, fallback = 0.5) {
   try {
-    return clampUnit(localStorage.getItem(key));
+    return clampUnit(localStorage.getItem(key), fallback);
   } catch {
-    return 0.5;
+    return fallback;
   }
 }
 
@@ -25,14 +27,10 @@ function percent(part, total) {
   return Math.round((part / total) * 100);
 }
 
-function requirementLine(requirements) {
-  const items = (requirements || []).map((item) => item.charAt(0).toUpperCase() + item.slice(1));
-  return items.length ? `Requirements: ${items.join(' and ')}` : '';
-}
-
-export function createUI({ onRestart, onEquip, onLoadLocation, areaName, requirements }) {
+export function createUI({ onRestart, onEquip, areaName }) {
   const paceSlider = document.querySelector('#pace-slider');
   const xpSlider = document.querySelector('#xp-slider');
+  const lightSlider = document.querySelector('#light-slider');
   const roomName = document.querySelector('#room-name');
   const undeadCount = document.querySelector('#undead-count');
   const paceReadout = document.querySelector('#pace-readout');
@@ -52,30 +50,64 @@ export function createUI({ onRestart, onEquip, onLoadLocation, areaName, require
   const bannerText = document.querySelector('#banner-text');
   const hurt = document.querySelector('#hurt');
   const areaTitle = document.querySelector('#area-title');
-  const checklist = document.querySelector('#checklist');
   const enemyName = document.querySelector('#enemy-name');
   if (enemyName) enemyName.textContent = SKELETON_NAME;
   const areaLabel = document.querySelector('#area-name');
   if (areaLabel && areaName) areaLabel.textContent = areaName;
-  const requirementLabel = document.querySelector('#requirements');
-  if (requirementLabel) requirementLabel.textContent = requirementLine(requirements);
-  const checkMark = document.querySelector('#check-mark');
   const equipButton = document.querySelector('#equip');
+  const gear = document.querySelector('#gear');
+  const gearLeft = document.querySelector('#gear-left');
+  const gearRight = document.querySelector('#gear-right');
   const statKills = document.querySelector('#stat-kills');
   const statLoot = document.querySelector('#stat-loot');
   const statGold = document.querySelector('#stat-gold');
-  // Both are optional so a page without them still works.
-  const locationInput = document.querySelector('#location-file');
-  const locationStatus = document.querySelector('#location-status');
   const statComplete = document.querySelector('#stat-complete');
   const roomTag = document.querySelector('#room-tag');
   const completeNote = document.querySelector('#complete-note');
   let shownLevel = 1;
   let shownHealth = 100;
-  let shownDeny = 0;
+  let carriedLeft = null;
+  let carriedRight = null;
+
+  function addChoice(container, group, id, label) {
+    const row = document.createElement('label');
+    row.className = 'gear-item';
+    const input = document.createElement('input');
+    input.type = 'radio';
+    input.name = group;
+    input.value = id;
+    const text = document.createElement('span');
+    text.textContent = label;
+    row.append(input, text);
+    container.append(row);
+  }
+
+  function fillHand(container, group, items) {
+    if (!container) return;
+    for (const label of [...container.querySelectorAll(':scope > label')]) label.remove();
+    addChoice(container, group, '', 'None');
+    for (const item of items) addChoice(container, group, item.id, item.name);
+  }
+
+  fillHand(gearLeft, 'left-hand', leftGear);
+  fillHand(gearRight, 'right-hand', rightGear);
+
+  function selectHand(group, value) {
+    if (!gear) return;
+    const wanted = value || '';
+    for (const input of gear.querySelectorAll(`input[name="${group}"]`)) {
+      input.checked = input.value === wanted;
+    }
+  }
+
+  function chosen(group) {
+    const input = gear && gear.querySelector(`input[name="${group}"]:checked`);
+    return input && input.value ? input.value : null;
+  }
 
   paceSlider.value = String(readSlider(PACE_KEY));
   xpSlider.value = String(readSlider(XP_KEY));
+  if (lightSlider) lightSlider.value = String(readSlider(LIGHT_KEY, 0));
   const restartButton = document.querySelector('#restart');
 
   function onPaceInput() {
@@ -84,6 +116,9 @@ export function createUI({ onRestart, onEquip, onLoadLocation, areaName, require
   function onXpInput() {
     writeSlider(XP_KEY, xpSlider.value);
   }
+  function onLightInput() {
+    writeSlider(LIGHT_KEY, lightSlider.value);
+  }
   function onRestartClick(event) {
     event.stopPropagation();
     onRestart();
@@ -91,44 +126,48 @@ export function createUI({ onRestart, onEquip, onLoadLocation, areaName, require
   function onEquipClick(event) {
     event.stopPropagation();
     event.preventDefault();
-    onEquip();
+    if (!equipButton || equipButton.hidden || !gear) return;
+    if (gearLeft) selectHand('left-hand', carriedLeft);
+    if (gearRight) selectHand('right-hand', carriedRight);
+    gear.hidden = false;
   }
-
-  function onLocationChange() {
-    const file = locationInput.files && locationInput.files[0];
-    // Clear the picker so choosing the same file twice still loads it twice.
-    if (file && onLoadLocation) onLoadLocation(file);
-    locationInput.value = '';
+  function onGearExit(event) {
+    event.stopPropagation();
+    event.preventDefault();
+    if (gear) gear.hidden = true;
+    if (onEquip) {
+      onEquip({ left: chosen('left-hand'), right: chosen('right-hand') });
+    }
   }
-  function onLocationClick(event) {
+  function onGearClick(event) {
     event.stopPropagation();
   }
 
   paceSlider.addEventListener('input', onPaceInput);
   xpSlider.addEventListener('input', onXpInput);
+  if (lightSlider) lightSlider.addEventListener('input', onLightInput);
   restartButton.addEventListener('click', onRestartClick);
-  equipButton.addEventListener('click', onEquipClick);
-  if (locationInput) {
-    locationInput.addEventListener('change', onLocationChange);
-    locationInput.addEventListener('click', onLocationClick);
-  }
+  if (equipButton) equipButton.addEventListener('click', onEquipClick);
+  const gearExit = document.querySelector('#gear-exit');
+  if (gearExit) gearExit.addEventListener('click', onGearExit);
+  if (gear) gear.addEventListener('click', onGearClick);
   let disposed = false;
 
   return {
-    // The place being played changed (a location file was loaded): show its name and what it asks for.
+    // The place being played changed: show its name.
     setLocation(next) {
       if (areaLabel && next.areaName) areaLabel.textContent = next.areaName;
-      if (requirementLabel) requirementLabel.textContent = requirementLine(next.requirements);
     },
     // Plain text only: the message may quote a short label from the file, never markup.
-    setLocationStatus(message) {
-      if (locationStatus) locationStatus.textContent = message;
-    },
     pace() {
       return clampUnit(paceSlider.value);
     },
     experience() {
       return clampUnit(xpSlider.value);
+    },
+    // 0 matches the place's own darkness. Further right raises the fill light.
+    ambient() {
+      return lightSlider ? clampUnit(lightSlider.value, 0) : 0;
     },
     sync(state) {
       const room = state.room;
@@ -142,7 +181,8 @@ export function createUI({ onRestart, onEquip, onLoadLocation, areaName, require
       }
       undeadCount.textContent = `Undead here: ${state.undead}`;
       paceReadout.textContent = `Pace ×${pace.toFixed(2)}`;
-      levelText.textContent = `Level ${state.level} · Mace ${state.damage}`;
+      const weapon = state.weaponName || 'Unarmed';
+      levelText.textContent = `Level ${state.level} · ${weapon} ${Math.round(state.damage)}`;
       if (state.level > shownLevel) levelText.classList.add('up');
       else levelText.classList.remove('up');
       shownLevel = state.level;
@@ -168,34 +208,40 @@ export function createUI({ onRestart, onEquip, onLoadLocation, areaName, require
       banner.hidden = !showBanner;
       if (state.banner === 'dead') {
         bannerTitle.textContent = 'Game over';
-        bannerText.textContent = 'Your health is gone. Descend again and the dungeon is built anew.';
+        bannerText.textContent = state.hubWorld
+          ? 'Your health is gone. Return to the hub and the locations are built anew.'
+          : 'Your health is gone. Descend again and the dungeon is built anew.';
+        if (restartButton) restartButton.textContent = state.hubWorld ? 'Return to the hub' : 'Descend again';
       }
-      overlay.hidden = showBanner || state.pointerLocked;
+      overlay.hidden = state.bootError ? false : showBanner || state.pointerLocked;
       if (state.zoneName) areaTitle.textContent = state.zoneName;
+      if (areaLabel && state.placeName) areaLabel.textContent = state.placeName;
       if (state.lighting) document.body.dataset.lighting = state.lighting;
       areaTitle.classList.toggle('away', state.outdoors === false);
-      checkMark.hidden = !state.equipped;
-      equipButton.disabled = !!state.equipped;
-      equipButton.textContent = state.equipped ? 'Equipped' : 'Equip';
+      if (state.inHub) {
+        carriedLeft = state.left || null;
+        carriedRight = state.right || null;
+      }
+      if (equipButton) equipButton.hidden = !state.inHub;
+      if (gear && !state.inHub) gear.hidden = true;
       statKills.textContent = `Enemies killed ${percent(state.enemiesFallen, state.enemiesTotal)}%`;
       statLoot.textContent = `Loot collected ${percent(state.lootTaken, state.lootTotal)}%`;
       statGold.textContent = `Gold ${state.gold || 0}`;
       const complete = completionPercent(state);
       if (statComplete) statComplete.textContent = `Location complete ${complete}%`;
       if (completeNote) completeNote.hidden = complete < 100;
-      if (state.denySerial && state.denySerial !== shownDeny) {
-        shownDeny = state.denySerial;
-        checklist.classList.remove('flash');
-        void checklist.offsetWidth;
-        checklist.classList.add('flash');
-      }
 
-      if (!state.started) {
-        overlayText.textContent = state.equipped
-          ? 'The arch is open. Click the view, then walk inside.'
-          : 'A worn trail ends at the stone arch. Equip a torch and a mace before you step inside.';
+      if (state.bootError) {
+        overlayText.textContent = state.bootError;
+        overlayPrompt.hidden = true;
+      } else if (!state.started) {
+        overlayPrompt.hidden = false;
+        overlayText.textContent = state.hubWorld
+          ? 'Paths leave the hub for each location. Equip a shield or a torch in the left hand, and a weapon in the right, or go with neither.'
+          : 'A worn trail ends at the stone arch. Click the view, then walk inside.';
         overlayPrompt.textContent = 'Click to look';
       } else if (!state.pointerLocked) {
+        overlayPrompt.hidden = false;
         overlayText.textContent = 'The mouse is free, so the fight waits. Drag the sliders, then click to continue.';
         overlayPrompt.textContent = 'Click to continue';
       }
@@ -207,12 +253,11 @@ export function createUI({ onRestart, onEquip, onLoadLocation, areaName, require
       disposed = true;
       paceSlider.removeEventListener('input', onPaceInput);
       xpSlider.removeEventListener('input', onXpInput);
+      if (lightSlider) lightSlider.removeEventListener('input', onLightInput);
       restartButton.removeEventListener('click', onRestartClick);
-      equipButton.removeEventListener('click', onEquipClick);
-      if (locationInput) {
-        locationInput.removeEventListener('change', onLocationChange);
-        locationInput.removeEventListener('click', onLocationClick);
-      }
+      if (equipButton) equipButton.removeEventListener('click', onEquipClick);
+      if (gearExit) gearExit.removeEventListener('click', onGearExit);
+      if (gear) gear.removeEventListener('click', onGearClick);
     },
   };
 }

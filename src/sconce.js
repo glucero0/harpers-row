@@ -1,13 +1,34 @@
 import * as THREE from 'three';
 import { audio } from './audio.js';
+import { fireWobble, parseFireEmanation } from './fire-description.js';
 import { createFlamePoints } from './flame.js';
 
 const FLAME_OFFSET = 1.2;
-const SCONCE_RANGE = 10;
-const SCONCE_COLOR = 0xffa036;
-const SCONCE_INTENSITY = 1.8;
 const SCONCE_RISE = 0.3;
 const SHAFT_RADIUS = 0.15;
+
+// Same flame description as a campfire or a held torch: particles plus a flickering point light.
+// The numbers stay small because a sconce is a torch on the wall, not a fire pit.
+const SCONCE_FIRE = parseFireEmanation({
+  vfx: {
+    type: 'particle-system',
+    preset: 'sconce_flames',
+    emitter: {
+      rate: 32,
+      lifetime: [0.4, 0.6],
+      colorStart: '#fff29e',
+      colorEnd: '#f2470a',
+      blendMode: 'additive',
+    },
+  },
+  light: {
+    type: 'point',
+    color: '#ffa036',
+    intensity: 1.8,
+    distance: 10,
+    flicker: { speed: 12, variance: 0.14 },
+  },
+});
 
 // Strict end of the 15–20 unit window. Past this, the point light turns off but the flame mesh stays.
 export const SCONCE_LIGHT_CULL_DISTANCE = 15;
@@ -23,6 +44,9 @@ export class SconceInteractable {
     this.glow = spec.glow;
     this.particles = spec.particles;
     this.roomId = spec.roomId;
+    this.flickerSpeed = spec.flickerSpeed;
+    this.flickerVariance = spec.flickerVariance;
+    this.baseIntensity = spec.baseIntensity;
     this.rise = 0;
   }
 
@@ -59,8 +83,8 @@ export class SconceInteractable {
     this.particles.mesh.visible = true;
     for (const layer of this.particles.mesh.children) layer.visible = true;
     this.light.visible = true;
-    this.light.color.set(SCONCE_COLOR);
-    this.light.distance = SCONCE_RANGE;
+    this.light.color.set(SCONCE_FIRE.light.color);
+    this.light.distance = SCONCE_FIRE.light.distance;
     this.light.castShadow = false;
     this.light.intensity = 0;
     this.rise = 0;
@@ -81,23 +105,9 @@ export class SconceInteractable {
     this.rise = Math.min(SCONCE_RISE, this.rise + dt);
     if (!this.light.visible) return;
     const warmed = 1 - (1 - this.rise / SCONCE_RISE) ** 3;
-    const noise = perlin(time * 1.7 + this.x * 0.17) * 0.65
-      + perlin(time * 3.4 + this.z * 0.13) * 0.35;
-    const flicker = Math.max(-1, Math.min(1, noise));
-    this.light.intensity = warmed * (SCONCE_INTENSITY + flicker * 0.25);
+    const wobble = fireWobble(this.flickerSpeed, this.flickerVariance, time + this.x * 0.17 + this.z * 0.13);
+    this.light.intensity = warmed * Math.max(0, this.baseIntensity * (1 + wobble));
   }
-}
-
-function fade(t) {
-  return t * t * (3 - 2 * t);
-}
-
-function perlin(x) {
-  const i = Math.floor(x);
-  const f = x - i;
-  const g0 = Math.sin(i * 127.1 + 311.7);
-  const g1 = Math.sin((i + 1) * 127.1 + 311.7);
-  return g0 + (g1 - g0) * fade(f);
 }
 
 function ragMaterial() {
@@ -223,13 +233,13 @@ export function createWallSconce(materials, anchor) {
     return strap;
   });
   const flamePos = new THREE.Vector3(FLAME_OFFSET, 1.18, 0);
-  const light = new THREE.PointLight(SCONCE_COLOR, 0, SCONCE_RANGE, 2);
+  const light = new THREE.PointLight(SCONCE_FIRE.light.color, 0, SCONCE_FIRE.light.distance, 2);
   light.position.copy(flamePos);
   light.visible = false;
   light.decay = 2;
   // Wall sconces never cast a shadow map. The held torch is the only shadow-casting light.
   light.castShadow = false;
-  const particles = createFlamePoints();
+  const particles = createFlamePoints({ emanation: SCONCE_FIRE });
   particles.mesh.position.copy(flamePos);
   group.add(plate, arm, ring, torch, pitch, ...rags, ...straps, ...cage, light, particles.mesh);
   const baseY = Number.isFinite(anchor.y) ? anchor.y : 0;
@@ -243,6 +253,9 @@ export function createWallSconce(materials, anchor) {
     glow: particles.mesh,
     particles,
     roomId: anchor.roomId,
+    flickerSpeed: SCONCE_FIRE.light.flicker.speed,
+    flickerVariance: SCONCE_FIRE.light.flicker.variance,
+    baseIntensity: SCONCE_FIRE.light.intensity,
   });
   interactable.fireId = `${anchor.x.toFixed(2)}:${baseY.toFixed(1)}:${anchor.z.toFixed(2)}`;
   interactable.lightY = baseY + 6.7;

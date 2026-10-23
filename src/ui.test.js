@@ -6,6 +6,7 @@ import { createUI } from './ui.js';
 const HUD_HTML = `
   <input id="pace-slider" type="range" min="0" max="1" step="0.01" value="0.5" />
   <input id="xp-slider" type="range" min="0" max="1" step="0.01" value="0.5" />
+  <input id="light-slider" type="range" min="0" max="1" step="0.01" value="0" />
   <p id="room-name"></p>
   <p id="undead-count"></p>
   <p id="pace-readout"></p>
@@ -21,16 +22,19 @@ const HUD_HTML = `
   <div id="banner" hidden><div class="card"><h2 id="banner-title"></h2><p id="banner-text"></p><button id="restart" type="button"></button></div></div>
   <div id="hurt"></div>
   <h1 id="area-title"></h1>
-  <div id="checklist"><span id="area-name"></span><span id="enemy-name"></span><span id="requirements"></span><span id="check-mark" hidden></span></div>
-  <button id="equip" type="button"></button>
+  <div id="checklist"><span id="area-name"></span><span id="enemy-name"></span></div>
+  <button id="equip" type="button" hidden></button>
+  <div id="gear" hidden>
+    <div id="gear-left"></div>
+    <div id="gear-right"></div>
+    <button id="gear-exit" type="button">Exit</button>
+  </div>
   <p id="stat-kills"></p>
   <p id="stat-loot"></p>
   <p id="stat-gold"></p>
   <p id="stat-complete"></p>
   <p id="room-tag" hidden></p>
   <p id="complete-note" hidden></p>
-  <input id="location-file" type="file" />
-  <p id="location-status"></p>
 `;
 
 function baseState(overrides = {}) {
@@ -51,8 +55,9 @@ function baseState(overrides = {}) {
     pointerLocked: true,
     banner: null,
     outdoors: false,
-    equipped: true,
-    denySerial: 0,
+    inHub: false,
+    left: null,
+    right: null,
     gold: 0,
     enemiesFallen: 0,
     enemiesTotal: 0,
@@ -64,7 +69,6 @@ function baseState(overrides = {}) {
 
 let onRestart;
 let onEquip;
-let onLoadLocation;
 let ui;
 
 beforeEach(() => {
@@ -72,13 +76,10 @@ beforeEach(() => {
   document.body.innerHTML = HUD_HTML;
   onRestart = vi.fn();
   onEquip = vi.fn();
-  onLoadLocation = vi.fn();
   ui = createUI({
     onRestart,
     onEquip,
-    onLoadLocation,
     areaName: 'The Ancient Ruins',
-    requirements: ['torch', 'mace'],
   });
 });
 
@@ -90,17 +91,23 @@ describe('createUI', () => {
   it('defaults the pace/experience sliders to 0.5 when nothing is saved', () => {
     expect(ui.pace()).toBe(0.5);
     expect(ui.experience()).toBe(0.5);
+    expect(ui.ambient()).toBe(0);
     expect(document.querySelector('#enemy-name').textContent).toBe(SKELETON_NAME);
     expect(document.querySelector('#area-name').textContent).toBe('The Ancient Ruins');
-    expect(document.querySelector('#requirements').textContent).toBe('Requirements: Torch and Mace');
+    expect(document.querySelector('#equip').hidden).toBe(true);
   });
 
   it('persists slider changes to localStorage', () => {
     const paceSlider = document.querySelector('#pace-slider');
     paceSlider.value = '0.8';
     paceSlider.dispatchEvent(new Event('input'));
-    expect(localStorage.getItem('dungeon-combater.pace')).toBe('0.8');
+    expect(localStorage.getItem('harpers-row.pace')).toBe('0.8');
     expect(ui.pace()).toBeCloseTo(0.8, 5);
+    const lightSlider = document.querySelector('#light-slider');
+    lightSlider.value = '0.4';
+    lightSlider.dispatchEvent(new Event('input'));
+    expect(localStorage.getItem('harpers-row.ambient')).toBe('0.4');
+    expect(ui.ambient()).toBeCloseTo(0.4, 5);
   });
 
   it('writes the active zone into the header', () => {
@@ -109,6 +116,9 @@ describe('createUI', () => {
     expect(title.textContent).toBe('Mountain Pass');
     expect(title.classList.contains('away')).toBe(false);
     expect(document.body.dataset.lighting).toBe('day');
+    ui.sync(baseState({ zoneName: 'Small Ruins', placeName: 'Small Ruins', outdoors: true }));
+    expect(document.querySelector('#area-name').textContent).toBe('Small Ruins');
+    expect(title.textContent).toBe('Small Ruins');
   });
 
   it('syncs health/xp/room readouts onto the DOM', () => {
@@ -156,26 +166,38 @@ describe('createUI', () => {
     expect(document.querySelector('#pace-readout').textContent).toBe('Pace ×1.00');
   });
 
-  it('hands a chosen location file to onLoadLocation, and can pick the same file again', () => {
-    const file = new File(['{}'], 'seed3000.json', { type: 'application/json' });
-    const input = document.querySelector('#location-file');
-    Object.defineProperty(input, 'files', { value: [file], configurable: true });
-    input.dispatchEvent(new Event('change'));
-    expect(onLoadLocation).toHaveBeenCalledWith(file);
-    expect(input.value).toBe('');
-  });
-
-  it('shows location messages as plain text, never markup', () => {
-    ui.setLocationStatus('<img src=x onerror=alert(1)>');
-    const status = document.querySelector('#location-status');
-    expect(status.textContent).toBe('<img src=x onerror=alert(1)>');
-    expect(status.querySelector('img')).toBeNull();
-  });
-
-  it('shows the name and requirements of a newly loaded location', () => {
-    ui.setLocation({ areaName: 'Sunken Vault', requirements: ['torch'] });
+  it('shows the name of a newly loaded location', () => {
+    ui.setLocation({ areaName: 'Sunken Vault' });
     expect(document.querySelector('#area-name').textContent).toBe('Sunken Vault');
-    expect(document.querySelector('#requirements').textContent).toBe('Requirements: Torch');
+  });
+
+  it('offers every weapon at the hub, one choice per hand, and applies the radios on Exit', () => {
+    ui.sync(baseState({ inHub: false }));
+    document.querySelector('#equip').click();
+    expect(onEquip).not.toHaveBeenCalled();
+    expect(document.querySelector('#gear').hidden).toBe(true);
+
+    ui.sync(baseState({ inHub: true, left: 'torch', right: null }));
+    expect(document.querySelector('#equip').hidden).toBe(false);
+    document.querySelector('#equip').click();
+    const gear = document.querySelector('#gear');
+    expect(gear.hidden).toBe(false);
+    const left = [...gear.querySelectorAll('input[name="left-hand"]')].map((input) => input.value);
+    const right = [...gear.querySelectorAll('input[name="right-hand"]')].map((input) => input.value);
+    expect(left).toEqual(['', 'torch', 'shield']);
+    expect(right).toEqual(['', 'sword', 'mace', 'dagger', 'hammer', 'spear', 'axe', 'bow']);
+    expect(gear.querySelector('input[name="left-hand"][value="torch"]').checked).toBe(true);
+    expect(gear.querySelector('input[name="right-hand"][value=""]').checked).toBe(true);
+    expect(gear.querySelector('label').textContent).toBe('None');
+    gear.querySelector('input[name="left-hand"][value="shield"]').checked = true;
+    gear.querySelector('input[name="right-hand"][value="mace"]').checked = true;
+    document.querySelector('#gear-exit').click();
+    expect(onEquip).toHaveBeenCalledTimes(1);
+    expect(onEquip).toHaveBeenCalledWith({ left: 'shield', right: 'mace' });
+    expect(gear.hidden).toBe(true);
+
+    ui.sync(baseState({ inHub: false }));
+    expect(document.querySelector('#equip').hidden).toBe(true);
   });
 
   it('forwards the restart button click to onRestart', () => {
@@ -183,15 +205,12 @@ describe('createUI', () => {
     expect(onRestart).toHaveBeenCalledTimes(1);
   });
 
-  it('forwards the equip button click to onEquip', () => {
-    document.querySelector('#equip').click();
-    expect(onEquip).toHaveBeenCalledTimes(1);
-  });
-
   it('dispose() stops forwarding further clicks and is idempotent', () => {
+    ui.sync(baseState({ inHub: true }));
     ui.dispose();
     document.querySelector('#restart').click();
     document.querySelector('#equip').click();
+    document.querySelector('#gear-exit').click();
     expect(onRestart).not.toHaveBeenCalled();
     expect(onEquip).not.toHaveBeenCalled();
     expect(() => ui.dispose()).not.toThrow();

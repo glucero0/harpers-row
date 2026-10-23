@@ -1,0 +1,148 @@
+{
+  "version": 1,
+  "kind": "torch",
+  "id": "torch",
+  "name": "Oak-gripped Iron Cupped Torch",
+  "seed": 1,
+  "hand": "left",
+  "parent": "leftHandSocket",
+  "castShadow": false,
+  "materials": {
+    "oak": {
+      "color": "#8a5a32",
+      "roughness": 0.78,
+      "metalness": 0.04
+    },
+    "iron": {
+      "color": "#8b939c",
+      "roughness": 0.45,
+      "metalness": 0.82
+    },
+    "cord": {
+      "color": "#a89878",
+      "roughness": 0.88,
+      "metalness": 0.0
+    }
+  },
+  "parts": [
+    {
+      "name": "shaft",
+      "material": "oak",
+      "geometry": {
+        "type": "lathe",
+        "points": [
+          [
+            0.0185,
+            0.0
+          ],
+          [
+            0.0236,
+            0.0965
+          ],
+          [
+            0.0196,
+            0.295
+          ],
+          [
+            0.0251,
+            0.4613
+          ],
+          [
+            0.0284,
+            0.5364
+          ]
+        ],
+        "segments": 12
+      },
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "wrap1",
+      "material": "cord",
+      "geometry": {
+        "type": "torus",
+        "radius": 0.0279,
+        "tube": 0.0052,
+        "radialSegments": 6,
+        "tubularSegments": 14
+      },
+      "position": [
+        0.0,
+        0.2682,
+        0.0
+      ],
+      "rotation": {
+        "x": 90.0,
+        "y": 0.0,
+        "z": 0.0,
+        "unit": "degrees"
+      }
+    },
+    {
+      "name": "cup",
+      "material": "iron",
+      "geometry": {
+        "type": "cylinder",
+        "radiusTop": 0.0525,
+        "radiusBottom": 0.0325,
+        "height": 0.1,
+        "radialSegments": 12
+      },
+      "position": [
+        0.0,
+        0.5644,
+        0.0
+      ]
+    },
+    {
+      "name": "TorchTipSocket",
+      "type": "group",
+      "position": [
+        0.0,
+        0.6144,
+        0.0
+      ],
+      "vfx": {
+        "type": "particle-system",
+        "preset": "campfire_flames",
+        "emitter": {
+          "rate": 30,
+          "lifetime": [
+            0.6,
+            1.2
+          ],
+          "colorStart": "#ffaa22",
+          "colorEnd": "#220500",
+          "blendMode": "additive"
+        }
+      },
+      "light": {
+        "type": "point",
+        "color": "#ff7a18",
+        "intensity": 2.5,
+        "distance": 8.0,
+        "flicker": {
+          "speed": 12.0,
+          "variance": 0.4
+        }
+      }
+    }
+  ],
+  "grip": {
+    "restRotation": {
+      "x": -15.0,
+      "y": 0.0,
+      "z": -10.0,
+      "unit": "degrees"
+    }
+  },
+  "options": {
+    "kind": "torch",
+    "seed": 1,
+    "tier": 1
+  }
+}

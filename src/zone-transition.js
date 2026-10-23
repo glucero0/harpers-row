@@ -99,6 +99,12 @@ export function createZoneTransitions({
     phase() {
       return phase;
     },
+    // Swap the doorway list without restarting a fade that is already running. Used when the player
+    // crosses from the hub into a location, or back.
+    replaceRun(nextConfigs, nextLabels) {
+      runs = nextConfigs || [];
+      if (nextLabels) names = nextLabels;
+    },
     setRun(nextConfigs, nextLabels, nextZoneId = 'worn-trail') {
       runs = nextConfigs || [];
       if (nextLabels) names = nextLabels;

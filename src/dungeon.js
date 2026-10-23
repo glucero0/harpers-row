@@ -1,13 +1,15 @@
 import * as THREE from 'three';
-import { SKELETON_NAME, SWORD_ARC, SWORD_RANGE } from './balance.js';
+import { GUARD_READY, SKELETON_NAME, SWORD_ARC, SWORD_RANGE, ambientFill } from './balance.js';
 import { clearDustField, createDustField } from './dust.js';
 import { STORY_HEIGHT, clearance, closestOnSegment, lineOfSight, pointInPolygon, storyAt } from './geometry.js';
 import { audio } from './audio.js';
 import ancientRuinsData from './ancientRuinsData.json';
 import { floorHeightAt, hasChest, measureLocation, prepareLocation } from './location.js';
+import { pathGeometry } from './path-mesh.js';
 import { createPropField } from './props.js';
 import { DEAD_TREE_VARIANTS, ENVIRONMENT_PRESETS, trailBlocksProp } from './rooms.js';
 import { SCONCE_LIGHT_CULL_DISTANCE, createWallSconce } from './sconce.js';
+import { exitLoopHeightAt } from './world.js';
 
 const SCONCE_LIGHT_CULL_DISTANCE_SQ = SCONCE_LIGHT_CULL_DISTANCE * SCONCE_LIGHT_CULL_DISTANCE;
 
@@ -338,6 +340,9 @@ function addSlab(parent, rect, y, material, facingUp, batch, roomId) {
   const alongZ = Math.min(28, Math.max(1, Math.round(rect.d / 1.9)));
   const geometry = new THREE.PlaneGeometry(rect.w, rect.d, alongX, alongZ);
   geometry.rotateX(facingUp ? -Math.PI / 2 : Math.PI / 2);
+  // One repeat about every eight metres, same as the walls, so a stone floor reads as blocks
+  // rather than one stretched swatch.
+  scaleUvs(geometry, Math.max(rect.w / 8, 0.35), Math.max(rect.d / 8, 0.35));
   if (batch && roomId != null) {
     batch.place(material, geometry, rect.x + rect.w / 2, y, rect.z + rect.d / 2, 0, [roomId], false);
     return;
@@ -1083,6 +1088,56 @@ function buildApproach(outdoor, threshold, materials, colliders, layout, owned) 
   return { skyMap: skyTex, cap };
 }
 
+// The path from the exit door around the outside of the ruin, back to the entrance trail. Its banks
+// stay untagged by story: the path slopes between floors, and it never runs through a room. The
+// banks stop where they would cross the walk from the trail into the arch, or that walk is a wall.
+function entranceGap(layout) {
+  const entrance = layout.entrance;
+  const mouth = layout.approach?.samples?.[0];
+  if (!entrance?.a || !entrance?.b || !mouth) return null;
+  const pad = 1.6;
+  return {
+    minX: Math.min(entrance.a[0], entrance.b[0]) - pad,
+    maxX: Math.max(entrance.a[0], entrance.b[0]) + pad,
+    minZ: Math.min(entrance.a[1], entrance.b[1], mouth.z) - pad,
+    maxZ: Math.max(entrance.a[1], entrance.b[1], mouth.z) + pad,
+  };
+}
+
+function crossesGap(ax, az, bx, bz, gap) {
+  if (!gap) return false;
+  return Math.max(ax, bx) >= gap.minX && Math.min(ax, bx) <= gap.maxX
+    && Math.max(az, bz) >= gap.minZ && Math.min(az, bz) <= gap.maxZ;
+}
+
+function buildExitPath(outdoor, materials, colliders, layout, owned) {
+  const loop = layout.exitLoop;
+  const samples = loop?.samples;
+  if (!samples || samples.length < 2) return;
+  const pathMat = trackMaterial(owned, materials.dirt.clone());
+  pathMat.color.set(0xb08960);
+  const mesh = new THREE.Mesh(pathGeometry(samples), pathMat);
+  mesh.name = 'exit-loop';
+  mesh.receiveShadow = true;
+  mesh.castShadow = false;
+  outdoor.add(mesh);
+  const gap = entranceGap(layout);
+  for (let index = 0; index < samples.length - 1; index += 1) {
+    const a = samples[index];
+    const b = samples[index + 1];
+    if ((a.s || 0) < 14) continue;
+    for (const sign of [-1, 1]) {
+      const off = (a.half || 3) + 0.4;
+      const ax = a.x + (a.nx || 0) * sign * off;
+      const az = a.z + (a.nz || 0) * sign * off;
+      const bx = b.x + (b.nx || 0) * sign * off;
+      const bz = b.z + (b.nz || 0) * sign * off;
+      if (crossesGap(ax, az, bx, bz, gap)) continue;
+      colliders.push(segmentCollider(ax, az, bx, bz, (a.nx || 0) * sign, (a.nz || 0) * sign));
+    }
+  }
+}
+
 // Walls and slabs are drawn as instances of one BatchedMesh per material. `place` only records what
 // goes where; `finish` sizes each batch to exactly what was placed (a location can be any size) and
 // builds it. A part is drawn while any of its rooms is active.
@@ -1207,7 +1262,7 @@ function buildDungeon(scene, materials, layout, renderer) {
   const propItems = [];
   for (const room of rooms) {
     const floorMaterial = materials.floor(room.theme);
-    const ceilingMaterial = room.theme === 'cave' ? materials.ceilingCave : materials.ceiling;
+    const ceilingMaterial = materials.ceilingFor(room.theme);
     const ceilingY = room.y + room.storyHeight;
     if (room.stair) {
       batch.place(floorMaterial, rampGeometry(room), 0, 0, 0, 0, [room.id], false);
@@ -1260,13 +1315,17 @@ function buildDungeon(scene, materials, layout, renderer) {
     }
   }
 
-  buildWalls(root, materials, colliders, rooms, layout.entrance ? [...doors, layout.entrance] : doors, batch);
+  const wallDoors = [...doors];
+  if (layout.entrance) wallDoors.push(layout.entrance);
+  if (layout.exitLoop?.door) wallDoors.push(layout.exitLoop.door);
+  buildWalls(root, materials, colliders, rooms, wallDoors, batch);
   batch.finish();
   const approachFrom = colliders.length;
   const approachBuilt = buildApproach(outdoorGroup, thresholdGroup, materials, colliders, layout, owned);
   // The approach, the arch and the trail are ground level. Nothing built outside lets the walls of
   // the trail bar a player standing on an upper floor above it.
   for (let i = approachFrom; i < colliders.length; i += 1) colliders[i].story = 0;
+  buildExitPath(outdoorGroup, materials, colliders, layout, owned);
   const skyMap = approachBuilt?.skyMap || null;
 
   const propMaterials = {
@@ -1288,14 +1347,9 @@ function buildDungeon(scene, materials, layout, renderer) {
   colliders.push(...roomProps.colliders, ...sceneryProps.colliders);
 
   const entrance = layout.entrance;
-  const gateCollider = entrance
-    ? segmentCollider(entrance.a[0], entrance.a[1], entrance.b[0], entrance.b[1], 0, 1)
-    : null;
-  if (gateCollider) {
-    gateCollider.story = 0;
-    colliders.push(gateCollider);
-  }
-  let gateOpen = false;
+  // A location asks for nothing, so the arch is not a closed gate.
+  const gateCollider = null;
+  let gateOpen = true;
   const activeList = [];
 
   const dust = createDustField(root);
@@ -1335,6 +1389,8 @@ function buildDungeon(scene, materials, layout, renderer) {
   scene.fog = expFog;
 
   let zoneId = 'worn-trail';
+  let ambientSlider = 0;
+  let fillBase = DAY_FILL;
 
   function applyEnvironment(preset) {
     const source = preset || ENVIRONMENT_PRESETS.day;
@@ -1342,7 +1398,8 @@ function buildDungeon(scene, materials, layout, renderer) {
     const day = source.skyboxVisible !== false;
     sun.intensity = day ? SUN_OUTDOOR : 0;
     sky.intensity = day ? SKY_OUTDOOR : 0;
-    fill.intensity = source.ambientLightIntensity;
+    fillBase = source.ambientLightIntensity;
+    fill.intensity = ambientFill(fillBase, ambientSlider);
     bgColor.set(source.clearColor || (fog && fog.color) || '#000000');
     scene.background = bgColor;
     if (fog && Number.isFinite(fog.density)) {
@@ -1369,7 +1426,7 @@ function buildDungeon(scene, materials, layout, renderer) {
     blend.fromSky = sky.intensity;
     blend.toSky = day ? SKY_OUTDOOR : 0;
     blend.fromFill = fill.intensity;
-    blend.toFill = source.ambientLightIntensity;
+    blend.toFill = ambientFill(source.ambientLightIntensity, ambientSlider);
     blendFrom.copy(scene.fog.color);
     blendTo.set((source.fog && source.fog.color) || source.clearColor || '#000000');
     blend.fromDensity = scene.fog === expFog ? expFog.density : THEME.outdoor.density;
@@ -1455,6 +1512,7 @@ function buildDungeon(scene, materials, layout, renderer) {
     }
     if (count === 1) return first;
     if (count > 1) return keep || first;
+    if (exitLoopHeightAt(layout.exitLoop, x, z) !== null) return outdoors;
     if (previous && onLevel(previous, level) && clearance(x, z, previous.polygon) > -0.8) return previous;
     let nearest = null;
     let nearestDist = Infinity;
@@ -1512,7 +1570,7 @@ function buildDungeon(scene, materials, layout, renderer) {
   }
 
   function offerSconce(state, livingIn) {
-    if (!state.equipped) return false;
+    if (!state.torch) return false;
     for (const sconce of sconces) {
       if (sconce.interactable.lit) continue;
       if (Number.isFinite(state.y) && Math.abs(state.y - sconce.y) > SAME_FLOOR) continue;
@@ -1525,7 +1583,7 @@ function buildDungeon(scene, materials, layout, renderer) {
         torchZ: state.guardZ,
         swing: state.swinging,
         use: state.usePressed,
-        block: state.blocking && state.blockBlend >= 0.6,
+        block: state.blocking && state.blockBlend >= GUARD_READY,
         clear: livingIn(sconce.roomId) === 0,
       });
       if (!lit) continue;
@@ -1554,6 +1612,15 @@ function buildDungeon(scene, materials, layout, renderer) {
   applyEnvironment(ENVIRONMENT_PRESETS.day);
   showZone('worn-trail');
 
+  let shown = true;
+  function setShown(next) {
+    if (next === shown) return;
+    shown = next;
+    root.visible = next;
+    if (next) scene.add(sun, sunTarget, sky, fill);
+    else scene.remove(sun, sunTarget, sky, fill);
+  }
+
   return {
     rooms,
     doors,
@@ -1570,6 +1637,9 @@ function buildDungeon(scene, materials, layout, renderer) {
     // What there is to do here: enemies placed and chests placed. Completion is measured against it.
     totals,
     group: root,
+    transitions: layout.transitions,
+    labels: layout.zoneLabels,
+    placeName: layout.placeName || layout.areaName,
     gateInward: layout.gateInward || { x: 0, z: -1 },
     intruded: false,
     activeRooms: new Set(),
@@ -1579,6 +1649,10 @@ function buildDungeon(scene, materials, layout, renderer) {
     roomAt,
     // The height of the floor under (x, z): flat in a room, a slope in a stairwell, ground outside.
     floorY(x, z, room) {
+      if (!room || room.theme === 'outdoor' || room.kind === 'exterior') {
+        const loopY = exitLoopHeightAt(layout.exitLoop, x, z);
+        if (loopY !== null) return loopY;
+      }
       return floorHeightAt(room, x, z);
     },
     // The room to walk into from room `from` to get to room `goal` (indexes into `rooms`), or -1.
@@ -1609,6 +1683,16 @@ function buildDungeon(scene, materials, layout, renderer) {
     isGateOpen() {
       return gateOpen;
     },
+    // 0 keeps the place's own fill. Higher raises it so a room is readable without a torch.
+    setAmbient(slider) {
+      ambientSlider = slider;
+      if (blend.left > 0) {
+        const pendingBase = blend.pending ? blend.pending.ambientLightIntensity : fillBase;
+        blend.toFill = ambientFill(pendingBase, ambientSlider);
+        return;
+      }
+      fill.intensity = ambientFill(fillBase, ambientSlider);
+    },
     showZone,
     applyEnvironment,
     blendEnvironment,
@@ -1618,6 +1702,7 @@ function buildDungeon(scene, materials, layout, renderer) {
     },
     offerSconce,
     openChestAt,
+    setShown,
     lootTaken() {
       return chests.filter((chest) => chest.opened).length;
     },

@@ -2,10 +2,16 @@
 import * as THREE from 'three';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ancientRuinsData from './ancientRuinsData.json';
-import { SKELETON_NAME } from './balance.js';
+import { AMBIENT_SLIDER_MAX, PLAYER_RADIUS, SKELETON_NAME } from './balance.js';
 import { ancientRuinsLayout, createDungeon } from './dungeon.js';
-import { generateLayout } from './rooms.js';
+import { resolveBody } from './geometry.js';
+import { generateLayout, ENVIRONMENT_PRESETS } from './rooms.js';
 import { withTestMaterials } from './test-utils/testMaterials.js';
+import { connectWorld } from './world.js';
+import hubFile from '../public/campfireHub.json';
+import smRuins from '../public/smRuins.json';
+import lgRuins from '../public/lgRuins.json';
+import medRuins from '../public/medRuins.json';
 
 let testMaterials;
 
@@ -79,18 +85,15 @@ describe('createDungeon', () => {
     dungeon.dispose();
   });
 
-  it('openGate() removes the entrance collider so nearGate no longer reports the gate as closed-but-near', () => {
+  it('leaves the entrance open, since a location requires nothing to walk in', () => {
     const scene = new THREE.Scene();
     const layout = generateLayout(7);
     const dungeon = createDungeon(scene, testMaterials.materials, layout);
 
     const gateX = (layout.entrance.a[0] + layout.entrance.b[0]) / 2;
     const gateZ = (layout.entrance.a[1] + layout.entrance.b[1]) / 2;
-    expect(dungeon.nearGate(gateX, gateZ)).toBe(true);
-
-    dungeon.openGate();
+    expect(dungeon.isGateOpen()).toBe(true);
     expect(dungeon.nearGate(gateX, gateZ)).toBe(false);
-    // Calling it again must not throw or remove anything else.
     expect(() => dungeon.openGate()).not.toThrow();
 
     dungeon.dispose();
@@ -278,6 +281,73 @@ describe('createDungeon', () => {
     const arrived = dungeon.roomAt(hub.x + hub.w / 2, hub.z + hub.d / 2, null);
     expect(arrived.name).toBe('Mountain Pass');
 
+    dungeon.dispose();
+  });
+
+  it('raises the interior fill when ambient light is slid up, and leaves zero dark', () => {
+    const scene = new THREE.Scene();
+    const layout = generateLayout(7);
+    const dungeon = createDungeon(scene, testMaterials.materials, layout);
+    dungeon.applyEnvironment(ENVIRONMENT_PRESETS.interior);
+    const fill = scene.children.find((child) => child.isAmbientLight);
+    expect(fill.intensity).toBeCloseTo(ENVIRONMENT_PRESETS.interior.ambientLightIntensity, 5);
+    dungeon.setAmbient(1);
+    expect(fill.intensity).toBeCloseTo(AMBIENT_SLIDER_MAX, 5);
+    dungeon.setAmbient(0);
+    expect(fill.intensity).toBeCloseTo(ENVIRONMENT_PRESETS.interior.ambientLightIntensity, 5);
+    dungeon.dispose();
+  });
+
+  it('covers each room in the texture of its theme', () => {
+    const scene = new THREE.Scene();
+    const dungeon = createDungeon(scene, testMaterials.materials, structuredClone(smRuins));
+    const used = new Set();
+    dungeon.group.traverse((obj) => {
+      if (obj.isBatchedMesh) used.add(obj.material);
+    });
+    const mats = testMaterials.materials;
+    for (const theme of ['stone', 'wood', 'cave']) {
+      expect(used.has(mats.surface(theme))).toBe(true);
+      expect(used.has(mats.floor(theme))).toBe(true);
+      expect(used.has(mats.ceilingFor(theme))).toBe(true);
+      expect(mats.surface(theme).map).toBeTruthy();
+      expect(mats.floor(theme).map).toBe(mats.surface(theme).map);
+      expect(mats.ceilingFor(theme).map).toBe(mats.surface(theme).map);
+    }
+    dungeon.dispose();
+  });
+
+  it('does not wall the trail off from the arch', () => {
+    const world = connectWorld(hubFile, [
+      { name: 'smRuins.json', data: smRuins },
+      { name: 'lgRuins.json', data: lgRuins },
+      { name: 'medRuins.json', data: medRuins },
+    ]);
+    const scene = new THREE.Scene();
+    const layout = world.bindings[0].layout;
+    const dungeon = createDungeon(scene, testMaterials.materials, layout);
+    const entry = layout.transitions.find((item) => item.id === 'ruin-entry');
+    const door = layout.entrance;
+    let x = layout.start.x;
+    let z = layout.start.z;
+    let y = 0;
+    const targetX = (door.a[0] + door.b[0]) / 2;
+    const targetZ = door.a[1] - 4;
+    let reached = false;
+    for (let step = 0; step < 500 && !reached; step += 1) {
+      const dx = targetX - x;
+      const dz = targetZ - z;
+      const len = Math.hypot(dx, dz) || 1;
+      const resolved = resolveBody(x + (dx / len) * 0.16, z + (dz / len) * 0.16, PLAYER_RADIUS, dungeon.colliders, y);
+      const room = dungeon.roomAt(resolved.x, resolved.z, null, y);
+      y = dungeon.floorY(resolved.x, resolved.z, room);
+      x = resolved.x;
+      z = resolved.z;
+      reached = x >= entry.volume.minX && x <= entry.volume.maxX
+        && z >= entry.volume.minZ && z <= entry.volume.maxZ
+        && y >= entry.volume.minY && y <= entry.volume.maxY;
+    }
+    expect(reached).toBe(true);
     dungeon.dispose();
   });
 
