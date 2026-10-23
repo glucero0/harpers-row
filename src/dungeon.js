@@ -236,6 +236,8 @@ function disposeTree(node) {
 function buildWalls(root, materials, colliders, rooms, doors, batch) {
   const groups = new Map();
   for (const room of rooms) {
+    const y0 = room.y || 0;
+    const y1 = y0 + (room.storyHeight || WALL_HEIGHT);
     const polygon = room.polygon;
     for (let story = room.storyFirst; story <= room.storyLast; story += 1) {
       for (let i = 0; i < polygon.length; i += 1) {
@@ -266,19 +268,44 @@ function buildWalls(root, materials, colliders, rooms, doors, batch) {
       if (distA > 0.4 || distB > 0.4) continue;
       const tA = door.a[0] * group.dx + door.a[1] * group.dz;
       const tB = door.b[0] * group.dx + door.b[1] * group.dz;
+      const base = door.y || 0;
+      const rise = Math.max(6.2, door.height || DOOR_HEIGHT);
       gaps.push({
         t0: Math.min(tA, tB),
         t1: Math.max(tA, tB),
-        height: door.height || DOOR_HEIGHT,
+        y0: base,
+        y1: base + rise,
       });
     }
-    const coverSpans = group.covers.map((cover) => [cover.t0, cover.t1]);
-    for (const [t0, t1] of subtractIntervals(coverSpans, gaps.map((gap) => [gap.t0, gap.t1]))) {
-      const [ax, az] = pointAt(group, t0);
-      const [bx, bz] = pointAt(group, t1);
+    const marks = [];
+    for (const cover of group.covers) marks.push(cover.t0, cover.t1);
+    for (const gap of gaps) marks.push(gap.t0, gap.t1);
+    marks.sort((a, b) => a - b);
+    const unique = [];
+    for (const mark of marks) {
+      if (!unique.length || mark - unique[unique.length - 1] > 0.02) unique.push(mark);
+    }
+    // Collinear pieces of one story become a single wall. A door's sill cuts that run
+    // where the opening is, and the lintel above it stays its own span.
+    const runs = [];
+    for (let index = 0; index < unique.length - 1; index += 1) {
+      const t0 = unique[index];
+      const t1 = unique[index + 1];
+      if (t1 - t0 < 0.2) continue;
+      const mid = (t0 + t1) / 2;
+      const covers = group.covers.filter((cover) => mid >= cover.t0 - 0.02 && mid <= cover.t1 + 0.02);
+      if (!covers.length) continue;
+      let bands = mergeIntervals(covers.map((cover) => [cover.y0, cover.y1]));
+      for (const gap of gaps) {
+        if (gap.t1 < t0 + 0.02 || gap.t0 > t1 - 0.02) continue;
+        bands = subtractIntervals(bands, [[gap.y0, gap.y1]]);
+      }
+      bands = bands.filter((band) => band[1] - band[0] >= 0.15);
+      if (!bands.length) continue;
+      const theme = themeAt(covers, mid);
+      const signature = `${theme}|${bands.map((band) => band.join(',')).join(';')}`;
       const roomIds = [];
-      for (const cover of group.covers) {
-        if (cover.t1 < t0 - 0.02 || cover.t0 > t1 + 0.02) continue;
+      for (const cover of covers) {
         if (!roomIds.includes(cover.room.id)) roomIds.push(cover.room.id);
       }
       addWall(root, ax, az, bx, bz, themeAt(group.covers, (t0 + t1) / 2), materials, colliders, WALL_HEIGHT, baseY, true, batch, roomIds, undefined, story);
@@ -333,6 +360,34 @@ function segmentCollider(ax, az, bx, bz, nx, nz) {
     minZ: Math.min(az, bz),
     maxZ: Math.max(az, bz),
   };
+}
+
+function addStairs(root, room, materials, batch) {
+  const stair = room.stair;
+  if (!stair?.low || !stair.high) return;
+  const dx = stair.high[0] - stair.low[0];
+  const dz = stair.high[1] - stair.low[1];
+  const length = Math.hypot(dx, dz);
+  if (length < 0.5) return;
+  const steps = 8;
+  const rise = (stair.toY - stair.fromY) / steps;
+  const run = length / steps;
+  const rotY = Math.atan2(-dz, dx);
+  const material = materials.surface(room.theme || 'stone');
+  for (let step = 0; step < steps; step += 1) {
+    const t = (step + 0.5) / steps;
+    const geometry = new THREE.BoxGeometry(Math.max(0.4, run), Math.max(0.2, rise), 4.2);
+    batch.place(
+      material,
+      geometry,
+      stair.low[0] + dx * t,
+      stair.fromY + rise * (step + 0.5),
+      stair.low[1] + dz * t,
+      rotY,
+      [room.id],
+      true,
+    );
+  }
 }
 
 function addSlab(parent, rect, y, material, facingUp, batch, roomId) {

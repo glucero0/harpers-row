@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
-import { closestApproach3 } from './geometry.js';
+import { closestApproach3, floorHeight, resolveBody } from './geometry.js';
 
 test('closestApproach3 measures the 3D distance from a point to a segment', () => {
   const mid = closestApproach3(0, 0, 0, 10, 0, 0, 5, 3, 4);
@@ -16,4 +16,29 @@ test('closestApproach3 measures the 3D distance from a point to a segment', () =
   // A zero length segment is just a point.
   const point = closestApproach3(1, 1, 1, 1, 1, 1, 4, 5, 1);
   assert.ok(Math.abs(point.distance - 5) < 1e-9);
+});
+
+test('resolveBody ignores a wall on another story', () => {
+  const lowerWall = {
+    ax: -2, az: 0, bx: 2, bz: 0, nx: 0, nz: 1,
+    minX: -2, maxX: 2, minZ: 0, maxZ: 0,
+    y0: 0, y1: 10,
+  };
+  const blocked = resolveBody(0, 0.2, 0.5, [lowerWall], 0);
+  assert.ok(Math.abs(blocked.z) > 0.4);
+  const above = resolveBody(0, 0.2, 0.5, [lowerWall], 10);
+  assert.ok(Math.abs(above.x) < 1e-9);
+  assert.ok(Math.abs(above.z - 0.2) < 1e-9);
+});
+
+test('floorHeight ramps a stairwell from the lower sill to the upper sill', () => {
+  const stair = {
+    y: 0,
+    stair: { fromY: 0, toY: 10, low: [0, 0], high: [0, -16] },
+  };
+  assert.ok(Math.abs(floorHeight(stair, 0, 0) - 0) < 1e-9);
+  assert.ok(Math.abs(floorHeight(stair, 0, -16) - 10) < 1e-9);
+  assert.ok(Math.abs(floorHeight(stair, 0, -8) - 5) < 1e-9);
+  assert.equal(floorHeight({ y: 10 }, 1, 1), 10);
+  assert.equal(floorHeight({ theme: 'outdoor' }, 1, 1), 0);
 });

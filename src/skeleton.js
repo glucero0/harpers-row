@@ -822,6 +822,7 @@ export function createSkeletons(parent, dungeon, materials) {
   // then throw it away from the blow with its own spin.
   function shatter(skeleton, dirX, dirZ) {
     const mesh = skeleton.mesh;
+    const support = debrisSupport(skeleton);
     mesh.root.updateWorldMatrix(true, true);
     const group = new THREE.Group();
     group.name = 'bone-debris';
@@ -907,6 +908,8 @@ export function createSkeletons(parent, dungeon, materials) {
       life: 15 + Math.random() * 5,
       resting: false,
       fade: null,
+      floorY: support.floor,
+      ceilingY: support.ceiling,
     };
   }
 
@@ -919,6 +922,17 @@ export function createSkeletons(parent, dungeon, materials) {
       if (tmp.y < low) low = tmp.y;
     }
     return node.position.y + low;
+  }
+
+  function highestPoint(piece) {
+    const node = piece.node;
+    if (piece.ball) return node.position.y + piece.ball;
+    let high = -Infinity;
+    for (const corner of piece.corners) {
+      tmp.copy(corner).applyQuaternion(node.quaternion);
+      if (tmp.y > high) high = tmp.y;
+    }
+    return node.position.y + high;
   }
 
   // The orientation a tumbling bone settles into: lying on its broadest face, a long thin bone on its side.
@@ -953,6 +967,8 @@ export function createSkeletons(parent, dungeon, materials) {
 
   function stepPiece(piece, step, floor) {
     const node = piece.node;
+    const ground = restingFloor(floorY, floorY, ceilingY);
+    const slab = ceilingY - 0.05;
     piece.vel.y -= DEBRIS_GRAVITY * step;
     node.position.addScaledVector(piece.vel, step);
     if (piece.mode === 'settle' && piece.target) {
@@ -963,6 +979,12 @@ export function createSkeletons(parent, dungeon, materials) {
         tmpQuat.setFromAxisAngle(tmpAxis.copy(piece.spin).divideScalar(speed), speed * step);
         node.quaternion.premultiply(tmpQuat);
       }
+    }
+
+    const high = highestPoint(piece);
+    if (high > slab) {
+      node.position.y -= high - slab;
+      if (piece.vel.y > 0) piece.vel.y = 0;
     }
 
     let grounded = false;
