@@ -137,38 +137,9 @@ const DEBRIS_MIN_IMPACT = 0.8 * METER;
 const DEBRIS_REST_ENERGY = 0.06;
 const DEBRIS_RADIUS = 0.25;
 const DEBRIS_FADE_SECONDS = 2.5;
-const ROOM_STORY = 10;
-
-function storySpan(room) {
-  const y0 = room && Number.isFinite(room.y) ? room.y : 0;
-  const height = room && Number.isFinite(room.storyHeight) && room.storyHeight > 0 ? room.storyHeight : ROOM_STORY;
-  return { y0, y1: y0 + height };
-}
-
-function feetOnStory(feet, span) {
-  return feet >= span.y0 - 0.05 && feet < span.y1 - 0.5;
-}
-
-// Floor the bones may land on, and the ceiling they must stay under. A value at the
-// top of the story is the slab overhead (the next floor, y + 10 on a normal room).
-function debrisSupport(skeleton) {
-  const here = storySpan(skeleton.at || skeleton.room);
-  const feet = Number.isFinite(skeleton.y) ? skeleton.y : here.y0;
-  if (feetOnStory(feet, here)) return { floor: feet, ceiling: here.y1 };
-  const home = storySpan(skeleton.room);
-  return {
-    floor: feetOnStory(feet, home) ? feet : home.y0,
-    ceiling: home.y1,
-  };
-}
-
-// Downward landing probe. It starts under the ceiling and can only return this story's floor.
-function restingFloor(sampleY, floor, ceiling) {
-  const slab = (Number.isFinite(ceiling) ? ceiling : floor + ROOM_STORY) - 0.05;
-  const plane = Number.isFinite(floor) ? floor : 0;
-  if (sampleY >= slab || plane >= slab) return plane < slab ? plane : slab - (ROOM_STORY - 0.05);
-  return plane;
-}
+// Two bodies are on the same level (can see, reach and shoot each other) when their feet are within
+// this height. A stairwell slope stays inside it over a few steps; another story never does.
+const SAME_LEVEL = 4.5;
 
 function makePose(source) {
   return { ...source };
@@ -602,8 +573,8 @@ export function createSkeletons(parent, dungeon, materials) {
     room.spawns.forEach((spawn, slot) => {
       const weapon = skeletonWeapon(spawnId);
       const mesh = buildMesh(materials, weapon);
-      const spawnY = room.y || 0;
-      mesh.root.position.set(spawn[0], spawnY, spawn[1]);
+      const floorY = dungeon.floorY ? dungeon.floorY(spawn[0], spawn[1], room) : 0;
+      mesh.root.position.set(spawn[0], floorY, spawn[1]);
       parent.add(mesh.root);
       mesh.root.visible = false;
       list.push({
@@ -613,8 +584,9 @@ export function createSkeletons(parent, dungeon, materials) {
         slot,
         spawnX: spawn[0],
         spawnZ: spawn[1],
-        y: spawnY,
+        spawnY: floorY,
         x: spawn[0],
+        y: floorY,
         z: spawn[1],
         yaw: Math.random() * Math.PI * 2,
         hp: SKELETON_HP,
@@ -656,53 +628,20 @@ export function createSkeletons(parent, dungeon, materials) {
     });
   }
 
-  const neighbors = new Map();
-  for (const room of dungeon.rooms) neighbors.set(room.id, []);
-  for (const door of dungeon.doors) {
-    const from = dungeon.rooms.find((room) => room.id === door.from);
-    const to = dungeon.rooms.find((room) => room.id === door.to);
-    if (!from || !to) continue;
-    neighbors.get(from.id).push({ door, other: to });
-    neighbors.get(to.id).push({ door, other: from });
-  }
-
-  // The first door on a path through the door graph. A straight chain matches the old
-  // index walk; a T junction follows the arm that actually leads home.
-  function firstStepToward(fromRoom, goalRoom) {
-    if (!fromRoom?.id || !goalRoom?.id || fromRoom.id === goalRoom.id) return null;
-    if (!neighbors.has(fromRoom.id) || !neighbors.has(goalRoom.id)) return null;
-    const previous = new Map([[fromRoom.id, null]]);
-    const queue = [fromRoom.id];
-    while (queue.length) {
-      const id = queue.shift();
-      if (id === goalRoom.id) break;
-      for (const step of neighbors.get(id)) {
-        if (previous.has(step.other.id)) continue;
-        previous.set(step.other.id, { via: id, door: step.door, other: step.other });
-        queue.push(step.other.id);
-      }
-    }
-    if (!previous.has(goalRoom.id)) return null;
-    let cursor = goalRoom.id;
-    let edge = null;
-    while (cursor !== fromRoom.id) {
-      edge = previous.get(cursor);
-      if (!edge) return null;
-      cursor = edge.via;
-    }
-    return edge;
-  }
-
-  // Where to walk next to reach the home room. The skeleton lines up a short way in front of
-  // the doorway first, then walks straight through it, so it never grinds along the door frame.
+  // Where to walk next to reach `goal` in the space numbered `goalIndex`. Rooms and passages form a
+  // tree joined by doors (branches, stairs and all), so the way is the shortest path through it: the
+  // next door on that path. The skeleton lines up a short way in front of the doorway first, then
+  // walks straight through it, so it never grinds along the door frame. In the goal's own space it
+  // walks straight at the goal.
   const lead = { x: 0, z: 0 };
   function routeTarget(skeleton, goalIndex, goal) {
     const space = skeleton.at;
-    if (!space || space.index === goalIndex) return goal;
-    const edge = firstStepToward(space, skeleton.room);
-    if (!edge) return goal;
-    const door = edge.door;
-    const next = edge.other;
+    if (space.index === goalIndex) return goal;
+    const hop = dungeon.nextHop(space.index, goalIndex);
+    if (hop < 0) return goal;
+    const door = dungeon.doorBetween(space.index, hop);
+    if (!door) return goal;
+    const next = dungeon.rooms[hop];
     const midX = (door.a[0] + door.b[0]) / 2;
     const midZ = (door.a[1] + door.b[1]) / 2;
     let nx = -(door.b[1] - door.a[1]);
@@ -741,7 +680,7 @@ export function createSkeletons(parent, dungeon, materials) {
     const travel = Math.max(0.05, dist / ARROW_SPEED);
     const vx = (dx / dist) * ARROW_SPEED;
     const vz = (dz / dist) * ARROW_SPEED;
-    const vy = (ARROW_AIM_HEIGHT - origin.y) / travel;
+    const vy = (ARROW_AIM_HEIGHT + (player.y || 0) - origin.y) / travel;
     const flight = makeArrow(materials);
     fitArrow(flight, nocked.length);
     flight.group.position.copy(origin);
@@ -758,7 +697,8 @@ export function createSkeletons(parent, dungeon, materials) {
       // Pivot-to-head distance, used to seat the head on whatever it strikes.
       half: nocked.length / 2 + 0.14,
       bounced: false,
-      floorY: skeleton.y || 0,
+      // The arrow is spent when it drops to the floor it was shot over.
+      floor: skeleton.y + 0.1,
       mesh: flight.group,
     });
     skeleton.nocked = false;
@@ -820,7 +760,8 @@ export function createSkeletons(parent, dungeon, materials) {
           continue;
         }
         const closest = closestOnSegment(player.x, player.z, arrow.x, arrow.z, nextX, nextZ);
-        if (Math.hypot(player.x - closest.x, player.z - closest.z) < 0.9) {
+        const level = Math.abs(arrow.y - ((player.y || 0) + ARROW_AIM_HEIGHT)) < SAME_LEVEL;
+        if (level && Math.hypot(player.x - closest.x, player.z - closest.z) < 0.9) {
           if (hurt(SKELETON_DAMAGE, { kind: 'arrow', x: arrow.x, z: arrow.z }) === 'hit') audio.hurt();
           removeArrow(index);
           continue;
@@ -837,7 +778,7 @@ export function createSkeletons(parent, dungeon, materials) {
         bounceSpin.setFromAxisAngle(arrow.spinAxis, arrow.spinRate * dt);
         arrow.mesh.quaternion.premultiply(bounceSpin);
       }
-      if (blocked || arrow.age > (arrow.bounced ? 1.8 : 1.4) || arrow.y < (arrow.floorY || 0) + 0.1) removeArrow(index);
+      if (blocked || arrow.age > (arrow.bounced ? 1.8 : 1.4) || arrow.y < arrow.floor) removeArrow(index);
     }
   }
 
@@ -891,7 +832,7 @@ export function createSkeletons(parent, dungeon, materials) {
     if (mesh.bow) mesh.bow.arrow.group.visible = false;
     for (const spec of mesh.pieces) group.attach(spec.node);
 
-    const impact = new THREE.Vector3(skeleton.x - dirX * 0.6, support.floor + 3.6, skeleton.z - dirZ * 0.6);
+    const impact = new THREE.Vector3(skeleton.x - dirX * 0.6, skeleton.y + 3.6, skeleton.z - dirZ * 0.6);
     const pieces = mesh.pieces.map((spec) => {
       const node = spec.node;
       const box = localBounds(node);
@@ -934,7 +875,7 @@ export function createSkeletons(parent, dungeon, materials) {
       const meshBit = looseFragment(kind, materials.bone);
       meshBit.position.set(
         skeleton.x + (Math.random() - 0.5) * 0.8,
-        support.floor + 2.4 + Math.random() * 2.2,
+        skeleton.y + 2.4 + Math.random() * 2.2,
         skeleton.z + (Math.random() - 0.5) * 0.8,
       );
       group.add(meshBit);
@@ -961,6 +902,8 @@ export function createSkeletons(parent, dungeon, materials) {
     skeleton.debris = {
       group,
       pieces,
+      // The floor the bones land on: the one the skeleton fell over.
+      floor: skeleton.y,
       age: 0,
       life: 15 + Math.random() * 5,
       resting: false,
@@ -1022,7 +965,7 @@ export function createSkeletons(parent, dungeon, materials) {
     piece.node.matrixAutoUpdate = false;
   }
 
-  function stepPiece(piece, step, floorY = 0, ceilingY = floorY + ROOM_STORY) {
+  function stepPiece(piece, step, floor) {
     const node = piece.node;
     const ground = restingFloor(floorY, floorY, ceilingY);
     const slab = ceilingY - 0.05;
@@ -1046,9 +989,8 @@ export function createSkeletons(parent, dungeon, materials) {
 
     let grounded = false;
     const low = lowestPoint(piece);
-    const landing = restingFloor(low, ground, ceilingY);
-    if (low < landing) {
-      node.position.y += landing - low;
+    if (low < floor) {
+      node.position.y += floor - low;
       if (piece.vel.y < -DEBRIS_MIN_IMPACT && piece.bounces < DEBRIS_MAX_BOUNCES) {
         piece.vel.y *= -DEBRIS_BOUNCE;
         piece.vel.x *= 0.6;
@@ -1076,7 +1018,7 @@ export function createSkeletons(parent, dungeon, materials) {
     }
 
     if (piece.vel.x * piece.vel.x + piece.vel.z * piece.vel.z > 0.01) {
-      const resolved = resolveBody(node.position.x, node.position.z, DEBRIS_RADIUS, dungeon.colliders, landing);
+      const resolved = resolveBody(node.position.x, node.position.z, DEBRIS_RADIUS, dungeon.colliders, floor);
       if (resolved.x !== node.position.x || resolved.z !== node.position.z) {
         node.position.x = resolved.x;
         node.position.z = resolved.z;
@@ -1132,9 +1074,7 @@ export function createSkeletons(parent, dungeon, materials) {
       let moving = 0;
       for (const piece of debris.pieces) {
         if (piece.mode === 'rest') continue;
-        const floorY = Number.isFinite(debris.floorY) ? debris.floorY : 0;
-        const ceilingY = Number.isFinite(debris.ceilingY) ? debris.ceilingY : floorY + ROOM_STORY;
-        stepPiece(piece, step, floorY, ceilingY);
+        stepPiece(piece, step, debris.floor);
         if (piece.mode !== 'rest') moving += 1;
       }
       if (moving === 0 || debris.age > 6) {
@@ -1160,9 +1100,8 @@ export function createSkeletons(parent, dungeon, materials) {
     skeleton.knockX = (dirX / len) * 12;
     skeleton.knockZ = (dirZ / len) * 12;
     skeleton.aggro = true;
-    const support = debrisSupport(skeleton);
-    audio.hit({ x: skeleton.x, y: support.floor + 3.3, z: skeleton.z });
-    TriggerDustFall(skeleton.hp > 0 ? 1.15 : 2.5, { x: skeleton.x, y: support.floor + 3.4, z: skeleton.z });
+    audio.hit({ x: skeleton.x, y: skeleton.y + 3.3, z: skeleton.z });
+    TriggerDustFall(skeleton.hp > 0 ? 1.15 : 2.5, { x: skeleton.x, y: skeleton.y + 3.4, z: skeleton.z });
     if (skeleton.hp > 0) return false;
     skeleton.hp = 0;
     skeleton.dead = true;
@@ -1242,11 +1181,11 @@ export function createSkeletons(parent, dungeon, materials) {
     skeleton.z += skeleton.knockZ * dt;
     const knockedX = skeleton.x;
     const knockedZ = skeleton.z;
-    const resolved = resolveBody(skeleton.x, skeleton.z, SKELETON_RADIUS, dungeon.colliders, skeleton.y || 0);
+    const resolved = resolveBody(skeleton.x, skeleton.z, SKELETON_RADIUS, dungeon.colliders, skeleton.y);
     skeleton.x = resolved.x;
     skeleton.z = resolved.z;
     if (Math.hypot(resolved.x - knockedX, resolved.z - knockedZ) > 0.12) {
-      puffDust(skeleton, resolved.x, 3.6, resolved.z, 1.6);
+      puffDust(skeleton, resolved.x, skeleton.y + 3.6, resolved.z, 1.6);
     }
     const decay = Math.exp(-8 * dt);
     skeleton.knockX *= decay;
@@ -1352,9 +1291,12 @@ export function createSkeletons(parent, dungeon, materials) {
   const arrowAim = new THREE.Vector3();
   function update(dt, player, hurt, slider, running, realDt = dt) {
     paceByRoom.clear();
+    // Pace grows with how far a room is from the entrance, in rooms, not with its place in the file.
+    const depthCount = dungeon.depthCount ?? dungeon.rooms.length;
     for (const room of dungeon.rooms) {
-      paceByRoom.set(room.id, paceMultiplier(room.index, slider, dungeon.rooms.length));
+      paceByRoom.set(room.id, paceMultiplier(room.depth ?? room.index, slider, depthCount));
     }
+    const playerY = player.y || 0;
     for (const skeleton of list) {
       const pace = paceByRoom.get(skeleton.room.id);
       const mesh = skeleton.mesh;
@@ -1374,8 +1316,12 @@ export function createSkeletons(parent, dungeon, materials) {
         tickDebris(skeleton, dt);
         continue;
       }
-      skeleton.at = home && !skeleton.aggro ? skeleton.room : dungeon.roomAt(skeleton.x, skeleton.z, skeleton.at.id, skeleton.y || 0);
-      if (dungeon.floorY && skeleton.at) skeleton.y = dungeon.floorY(skeleton.at, skeleton.x, skeleton.z);
+      skeleton.at = home && !skeleton.aggro
+        ? skeleton.room
+        : dungeon.roomAt(skeleton.x, skeleton.z, skeleton.at.id, skeleton.y);
+      skeleton.y = dungeon.floorY ? dungeon.floorY(skeleton.x, skeleton.z, skeleton.at) : 0;
+      // Only a body on the same level can be seen, reached or shot: another story is a floor away.
+      const level = Math.abs(skeleton.y - playerY) < SAME_LEVEL;
       // Seeing the player is what starts the hunt: standing in the skeleton's room, or a clear line to
       // them through a doorway or down a passage. Once started it never ends on its own. The only way
       // out is the player's death, so a skeleton cannot lose interest and wander back to its circuit.
@@ -1383,9 +1329,8 @@ export function createSkeletons(parent, dungeon, materials) {
         const sameRoom = player.room && player.room.id === skeleton.room.id;
         const dx = player.x - skeleton.x;
         const dz = player.z - skeleton.z;
-        const sameStory = Math.abs((player.y || 0) - (skeleton.y || 0)) < 4;
-        if (sameStory && (sameRoom || (dx * dx + dz * dz < SKELETON_SIGHT_RANGE ** 2
-          && lineOfSight(skeleton.x, skeleton.z, player.x, player.z, dungeon.colliders, skeleton.y || 0)))) {
+        if (sameRoom || (level && dx * dx + dz * dz < SKELETON_SIGHT_RANGE ** 2
+          && lineOfSight(skeleton.x, skeleton.z, player.x, player.z, dungeon.colliders, skeleton.y))) {
           skeleton.aggro = true;
         }
       }
@@ -1426,8 +1371,7 @@ export function createSkeletons(parent, dungeon, materials) {
           z: player.z + Math.sin(ring) * 1.35,
         });
         const dist = Math.hypot(player.x - skeleton.x, player.z - skeleton.z);
-        const seen = Math.abs((player.y || 0) - (skeleton.y || 0)) < 4
-          && lineOfSight(skeleton.x, skeleton.z, player.x, player.z, dungeon.colliders, skeleton.y || 0);
+        const seen = level && lineOfSight(skeleton.x, skeleton.z, player.x, player.z, dungeon.colliders, skeleton.y);
         watching = seen;
         const range = skeletonAttackRange(skeleton.weapon);
         if (skeleton.state === 'windup') {
@@ -1482,7 +1426,7 @@ export function createSkeletons(parent, dungeon, materials) {
 
       if (running && (moving || skeleton.aggro)) {
         for (const other of list) {
-          if (other === skeleton || other.dead) continue;
+          if (other === skeleton || other.dead || Math.abs(other.y - skeleton.y) > SAME_LEVEL) continue;
           const dx = skeleton.x - other.x;
           const dz = skeleton.z - other.z;
           const dist = Math.hypot(dx, dz);
@@ -1493,11 +1437,11 @@ export function createSkeletons(parent, dungeon, materials) {
         }
         const intendedX = skeleton.x;
         const intendedZ = skeleton.z;
-        const resolved = resolveBody(skeleton.x, skeleton.z, SKELETON_RADIUS, dungeon.colliders, skeleton.y || 0);
+        const resolved = resolveBody(skeleton.x, skeleton.z, SKELETON_RADIUS, dungeon.colliders, skeleton.y);
         skeleton.x = resolved.x;
         skeleton.z = resolved.z;
         if (Math.hypot(resolved.x - intendedX, resolved.z - intendedZ) > 0.1) {
-          puffDust(skeleton, resolved.x, 4.2, resolved.z, 1.35);
+          puffDust(skeleton, resolved.x, skeleton.y + 4.2, resolved.z, 1.35);
         }
       }
       if (skeleton.dustWait > 0) skeleton.dustWait = Math.max(0, skeleton.dustWait - dt);
@@ -1519,7 +1463,11 @@ export function createSkeletons(parent, dungeon, materials) {
         const turn = skeleton.weapon === 'bow' && skeleton.state === 'windup' ? 9 : 2.2 + pace;
         skeleton.yaw += angleDiff(skeleton.yaw, desired) * Math.min(1, dt * turn);
       }
-      mesh.root.position.set(skeleton.x, skeleton.y || 0, skeleton.z);
+      // Stand on the floor under the new spot: a slope in a stairwell, the room's floor elsewhere.
+      if (skeleton.x !== startX || skeleton.z !== startZ) {
+        skeleton.y = dungeon.floorY ? dungeon.floorY(skeleton.x, skeleton.z, skeleton.at) : 0;
+      }
+      mesh.root.position.set(skeleton.x, skeleton.y, skeleton.z);
       mesh.root.rotation.y = skeleton.yaw;
       const away = (skeleton.x - player.x) ** 2 + (skeleton.z - player.z) ** 2;
       mesh.root.visible = away < 8100;
@@ -1592,6 +1540,7 @@ export function createSkeletons(parent, dungeon, materials) {
   function reset() {
     for (const skeleton of list) {
       skeleton.x = skeleton.spawnX;
+      skeleton.y = skeleton.spawnY;
       skeleton.z = skeleton.spawnZ;
       skeleton.hp = SKELETON_HP;
       skeleton.dead = false;
@@ -1638,9 +1587,7 @@ export function createSkeletons(parent, dungeon, materials) {
       mesh.spine.rotation.set(0, 0, 0);
       mesh.fall.position.set(0, 0, 0);
       mesh.fall.rotation.set(0, 0, 0);
-      const spawnY = Number.isFinite(skeleton.room?.y) ? skeleton.room.y : 0;
-      skeleton.y = spawnY;
-      mesh.root.position.set(skeleton.x, spawnY, skeleton.z);
+      mesh.root.position.set(skeleton.x, skeleton.y, skeleton.z);
       paintBones(mesh.root, materials.bone);
       skeleton.paint = materials.bone;
     }

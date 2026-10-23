@@ -1,0 +1,200 @@
+{
+  "version": 1,
+  "kind": "mace",
+  "id": "mace",
+  "name": "Oak-gripped Iron Knobbed Mace",
+  "seed": 1,
+  "hand": "right",
+  "parent": "rightHandSocket",
+  "castShadow": false,
+  "materials": {
+    "oak": {
+      "color": "#8a5a32",
+      "roughness": 0.78,
+      "metalness": 0.04
+    },
+    "iron": {
+      "color": "#8b939c",
+      "roughness": 0.45,
+      "metalness": 0.82
+    },
+    "rust": {
+      "color": "#6d5848",
+      "roughness": 0.7,
+      "metalness": 0.35
+    },
+    "cord": {
+      "color": "#a89878",
+      "roughness": 0.88,
+      "metalness": 0.0
+    }
+  },
+  "parts": [
+    {
+      "name": "grip",
+      "material": "oak",
+      "geometry": {
+        "type": "lathe",
+        "points": [
+          [
+            0.0144,
+            0.0
+          ],
+          [
+            0.0216,
+            0.0662
+          ],
+          [
+            0.018,
+            0.2269
+          ],
+          [
+            0.0204,
+            0.3781
+          ],
+          [
+            0.024,
+            0.4726
+          ]
+        ],
+        "segments": 12
+      },
+      "position": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "wrap1",
+      "material": "cord",
+      "geometry": {
+        "type": "torus",
+        "radius": 0.024,
+        "tube": 0.0056,
+        "radialSegments": 6,
+        "tubularSegments": 14
+      },
+      "position": [
+        0.0,
+        0.1575,
+        0.0
+      ],
+      "rotation": {
+        "x": 90.0,
+        "y": 0.0,
+        "z": 0.0,
+        "unit": "degrees"
+      }
+    },
+    {
+      "name": "wrap2",
+      "material": "cord",
+      "geometry": {
+        "type": "torus",
+        "radius": 0.024,
+        "tube": 0.0056,
+        "radialSegments": 6,
+        "tubularSegments": 14
+      },
+      "position": [
+        0.0,
+        0.3151,
+        0.0
+      ],
+      "rotation": {
+        "x": 90.0,
+        "y": 0.0,
+        "z": 0.0,
+        "unit": "degrees"
+      }
+    },
+    {
+      "name": "collar",
+      "material": "iron",
+      "geometry": {
+        "type": "cylinder",
+        "radiusTop": 0.025,
+        "radiusBottom": 0.028,
+        "height": 0.0567,
+        "radialSegments": 12
+      },
+      "position": [
+        0.0,
+        0.4528,
+        0.0
+      ]
+    },
+    {
+      "name": "pommel",
+      "material": "iron",
+      "geometry": {
+        "type": "sphere",
+        "radius": 0.027,
+        "widthSegments": 10,
+        "heightSegments": 8
+      },
+      "position": [
+        0.0,
+        -0.017,
+        0.0
+      ]
+    },
+    {
+      "name": "head",
+      "material": "rust",
+      "geometry": {
+        "type": "sphere",
+        "radius": 0.0819,
+        "widthSegments": 12,
+        "heightSegments": 10
+      },
+      "position": [
+        0.0,
+        0.4972,
+        0.0
+      ]
+    },
+    {
+      "name": "band",
+      "material": "iron",
+      "geometry": {
+        "type": "torus",
+        "radius": 0.0737,
+        "tube": 0.008,
+        "radialSegments": 6,
+        "tubularSegments": 14
+      },
+      "position": [
+        0.0,
+        0.4972,
+        0.0
+      ],
+      "rotation": {
+        "x": 90.0,
+        "y": 0.0,
+        "z": 0.0,
+        "unit": "degrees"
+      }
+    }
+  ],
+  "grip": {
+    "restRotation": {
+      "x": 15.0,
+      "y": 0.0,
+      "z": 25.0,
+      "unit": "degrees"
+    }
+  },
+  "options": {
+    "kind": "mace",
+    "seed": 1,
+    "tier": 1
+  },
+  "combat": {
+    "range": 3.2,
+    "arcRadians": 0.9,
+    "damage": 18.0358,
+    "attackInterval": 0.52
+  }
+}

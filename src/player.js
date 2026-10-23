@@ -1,13 +1,13 @@
 import * as THREE from 'three';
 import {
   GUARD_READY,
+  PLAYER_BASE_ATTACK_INTERVAL,
+  PLAYER_BASE_DAMAGE,
   PLAYER_BLOCK_SPEED_FACTOR,
   PLAYER_EYE_HEIGHT,
   PLAYER_IFRAMES,
   PLAYER_RADIUS,
   PLAYER_SPEED,
-  SWORD_ARC,
-  SWORD_RANGE,
   inGuardArc,
   mitigatedDamage,
   statsForLevel,
@@ -17,11 +17,15 @@ import {
 } from './balance.js';
 import { lineOfSight, resolveBody } from './geometry.js';
 import { audio } from './audio.js';
+import { gearCatalog } from './gear-description.js';
+import { createGear } from './gear.js';
 import { clearHitStop, triggerHitStop } from './impact.js';
 import { PITCH_DOWN, PITCH_UP, PlayerBodyRig } from './player-body.js';
-import { createHeldTorch, flickerTorch } from './torch.js';
 
 const LOOK_STICK = 2.35;
+// A blow only lands on a body whose feet are within this height of the player's: the next story up
+// or down is out of reach however close it is on the map.
+const REACH_LEVEL = 4.5;
 const METRE = 3.2;
 
 function hinge(parent, x, y, z) {
@@ -146,9 +150,9 @@ function createFighter(materials) {
 
 const DEG = Math.PI / 180;
 
-const SWING_CONTACT = 0.38;
-const SWING_COCK_END = 0.14;
-const SWING_FOLLOW_END = 0.7;
+const SWING_CONTACT = 0.42;
+const SWING_COCK_END = 0.16;
+const SWING_FOLLOW_END = 0.72;
 
 const clamp01 = (value) => Math.min(1, Math.max(0, value));
 const easeInQuad = (t) => t * t;
@@ -159,9 +163,9 @@ const easeInOutQuad = (t) => (t < 0.5 ? 2 * t * t : 1 - ((-2 * t + 2) ** 2) / 2)
 // s: wrist (hand socket) rotation. The cut runs from the upper right of the view, through the
 // crosshair, to the lower left, and the arm base stays off the edge of the screen throughout.
 const SWING_POSES = {
-  cock: { p: [0.1, 0.22, 0.02], r: [-0.7, -0.2, -0.65], s: [-0.35, 0.1, 0.3] },
-  reach: { p: [-0.06, 0.04, -0.16], r: [0.25, 0.35, 0.1], s: [0.15, -0.05, -0.12] },
-  follow: { p: [-0.28, -0.16, -0.06], r: [0.95, 0.7, 0.4], s: [0.45, -0.15, -0.4] },
+  cock: { p: [0.04, 0.02, 0.08], r: [-0.35, 0.15, 0.2], s: [-0.4, 0.1, 0.3] },
+  reach: { p: [-0.02, 0.06, -0.12], r: [0.55, -0.2, -0.35], s: [0.7, -0.15, -0.4] },
+  follow: { p: [-0.06, -0.04, -0.04], r: [0.2, -0.45, -0.7], s: [0.15, -0.3, -0.55] },
 };
 
 // Quick anticipation, an accelerating strike that arrives at full extension at SWING_CONTACT,
@@ -194,15 +198,17 @@ const GUARD_ARM = { p: [-0.464, -1.1, -0.867], r: [34 * DEG, -11.5 * DEG, 0] };
 const GUARD_HAND = { p: [0, 0, 0], r: [0, 0, 0] };
 // The torch itself leans across the body toward the right shoulder (z) and tips its burning head
 // forward, away from the face (x), once the guard is up.
-const TORCH_REST = { x: -15 * DEG, y: 0, z: -10 * DEG };
 const TORCH_GUARD = { x: -0.25, y: 0, z: -0.65 };
-// The mace stays in the right hand while blocking, eased a touch forward of its ready pose.
-const MACE_COIL_Z = -0.05;
-// A blow on the torch shoves it back toward the camera and a little to the left, holds it there for
-// GUARD_RECOIL_SECONDS, then lets it spring back.
+const SHIELD_GUARD = { x: 0.15, y: -0.2, z: 0.2 };
+// The right-hand weapon stays low while blocking, eased a touch forward of its ready pose.
+const MACE_COIL_Z = -0.08;
+// A blow on the guard shoves the left hand back toward the camera and a little to the left, holds it
+// there for GUARD_RECOIL_SECONDS, then lets it spring back.
 const GUARD_RECOIL = { x: -0.16, z: 0.24 };
 const GUARD_RECOIL_SECONDS = 0.06;
 const GUARD_RECOIL_RETURN = 18;
+const LEFT_IDS = new Set(['torch', 'shield']);
+const RIGHT_IDS = new Set(['sword', 'mace', 'dagger', 'hammer', 'spear', 'axe', 'bow']);
 const easeOutCubic = (t) => 1 - (1 - t) ** 3;
 
 const BOB_X = 0.06;
@@ -214,39 +220,6 @@ const FOV_PUNCH = 2.2;
 const FOREARM_LENGTH = 0.72;
 const FOREARM_PITCH = 35 * DEG;
 const FOREARM_YAW = 20 * DEG;
-
-function createMace(materials) {
-  const mace = new THREE.Group();
-  mace.name = 'mace';
-  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.038, 0.58, 6), materials.leather);
-  handle.position.y = 0.16;
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.09, 8, 6), materials.rust);
-  head.position.y = 0.48;
-  const flangeA = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.05, 0.07), materials.metal);
-  flangeA.position.y = 0.48;
-  const flangeB = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.22, 0.07), materials.metal);
-  flangeB.position.y = 0.48;
-  mace.add(handle, head, flangeA, flangeB);
-  mace.rotation.set(15 * DEG, 0, 25 * DEG);
-  const trail = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.62, 0.12),
-    new THREE.MeshBasicMaterial({
-      color: 0xe7d3a4,
-      transparent: true,
-      opacity: 0,
-      depthWrite: false,
-      side: THREE.DoubleSide,
-      blending: THREE.AdditiveBlending,
-    }),
-  );
-  trail.position.set(0.16, 0.42, 0);
-  trail.rotation.y = Math.PI / 2;
-  mace.add(trail);
-  mace.userData.restX = mace.rotation.x;
-  mace.userData.restZ = mace.rotation.z;
-  mace.userData.trail = trail;
-  return mace;
-}
 
 function rememberRest(socket) {
   socket.userData.restPosition = socket.position.clone();
@@ -360,13 +333,25 @@ function createViewHands(camera, materials) {
   camera.add(arms);
 
   const rightHandSocket = addViewArm(arms, materials, 1);
-  const mace = createMace(materials);
-  rightHandSocket.add(mace);
-
   const leftHandSocket = addViewArm(arms, materials, -1);
-  const torch = createHeldTorch(materials);
-  torch.root.rotation.set(-15 * DEG, 0, -10 * DEG);
-  leftHandSocket.add(torch.root);
+  const left = [];
+  const right = [];
+  for (const description of gearCatalog) {
+    const item = createGear(description);
+    item.root.visible = false;
+    if (item.flame) {
+      item.flame.mesh.visible = false;
+      for (const child of item.flame.mesh.children) child.visible = false;
+    }
+    (description.hand === 'left' ? leftHandSocket : rightHandSocket).add(item.root);
+    (description.hand === 'left' ? left : right).push(item);
+  }
+  const emptyLeft = new THREE.Group();
+  const emptyRight = new THREE.Group();
+  emptyLeft.visible = false;
+  emptyRight.visible = false;
+  leftHandSocket.add(emptyLeft);
+  rightHandSocket.add(emptyRight);
 
   rememberRest(rightHandSocket);
   rememberRest(leftHandSocket);
@@ -375,7 +360,7 @@ function createViewHands(camera, materials) {
   arms.traverse((obj) => {
     if (obj.isMesh) obj.castShadow = false;
   });
-  return { arms, rightHandSocket, leftHandSocket, mace, torch };
+  return { arms, rightHandSocket, leftHandSocket, left, right, emptyLeft, emptyRight };
 }
 
 function logSocket(socket) {
@@ -439,14 +424,14 @@ export function createPlayer(camera, materials, start) {
   const playerMesh = rig;
   const bodyRig = new PlayerBodyRig(camera, playerMesh);
   const hands = createViewHands(camera, materials);
-  hands.torch.light.shadow.camera.layers.enable(1);
-  hands.torch.light.shadow.camera.layers.enable(2);
   const { rightHandSocket, leftHandSocket } = hands;
   bindGripDebug(rightHandSocket, leftHandSocket);
   const baseFov = camera.fov;
 
   const state = {
     x: start.x,
+    // Height of the feet above the ground floor. It follows the floor under the player: level in a
+    // room, a slope on a stair.
     y: start.y || 0,
     z: start.z,
     yaw: start.yaw,
@@ -455,8 +440,8 @@ export function createPlayer(camera, materials, start) {
     maxHealth: 100,
     level: 1,
     xp: 0,
-    damage: 18,
-    attackInterval: 0.48,
+    damage: PLAYER_BASE_DAMAGE,
+    attackInterval: PLAYER_BASE_ATTACK_INTERVAL,
     attackWait: 0,
     swing: 0,
     blocking: false,
@@ -490,23 +475,34 @@ export function createPlayer(camera, materials, start) {
     torchTime: 0,
     gait: 0,
     room: null,
-    equipped: false,
+    torch: false,
+    mace: false,
+    left: null,
+    right: null,
+    weaponName: '',
     gold: 0,
     moving: false,
-    denySerial: 0,
-    denyCooldown: 0,
     aiming: false,
     struck: new Set(),
     swingTPrev: 0,
     gainedLevel: false,
   };
 
+  function rightItem() {
+    return hands.right.find((item) => item.id === state.right) || null;
+  }
+
+  function leftItem() {
+    return hands.left.find((item) => item.id === state.left) || null;
+  }
+
   function applyStats(slider) {
-    const stats = statsForLevel(state.level);
+    const stats = statsForLevel(state.level, rightItem()?.combat ?? null);
     const gained = stats.maxHealth - state.maxHealth;
     state.maxHealth = stats.maxHealth;
     state.damage = stats.damage;
     state.attackInterval = stats.attackInterval;
+    state.weaponName = rightItem()?.name || '';
     if (gained > 0) state.health = Math.min(state.maxHealth, state.health + gained);
     state.health = Math.min(state.health, state.maxHealth);
     return xpRequired(state.level, slider);
@@ -548,7 +544,7 @@ export function createPlayer(camera, materials, start) {
   camera.rotation.order = 'YXZ';
 
   function placeCamera() {
-    rig.position.set(state.x, (state.y || 0) + state.gait * (state.blocking ? 0.03 : 0.07), state.z);
+    rig.position.set(state.x, state.y + state.gait * (state.blocking ? 0.03 : 0.07), state.z);
     rig.rotation.set(0, state.yaw, state.gait * 0.035);
     camera.rotation.set(state.pitch, 0, 0);
     camera.rotation.x = Math.max(-PITCH_DOWN, Math.min(PITCH_UP, camera.rotation.x));
@@ -571,28 +567,37 @@ export function createPlayer(camera, materials, start) {
     }
   }
 
+  const weapons = {
+    rightHand: hands.emptyRight,
+    leftHand: hands.emptyLeft,
+    rightHandSocket,
+    leftHandSocket,
+  };
+
+  function showHand(items, id, empty, key) {
+    let shown = empty;
+    for (const item of items) {
+      const on = item.id === id;
+      item.root.visible = on;
+      if (item.flame) {
+        item.flame.mesh.visible = on;
+        for (const child of item.flame.mesh.children) child.visible = on;
+      }
+      if (item.light && !on) item.light.intensity = 0;
+      if (on) shown = item.root;
+    }
+    weapons[key] = shown;
+  }
+
   function applyGear() {
-    hands.mace.visible = state.equipped;
-    hands.torch.root.visible = state.equipped;
-    if (!state.equipped) hands.torch.light.intensity = 0;
+    showHand(hands.right, state.right, hands.emptyRight, 'rightHand');
+    showHand(hands.left, state.left, hands.emptyLeft, 'leftHand');
   }
 
   function updateTorch(dt) {
-    if (!state.equipped) {
-      hands.torch.light.intensity = 0;
-      return;
-    }
-    state.torchTime += dt;
-    hands.torch.impact.update(dt);
-    flickerTorch(hands.torch.light, state.torchTime, hands.torch.impact.flash);
-    hands.torch.particles.update(dt);
-    hands.torch.flame.uniforms.uTime.value = state.torchTime;
-  }
-
-  function denyEntry() {
-    if (state.denyCooldown > 0) return;
-    state.denySerial += 1;
-    state.denyCooldown = 0.7;
+    const torch = state.torch ? leftItem() : null;
+    if (!torch) return;
+    torch.update(dt);
   }
 
   // Where the torch is in the world, refreshed after the pose is set. Archers aim their "did it land
@@ -600,8 +605,9 @@ export function createPlayer(camera, materials, start) {
   const tipWorld = new THREE.Vector3();
   function trackGuard() {
     state.guardUp = state.alive && state.blocking && state.blockBlend >= GUARD_READY;
-    hands.torch.tip.updateWorldMatrix(true, false);
-    tipWorld.setFromMatrixPosition(hands.torch.tip.matrixWorld);
+    const anchor = (state.torch && leftItem()?.tip) || leftItem()?.root || leftHandSocket;
+    anchor.updateWorldMatrix(true, false);
+    tipWorld.setFromMatrixPosition(anchor.matrixWorld);
     state.guardX = tipWorld.x;
     state.guardY = tipWorld.y;
     state.guardZ = tipWorld.z;
@@ -610,8 +616,8 @@ export function createPlayer(camera, materials, start) {
   // A blow lands on the torch: flash and sparks at the contact, a clang, the torch jolting back, and
   // a small shudder through the view. Melee also freezes the frame for an instant.
   function guardImpact(power, freeze) {
-    hands.torch.impact.burst(power);
-    flickerTorch(hands.torch.light, state.torchTime, hands.torch.impact.flash);
+    const torch = state.torch ? leftItem() : null;
+    if (torch) torch.burst(power);
     state.guardKick = Math.max(state.guardKick, power);
     state.guardHold = GUARD_RECOIL_SECONDS;
     audio.guard();
@@ -728,17 +734,27 @@ export function createPlayer(camera, materials, start) {
     leftArm.position.y += Math.sin(lap * 2 + 1.1) * 0.015 * walk;
     if (rightArm.userData.elbow) rightArm.userData.elbow.rotation.x = cock * 0.35 + reach * 0.85 + follow * 0.4;
     if (leftArm.userData.elbow) leftArm.userData.elbow.rotation.x = 0.2 + raised * 0.5;
-    const mace = hands.mace;
-    mace.rotation.x = mace.userData.restX + reach * 0.35 + follow * 0.15;
-    mace.rotation.z = mace.userData.restZ + cock * 0.45 - follow * 0.55;
-    mace.userData.trail.material.opacity = reach * 0.65 + follow * 0.22;
+    const right = rightItem();
+    if (right) {
+      const rest = right.grip;
+      right.root.rotation.set(
+        rest.x + cock * 0.15 + reach * 0.45 + follow * 0.05,
+        rest.y,
+        rest.z + cock * 0.35 + reach * -0.15 + follow * -0.55,
+      );
+    }
     armR.shoulder.rotation.x = 0.2 - stride * 0.55;
     armL.shoulder.rotation.x = 0.2 + stride * 0.55;
-    hands.torch.root.rotation.set(
-      TORCH_REST.x + (TORCH_GUARD.x - TORCH_REST.x) * raised,
-      TORCH_REST.y + (TORCH_GUARD.y - TORCH_REST.y) * raised,
-      TORCH_REST.z + (TORCH_GUARD.z - TORCH_REST.z) * raised,
-    );
+    const left = leftItem();
+    if (left) {
+      const rest = left.grip;
+      const guard = left.id === 'torch' ? TORCH_GUARD : SHIELD_GUARD;
+      left.root.rotation.set(
+        rest.x + (guard.x - rest.x) * raised,
+        rest.y + (guard.y - rest.y) * raised,
+        rest.z + (guard.z - rest.z) * raised,
+      );
+    }
 
   }
 
@@ -798,7 +814,7 @@ export function createPlayer(camera, materials, start) {
       return;
     }
 
-    state.blocking = input.block && state.equipped;
+    state.blocking = input.block && !!state.left;
     const sin = Math.sin(state.yaw);
     const cos = Math.cos(state.yaw);
     const forwardX = -sin;
@@ -816,26 +832,16 @@ export function createPlayer(camera, materials, start) {
       moveAmount = speed / PLAYER_SPEED;
       state.x += (mx / length) * speed * dt;
       state.z += (mz / length) * speed * dt;
-      const resolved = resolveBody(state.x, state.z, PLAYER_RADIUS, world.colliders, state.y || 0);
+      const resolved = resolveBody(state.x, state.z, PLAYER_RADIUS, world.colliders, state.y);
       state.x = resolved.x;
       state.z = resolved.z;
     }
-    state.denyCooldown = Math.max(0, state.denyCooldown - dt);
-    state.room = world.roomAt(state.x, state.z, state.room?.id, state.y || 0);
-    if (world.floorY) state.y = world.floorY(state.room, state.x, state.z);
-    if (!state.equipped && world.containsInterior(state.x, state.z, state.y || 0)) {
-      const spot = world.threshold();
-      state.x = spot.x;
-      state.z = spot.z;
-      denyEntry();
-    } else if (!state.equipped && moving && world.nearGate(state.x, state.z)) {
-      const press = (mx / length) * world.gateInward.x + (mz / length) * world.gateInward.z;
-      if (press > 0.35) denyEntry();
-    }
-    state.room = world.roomAt(state.x, state.z, state.room?.id, state.y || 0);
-    if (world.floorY) state.y = world.floorY(state.room, state.x, state.z);
+    state.room = world.roomAt(state.x, state.z, state.room?.id, state.y);
+    // Stand on the floor under the new spot.
+    if (typeof world.floorY === 'function') state.y = world.floorY(state.x, state.z, state.room);
 
-    if (state.equipped && input.attack && state.attackWait <= 0 && state.swing <= 0) {
+    const weapon = rightItem();
+    if (weapon?.combat && input.attack && state.attackWait <= 0 && state.swing <= 0) {
       state.attackWait = state.attackInterval;
       state.swing = state.attackInterval;
       state.struck.clear();
@@ -852,13 +858,16 @@ export function createPlayer(camera, materials, start) {
     if (skeletons) {
       for (const skeleton of skeletons.list) {
         if (skeleton.dead) continue;
+        // Another story is out of reach, however close it is on the map.
+        if (Number.isFinite(skeleton.y) && Math.abs(skeleton.y - state.y) > REACH_LEVEL) continue;
         const dx = skeleton.x - state.x;
         const dz = skeleton.z - state.z;
         const dist = Math.hypot(dx, dz);
         const angle = Math.atan2(forwardX * dz - forwardZ * dx, forwardX * dx + forwardZ * dz);
-        const inArc = dist <= SWORD_RANGE && Math.abs(angle) <= SWORD_ARC;
-        const dy = Math.abs((skeleton.y || 0) - (state.y || 0));
-        const seen = dy < 4 && inArc && lineOfSight(state.x, state.z, skeleton.x, skeleton.z, world.colliders, state.y || 0);
+        const reach = weapon?.combat?.range ?? 0;
+        const arc = weapon?.combat?.arcRadians ?? 0;
+        const inArc = weapon?.combat && dist <= reach && Math.abs(angle) <= arc;
+        const seen = inArc && lineOfSight(state.x, state.z, skeleton.x, skeleton.z, world.colliders, state.y);
         if (seen) state.aiming = true;
         if (striking && seen && !state.struck.has(skeleton.id)) {
           state.struck.add(skeleton.id);
@@ -871,11 +880,11 @@ export function createPlayer(camera, materials, start) {
     state.usePressed = !!input.use;
     state.swinging = striking;
     if (striking && world.openChestAt) {
-      const gold = world.openChestAt(state.x, state.z, forwardX, forwardZ, state.y || 0);
+      const gold = world.openChestAt(state.x, state.z, forwardX, forwardZ, state.y);
       if (gold > 0) {
         state.gold += gold;
         connected = true;
-        audio.chestOpen({ x: state.x, y: 1.4, z: state.z });
+        audio.chestOpen({ x: state.x, y: state.y + 1.4, z: state.z });
       }
     }
     if (connected) {
@@ -955,11 +964,13 @@ export function createPlayer(camera, materials, start) {
     state.prevPitch = -0.08;
     clearHitStop();
     state.room = null;
-    state.equipped = false;
+    state.torch = false;
+    state.mace = false;
+    state.left = null;
+    state.right = null;
+    state.weaponName = '';
     state.gold = 0;
     state.moving = false;
-    state.denySerial = 0;
-    state.denyCooldown = 0;
     applyGear();
     state.struck.clear();
     state.swingTPrev = 0;
@@ -989,16 +1000,22 @@ export function createPlayer(camera, materials, start) {
   trackGuard();
   updateTorch(0);
 
-  function equip() {
-    if (state.equipped) return false;
-    state.equipped = true;
+  // The hub's Equip panel is the only place this is called. Either item can be taken or left.
+  function equip(choice) {
+    const left = choice && LEFT_IDS.has(choice.left) ? choice.left : null;
+    const right = choice && RIGHT_IDS.has(choice.right) ? choice.right : null;
+    state.left = left;
+    state.right = right;
+    state.torch = left === 'torch';
+    state.mace = right === 'mace';
     applyGear();
+    applyStats(0.5);
     return true;
   }
 
   function placeAt(x, z, yaw, y = 0) {
     state.x = x;
-    state.y = y || 0;
+    state.y = y;
     state.z = z;
     state.yaw = yaw;
     state.prevYaw = yaw;
@@ -1017,11 +1034,6 @@ export function createPlayer(camera, materials, start) {
     equip,
     placeAt,
     reconcileXp,
-    weapons: {
-      rightHand: hands.mace,
-      leftHand: hands.torch.root,
-      rightHandSocket,
-      leftHandSocket,
-    },
+    weapons,
   };
 }

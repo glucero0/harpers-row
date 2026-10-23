@@ -71,4 +71,18 @@ describe('createWallSconce', () => {
     expect(interactable.light.visible).toBe(true);
     expect(interactable.flame.visible).toBe(true);
   });
+
+  it('flickers the wall light from the shared fire description', () => {
+    const sconce = makeSconce();
+    const { interactable } = sconce;
+    interactable.ignite();
+    interactable.update(0.05, 0.2);
+    const first = interactable.light.intensity;
+    interactable.update(0.05, 0.9);
+    expect(first).toBeGreaterThan(0);
+    expect(interactable.light.intensity).not.toBeCloseTo(first);
+    expect(interactable.light.castShadow).toBe(false);
+    expect(interactable.light.distance).toBe(10);
+    expect(interactable.particles.uniforms.uFireColor0.value.getHexString()).toBe('fff29e');
+  });
 });

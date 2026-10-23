@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dungeon Combater</title>
+  <title>Harpers Row</title>
 </head>
 <body>
   <canvas id="game"></canvas>
@@ -11,6 +11,7 @@
   <div id="hud">
     <div class="panel top-left">
       <p id="room-name" class="room">Stone Gate</p>
+      <p id="room-tag" class="sub" hidden></p>
       <p id="undead-count" class="sub">Undead here: 0</p>
       <p id="pace-readout" class="sub">Pace ×1.00</p>
     </div>
@@ -26,6 +27,7 @@
       <p id="stat-kills" class="stat">Enemies killed 0%</p>
       <p id="stat-loot" class="stat">Loot collected 0%</p>
       <p id="stat-gold" class="stat">Gold 0</p>
+      <p id="stat-complete" class="stat">Location complete 0%</p>
       <label class="slider">
         <span class="slider-title">Undead haste</span>
         <span class="slider-scale"><span>Slight</span><span>Frantic</span></span>
@@ -36,28 +38,42 @@
         <span class="slider-scale"><span>Slow</span><span>Fast</span></span>
         <input id="xp-slider" type="range" min="0" max="1" step="0.01" value="0.5" aria-label="Experience gain" />
       </label>
+      <label class="slider">
+        <span class="slider-title">Ambient light</span>
+        <span class="slider-scale"><span>Dark</span><span>Bright</span></span>
+        <input id="light-slider" type="range" min="0" max="1" step="0.01" value="0" aria-label="Ambient light" />
+      </label>
     </div>
     <div class="panel bottom-left">
-      <p id="level-text">Level 1 · Sword 18</p>
+      <p id="level-text">Level 1 · Unarmed 18</p>
       <div class="bar health"><div id="health-fill"></div></div>
       <p id="health-text" class="sub">100 / 100</p>
       <div class="bar xp"><div id="xp-fill"></div></div>
       <p id="xp-text" class="sub">0 / 0 XP</p>
     </div>
-    <div id="checklist" class="panel checklist" aria-label="Area requirements">
+    <div id="checklist" class="panel checklist" aria-label="Area">
       <p><span class="label">Area</span><span id="area-name"></span></p>
       <p><span class="label">Enemy</span><span id="enemy-name"></span></p>
-      <p class="req-line"><span id="requirements"></span><span id="check-mark" hidden>✓</span></p>
-      <button id="equip" type="button">Equip</button>
+      <button id="equip" type="button" hidden>Equip</button>
     </div>
-    <p id="hint" class="hint">WASD move · Mouse look · Left click or K attack · Right click block · E lights a cleared sconce · Esc, then Equip · Xbox: RT attack, LT block, X uses, Start pauses</p>
+    <p id="hint" class="hint">WASD move · Mouse look · Left click or K attack · Right click block · E lights a cleared sconce · Esc releases the mouse · At the hub, Equip chooses a left-hand and a right-hand item · Xbox: RT attack, LT block, X uses, Start pauses</p>
     <div id="crosshair" class="crosshair" aria-hidden="true"><span></span><span></span></div>
     <p id="pause-label" class="pause" hidden>Paused</p>
+    <p id="complete-note" class="note" role="status" hidden>Everything here is done. Walk back out through the arch whenever you are ready.</p>
   </div>
   <div id="overlay" class="overlay">
     <div class="card">
-      <p id="overlay-text">A worn trail ends at the stone arch. Equip a torch and a mace before you step inside.</p>
+      <p id="overlay-text">Paths leave the hub for each location. Equip a shield or a torch in the left hand, and a weapon in the right, or go with neither.</p>
       <p id="overlay-prompt" class="prompt">Click to look</p>
+    </div>
+  </div>
+  <div id="gear" hidden>
+    <div class="card gear-card">
+      <div class="gear-row">
+        <fieldset id="gear-left" class="gear-column"><legend>Left hand</legend></fieldset>
+        <fieldset id="gear-right" class="gear-column"><legend>Right hand</legend></fieldset>
+      </div>
+      <button id="gear-exit" type="button">Exit</button>
     </div>
   </div>
   <div id="banner" hidden>

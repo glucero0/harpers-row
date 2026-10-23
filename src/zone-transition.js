@@ -4,8 +4,14 @@
 
 const DEFAULT_FADE_MS = 300;
 
-function volumeContains(volume, x, z) {
-  return x >= volume.minX && x <= volume.maxX && z >= volume.minZ && z <= volume.maxZ;
+// A volume may also bound height (minY, maxY), so a doorway on the ground floor does not fire for
+// someone standing on a landing above it. With no y given, or no bounds on the volume, height is ignored.
+function volumeContains(volume, x, z, y) {
+  if (!(x >= volume.minX && x <= volume.maxX && z >= volume.minZ && z <= volume.maxZ)) return false;
+  if (!Number.isFinite(y)) return true;
+  if (Number.isFinite(volume.minY) && y < volume.minY) return false;
+  if (Number.isFinite(volume.maxY) && y > volume.maxY) return false;
+  return true;
 }
 
 function ensureVeil() {
@@ -93,6 +99,12 @@ export function createZoneTransitions({
     phase() {
       return phase;
     },
+    // Swap the doorway list without restarting a fade that is already running. Used when the player
+    // crosses from the hub into a location, or back.
+    replaceRun(nextConfigs, nextLabels) {
+      runs = nextConfigs || [];
+      if (nextLabels) names = nextLabels;
+    },
     setRun(nextConfigs, nextLabels, nextZoneId = 'worn-trail') {
       runs = nextConfigs || [];
       if (nextLabels) names = nextLabels;
@@ -104,7 +116,7 @@ export function createZoneTransitions({
       cooldown = 0;
       paint();
     },
-    update(dt, x, z) {
+    update(dt, x, z, y) {
       if (disposed) return;
       if (phase === 'fadeOut') {
         fade = Math.min(1, fade + dt / duration);
@@ -129,12 +141,12 @@ export function createZoneTransitions({
         cooldown = Math.max(0, cooldown - dt);
         return;
       }
-      if (hold && volumeContains(hold, x, z)) return;
+      if (hold && volumeContains(hold, x, z, y)) return;
       hold = null;
       for (let i = 0; i < runs.length; i += 1) {
         const config = runs[i];
         if (config.sourceZoneId !== zoneId) continue;
-        if (!config.volume || !volumeContains(config.volume, x, z)) continue;
+        if (!config.volume || !volumeContains(config.volume, x, z, y)) continue;
         if (!canActivate(config)) continue;
         begin(config);
         return;

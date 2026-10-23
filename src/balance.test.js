@@ -1,9 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
-import warriorDef from './skeletelWarrior.json';
+import maceFile from './gear/mace.json';
+import torchFile from './gear/torch.json';
+import warriorDef from '../skeletelWarrior.json';
 import {
   attackRecover,
   attackWindup,
+  AMBIENT_SLIDER_MAX,
+  ambientFill,
   clampUnit,
   inGuardArc,
   mitigatedDamage,
@@ -11,6 +15,10 @@ import {
   skeletonAttackRange,
   skeletonWeapon,
   stepGuardBlend,
+  BLOCK_REMAINING,
+  GUARD_ARC_DEGREES,
+  GUARD_RADIUS,
+  PLAYER_BASE_DAMAGE,
   SKELETON_DAMAGE,
   SKELETON_HP,
   SKELETON_MIN_RECOVER,
@@ -18,9 +26,19 @@ import {
   SKELETON_MOVE_SPEED,
   SKELETON_NAME,
   SKELETON_WEAPONS,
+  SWORD_ARC,
+  SWORD_RANGE,
   statsForLevel,
   xpRequired,
 } from './balance.js';
+
+test('ambient slider starts dark and only raises the fill', () => {
+  assert.equal(ambientFill(0.012, 0), 0.012);
+  assert.equal(ambientFill(0.55, 0), 0.55);
+  assert.equal(ambientFill(0.012, 1), AMBIENT_SLIDER_MAX);
+  assert.ok(ambientFill(0.012, 0.5) > 0.012);
+  assert.ok(ambientFill(0.012, 0.5) < AMBIENT_SLIDER_MAX);
+});
 
 test('clampUnit keeps slider values in range', () => {
   assert.equal(clampUnit(0.25), 0.25);
@@ -84,11 +102,21 @@ test('higher levels hit harder and swing a little faster', () => {
   const first = statsForLevel(1);
   const later = statsForLevel(4);
   assert.equal(first.maxHealth, 100);
-  assert.equal(first.damage, 18);
+  assert.ok(Math.abs(first.damage - maceFile.combat.damage) < 1e-9);
   assert.ok(later.maxHealth > first.maxHealth);
   assert.ok(later.damage > first.damage);
   assert.ok(later.attackInterval < first.attackInterval);
   assert.equal(statsForLevel(0).level, 1);
+});
+
+test('guard timing stays fixed and mace damage comes from its description', () => {
+  assert.equal(GUARD_ARC_DEGREES, 120);
+  assert.equal(GUARD_RADIUS, 0.85);
+  assert.equal(BLOCK_REMAINING, 0.25);
+  assert.equal(PLAYER_BASE_DAMAGE, maceFile.combat.damage);
+  assert.equal(SWORD_RANGE, 5.1);
+  assert.equal(SWORD_ARC, 1.2);
+  assert.equal(torchFile.hand, 'left');
 });
 
 test('skeletal warrior stats come from skeletelWarrior.json', () => {

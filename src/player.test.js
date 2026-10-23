@@ -41,12 +41,13 @@ afterEach(() => {
 describe('createPlayer', () => {
   it('placeAt() moves the fighter without clearing gear or health', () => {
     const player = createPlayer(camera, testMaterials.materials, layout.start);
-    player.equip();
+    player.equip({ left: 'torch', right: 'mace' });
     player.placeAt(layout.start.x + 4, layout.start.z - 3, 1.2);
     expect(player.state.x).toBe(layout.start.x + 4);
     expect(player.state.z).toBe(layout.start.z - 3);
     expect(player.state.yaw).toBe(1.2);
-    expect(player.state.equipped).toBe(true);
+    expect(player.state.torch).toBe(true);
+    expect(player.state.mace).toBe(true);
     expect(player.state.health).toBe(100);
   });
 
@@ -55,21 +56,46 @@ describe('createPlayer', () => {
     expect(player.state.x).toBe(layout.start.x);
     expect(player.state.z).toBe(layout.start.z);
     expect(player.state.yaw).toBe(layout.start.yaw);
-    expect(player.state.equipped).toBe(false);
+    expect(player.state.torch).toBe(false);
+    expect(player.state.mace).toBe(false);
     expect(player.state.health).toBe(100);
     expect(player.state.maxHealth).toBe(100);
     expect(player.state.alive).toBe(true);
   });
 
   describe('equip()', () => {
-    it('equips once, making the weapons visible, and refuses a second call', () => {
+    it('shows only the items that were checked, and can change that choice', () => {
       const player = createPlayer(camera, testMaterials.materials, layout.start);
-      expect(player.equip()).toBe(true);
-      expect(player.state.equipped).toBe(true);
-      expect(player.weapons.rightHand.visible).toBe(true);
+      player.equip({ left: 'torch', right: null });
+      expect(player.state.torch).toBe(true);
+      expect(player.state.mace).toBe(false);
+      expect(player.state.left).toBe('torch');
       expect(player.weapons.leftHand.visible).toBe(true);
-      expect(player.equip()).toBe(false);
+      expect(player.weapons.rightHand.visible).toBe(false);
+
+      player.equip({ left: 'shield', right: 'sword' });
+      expect(player.state.torch).toBe(false);
+      expect(player.state.left).toBe('shield');
+      expect(player.state.right).toBe('sword');
+      expect(player.weapons.leftHand.visible).toBe(true);
+      expect(player.weapons.rightHand.name).toBe('sword');
+      expect(player.weapons.rightHand.visible).toBe(true);
+
+      player.equip({ left: null, right: null });
+      expect(player.weapons.leftHand.visible).toBe(false);
+      expect(player.weapons.rightHand.visible).toBe(false);
     });
+  });
+
+  it('stays inside a chamber when nothing is equipped', () => {
+    const player = createPlayer(camera, testMaterials.materials, layout.start);
+    const room = layout.rooms.find((item) => item.polygon && item.polygon.length > 2);
+    const x = room.polygon.reduce((sum, point) => sum + point[0], 0) / room.polygon.length;
+    const z = room.polygon.reduce((sum, point) => sum + point[1], 0) / room.polygon.length;
+    player.state.x = x;
+    player.state.z = z;
+    player.update(1 / 60, input.poll(), dungeon, skeletons, 0.5, true, { realDt: 1 / 60 });
+    expect(dungeon.containsInterior(player.state.x, player.state.z)).toBe(true);
   });
 
   describe('hurt()', () => {
@@ -116,7 +142,7 @@ describe('createPlayer', () => {
   describe('reset()', () => {
     it('restores level, health, and position to a fresh run', () => {
       const player = createPlayer(camera, testMaterials.materials, layout.start);
-      player.equip();
+      player.equip({ left: 'torch', right: 'mace' });
       player.hurt(1000, { x: player.state.x, z: player.state.z + 5 });
       player.state.xp = 10000;
       player.reconcileXp(0.5);
@@ -137,7 +163,7 @@ describe('createPlayer', () => {
 
   it('update() runs a full frame tick against a real dungeon/skeletons/input without throwing', () => {
     const player = createPlayer(camera, testMaterials.materials, layout.start);
-    player.equip();
+    player.equip({ left: 'torch', right: 'mace' });
     player.state.room = dungeon.roomAt(layout.start.x, layout.start.z, null);
 
     const frame = input.poll();

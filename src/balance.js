@@ -1,4 +1,5 @@
-import warriorDef from './skeletelWarrior.json';
+import warriorDef from '../skeletelWarrior.json';
+import { maceDescription } from './gear-description.js';
 
 export const ROOM_COUNT = 6;
 
@@ -13,10 +14,12 @@ export const XP_SCALE_FAST = 0.45;
 
 export const PLAYER_BASE_HEALTH = 100;
 export const PLAYER_HEALTH_PER_LEVEL = 15;
-export const PLAYER_BASE_DAMAGE = 18;
-export const PLAYER_DAMAGE_PER_LEVEL = 6;
-export const PLAYER_BASE_ATTACK_INTERVAL = 0.48;
-export const PLAYER_ATTACK_INTERVAL_PER_LEVEL = 0.025;
+// Mace damage and swing speed are the unarmed baseline, read from src/gear/mace.json.
+// An equipped right-hand weapon replaces the damage and the interval; level steps stay here.
+export const PLAYER_BASE_DAMAGE = maceDescription.combat.damage;
+export const PLAYER_DAMAGE_PER_LEVEL = 3;
+export const PLAYER_BASE_ATTACK_INTERVAL = maceDescription.combat.attackInterval;
+export const PLAYER_ATTACK_INTERVAL_PER_LEVEL = 0.02;
 export const PLAYER_MIN_ATTACK_INTERVAL = 0.28;
 export const PLAYER_SPEED = 9.5;
 export const PLAYER_BLOCK_SPEED_FACTOR = 0.58;
@@ -25,15 +28,16 @@ export const PLAYER_EYE_HEIGHT = 5.5;
 export const PLAYER_IFRAMES = 0.4;
 
 export const ARMOR_MITIGATION = 0.15;
+// How much of a hit remains after armor when the guard catches it.
 export const BLOCK_REMAINING = 0.25;
-// The raised torch only covers the front. A blow from outside this cone (total width, in degrees)
+// The raised guard only covers the front. A blow from outside this cone (total width, in degrees)
 // lands as if there were no guard.
 export const GUARD_ARC_DEGREES = 120;
 // How far up the arm must be before the guard counts (0 lowered, 1 fully raised).
 export const GUARD_READY = 0.6;
-// An arrow whose path passes this close to the torch is caught on it.
+// An arrow whose path passes this close to the left hand is caught on it.
 export const GUARD_RADIUS = 0.85;
-// The torch snaps up fast so the defence feels instant, and settles back down more gently.
+// The guard snaps up fast so the defence feels instant, and settles back down more gently.
 export const GUARD_RAISE_SECONDS = 0.1;
 export const GUARD_LOWER_SECONDS = 0.18;
 
@@ -114,8 +118,18 @@ export function attackRecover(pace) {
   return Math.max(SKELETON_MIN_RECOVER, SKELETON_RECOVER / scale);
 }
 
+// How close the fighter must be, and how wide the swing, to open a chest. This is not a weapon's reach.
 export const SWORD_RANGE = 5.1;
-export const SWORD_ARC = 0.95;
+export const SWORD_ARC = 1.2;
+
+// Full right on the ambient slider. Zero leaves whatever the place already uses (pitch black inside).
+export const AMBIENT_SLIDER_MAX = 0.85;
+
+// The fill light for a place: the file's own level, or brighter when the slider asks for it.
+export function ambientFill(base, slider) {
+  const floor = Number.isFinite(base) && base > 0 ? base : 0;
+  return Math.max(floor, clampUnit(slider, 0) * AMBIENT_SLIDER_MAX);
+}
 
 export function clampUnit(value, fallback = 0.5) {
   if (value === null || value === undefined || value === '') return fallback;
@@ -144,16 +158,20 @@ export function xpRequired(level, slider) {
   return Math.max(1, Math.round(BASE_XP * scale * XP_GROWTH ** (safeLevel - 1)));
 }
 
-export function statsForLevel(level) {
+export function statsForLevel(level, combat) {
   const safeLevel = Number.isFinite(level) ? Math.max(1, Math.floor(level)) : 1;
   const steps = safeLevel - 1;
+  const baseDamage = combat && Number.isFinite(combat.damage) ? combat.damage : PLAYER_BASE_DAMAGE;
+  const baseInterval = combat && Number.isFinite(combat.attackInterval)
+    ? combat.attackInterval
+    : PLAYER_BASE_ATTACK_INTERVAL;
   return {
     level: safeLevel,
     maxHealth: PLAYER_BASE_HEALTH + steps * PLAYER_HEALTH_PER_LEVEL,
-    damage: PLAYER_BASE_DAMAGE + steps * PLAYER_DAMAGE_PER_LEVEL,
+    damage: baseDamage + steps * PLAYER_DAMAGE_PER_LEVEL,
     attackInterval: Math.max(
       PLAYER_MIN_ATTACK_INTERVAL,
-      PLAYER_BASE_ATTACK_INTERVAL - steps * PLAYER_ATTACK_INTERVAL_PER_LEVEL,
+      baseInterval - steps * PLAYER_ATTACK_INTERVAL_PER_LEVEL,
     ),
   };
 }

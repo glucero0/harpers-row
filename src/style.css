@@ -167,12 +167,6 @@ body[data-lighting="day"] #area-title {
 
 .checklist .label { color: #d9cbb4; }
 
-#check-mark {
-  color: #fff;
-  font-size: 18px;
-  line-height: 1;
-}
-
 .checklist button {
   width: 100%;
   margin-top: 4px;
@@ -185,12 +179,55 @@ body[data-lighting="day"] #area-title {
   cursor: default;
 }
 
-@keyframes requirement-flash {
-  0%, 100% { background: rgba(18, 14, 11, 0.78); border-color: rgba(201, 160, 96, 0.45); }
-  40% { background: rgba(148, 42, 24, 0.95); border-color: #fff; }
+#gear {
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  display: grid;
+  place-items: center;
+  background: rgba(8, 6, 5, 0.55);
+  pointer-events: auto;
 }
 
-.checklist.flash { animation: requirement-flash 0.42s ease-in-out 3; }
+.gear-card { width: min(720px, calc(100% - 32px)); }
+
+.gear-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 32px;
+}
+
+.gear-column {
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.gear-column legend {
+  margin-bottom: 8px;
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.gear-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 0;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.gear-item input {
+  width: 22px;
+  height: 22px;
+  margin: 0;
+  accent-color: #e09a45;
+}
 
 .room {
   margin: 0;
@@ -288,6 +325,23 @@ input[type="range"] {
   font-size: 28px;
   letter-spacing: 0.08em;
   text-shadow: 0 2px 8px #000;
+}
+
+/* A quiet, non-blocking message: the location is done, and nothing is forcing the player out. */
+.note {
+  position: absolute;
+  top: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  margin: 0;
+  max-width: min(520px, calc(100% - 640px));
+  padding: 8px 14px;
+  background: rgba(18, 14, 11, 0.72);
+  border: 1px solid rgba(201, 160, 96, 0.4);
+  color: #e7dcc8;
+  font-size: 14px;
+  text-align: center;
+  pointer-events: none;
 }
 
 .overlay, #banner {

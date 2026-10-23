@@ -1,8 +1,15 @@
 import * as THREE from 'three';
 
 // The core flame visual assembly (fire + smoke + embers billboard quads) shared by every open flame in
-// the game: wall sconces (sconce.js) and the player's held torch (torch.js). Extracted into its own
-// module so neither depends on the other's internals — see docs/ARCHITECTURE.md.
+// the game: the hub campfire (hub.js), wall sconces (sconce.js), and the player's held torch (torch.js).
+// Color, lifetime, size, and blending come from a fire description (fire-description.js). The preset
+// only picks a motion this file already knows. See docs/ARCHITECTURE.md.
+const PRESETS = {
+  campfire_flames: { rise: 1.55, spread: 0.55, size0: 0.95, size1: 1.55, endScale: 0.34, alpha: 0.95 },
+  torch_flames: { rise: 0.72, spread: 0.1, size0: 0.48, size1: 0.8, endScale: 0.22, alpha: 0.9 },
+  sconce_flames: { rise: 0.72, spread: 0.1, size0: 0.48, size1: 0.8, endScale: 0.22, alpha: 0.9 },
+};
+
 const FLAME_FRAGMENT = `
 varying float vAlpha;
 varying vec3 vColor;
@@ -11,12 +18,13 @@ void main() {
   float dist = length(vUv);
   if (dist > 1.0) discard;
   float soft = smoothstep(1.0, 0.12, dist);
-  vec3 flame = mix(vec3(1.0, 0.96, 0.72), vec3(1.0, 0.42, 0.05), smoothstep(0.05, 0.85, dist));
-  gl_FragColor = vec4(mix(flame, vColor, 0.35) * soft * vAlpha, soft * vAlpha);
+  vec3 hot = vec3(1.0, 0.97, 0.82);
+  vec3 flame = mix(hot, vColor, smoothstep(0.05, 0.75, dist));
+  gl_FragColor = vec4(flame * soft * vAlpha, soft * vAlpha);
 }
 `;
 
-function flameQuads(count, mode, uniforms) {
+function flameQuads(count, mode, uniforms, blending) {
   const seeds = new Float32Array(count * 4 * 3);
   const corners = new Float32Array(count * 4 * 2);
   const indices = [];
@@ -43,38 +51,47 @@ function flameQuads(count, mode, uniforms) {
     uniforms,
     transparent: true,
     depthWrite: false,
-    blending: mode === 'smoke' ? THREE.NormalBlending : THREE.AdditiveBlending,
+    blending: mode === 'smoke' ? THREE.NormalBlending : blending,
     vertexShader: `
       attribute vec3 aSeed;
       attribute vec2 aCorner;
       uniform float uTime;
+      uniform vec2 uFireLife;
+      uniform vec3 uFireColor0;
+      uniform vec3 uFireColor1;
+      uniform float uFireRise;
+      uniform float uFireSpread;
+      uniform vec2 uFireSize;
+      uniform float uFireEndScale;
+      uniform float uFireAlpha;
       varying float vAlpha;
       varying vec3 vColor;
       varying vec2 vUv;
       void main() {
         float kind = ${mode === 'fire' ? '0.0' : mode === 'smoke' ? '1.0' : '2.0'};
-        float lifeTime = kind < 0.5 ? mix(0.4, 0.6, aSeed.x) : (kind < 1.5 ? mix(1.3, 1.8, aSeed.x) : mix(0.45, 0.7, aSeed.x));
+        float lifeTime = kind < 0.5 ? mix(uFireLife.x, uFireLife.y, aSeed.x) : (kind < 1.5 ? mix(1.3, 1.8, aSeed.x) : mix(0.45, 0.7, aSeed.x));
         float life = fract(uTime / lifeTime + aSeed.y);
         float rare = kind > 1.5 ? step(0.62, aSeed.z) : 1.0;
-        float rise = kind < 0.5 ? 0.72 : (kind < 1.5 ? 1.15 : 0.95);
+        float rise = kind < 0.5 ? uFireRise : (kind < 1.5 ? 1.15 : 0.95);
         float curl = sin(uTime * 3.4 + aSeed.y * 13.0) * cos(uTime * 1.7 + aSeed.z * 9.0);
         float tongue = sin(uTime * 6.2 + aSeed.x * 17.0) * 0.045;
+        float spread = kind < 0.5 ? uFireSpread : (kind < 1.5 ? 0.16 : 0.1);
         vec3 local = vec3(
-          (aSeed.z - 0.5) * (kind < 0.5 ? 0.1 : 0.16) + curl * 0.07 + tongue,
+          (aSeed.z - 0.5) * spread + curl * (kind < 0.5 ? 0.12 : 0.07) + tongue,
           life * rise,
-          (aSeed.y - 0.5) * 0.1 + curl * 0.05
+          (aSeed.y - 0.5) * spread + curl * 0.05
         );
         vec4 mv = modelViewMatrix * vec4(local, 1.0);
-        float startSize = kind < 0.5 ? mix(0.48, 0.8, aSeed.x) : (kind < 1.5 ? mix(0.28, 0.46, aSeed.y) : 0.08);
-        float size = kind < 1.5 ? mix(startSize, startSize * (kind < 0.5 ? 0.22 : 1.35), life) : startSize;
+        float startSize = kind < 0.5 ? mix(uFireSize.x, uFireSize.y, aSeed.x) : (kind < 1.5 ? mix(0.28, 0.46, aSeed.y) : 0.08);
+        float size = kind < 0.5 ? mix(startSize, startSize * uFireEndScale, life) : (kind < 1.5 ? mix(startSize, startSize * 1.35, life) : startSize);
         mv.xy += aCorner * size * 0.5;
         gl_Position = projectionMatrix * mv;
         vUv = aCorner;
         float fade = smoothstep(0.0, 0.12, life) * smoothstep(1.0, 0.62, life);
-        vAlpha = fade * rare * (kind < 0.5 ? 0.9 : (kind < 1.5 ? 0.28 : 0.85));
-        if (kind < 0.5) vColor = mix(vec3(1.0, 0.95, 0.62), vec3(0.95, 0.28, 0.04), life);
+        vAlpha = fade * rare * (kind < 0.5 ? uFireAlpha : (kind < 1.5 ? 0.28 : 0.85));
+        if (kind < 0.5) vColor = mix(uFireColor0, uFireColor1, life);
         else if (kind < 1.5) vColor = vec3(0.16, 0.15, 0.14);
-        else vColor = vec3(1.0, 0.62, 0.16);
+        else vColor = uFireColor0;
       }
     `,
     fragmentShader: mode === 'smoke' ? `
@@ -102,11 +119,38 @@ function flameQuads(count, mode, uniforms) {
 // hidden (`visible = false`) so a caller can light it on demand (see `SconceInteractable.ignite()`) or
 // show it immediately for an always-lit source (see `createHeldTorch()`); either way, set `.visible`
 // on the group *and* on each child, since each quad mesh starts hidden independently.
-export function createFlamePoints() {
-  const uniforms = { uTime: { value: 0 } };
-  const fire = flameQuads(16, 'fire', uniforms);
-  const smoke = flameQuads(6, 'smoke', uniforms);
-  const embers = flameQuads(5, 'embers', uniforms);
+function quadCount(value, fallback) {
+  return Number.isInteger(value) && value >= 1 && value <= 48 ? value : fallback;
+}
+
+function flameUniforms(preset, emitter) {
+  const life = emitter?.lifetime || [0.4, 0.6];
+  return {
+    uTime: { value: 0 },
+    uFireLife: { value: new THREE.Vector2(life[0], life[1]) },
+    uFireColor0: { value: new THREE.Color(emitter?.colorStart || '#fff29e') },
+    uFireColor1: { value: new THREE.Color(emitter?.colorEnd || '#f2470a') },
+    uFireRise: { value: preset.rise },
+    uFireSpread: { value: preset.spread },
+    uFireSize: { value: new THREE.Vector2(preset.size0, preset.size1) },
+    uFireEndScale: { value: preset.endScale },
+    uFireAlpha: { value: preset.alpha },
+  };
+}
+
+// `counts.emanation` is a parsed fire description. Its emitter sets color, lifetime, and blending, and
+// its quad counts size the meshes. Explicit `fire` / `smoke` / `embers` counts still win when passed.
+// Anything outside 1..48 falls back to the description, then to the torch default.
+export function createFlamePoints(counts = {}) {
+  const emanation = counts.emanation;
+  const preset = PRESETS[emanation?.preset] || PRESETS.torch_flames;
+  const emitter = emanation?.emitter;
+  const derived = emanation?.quads;
+  const uniforms = flameUniforms(preset, emitter);
+  const blending = emitter?.blendMode === 'normal' ? THREE.NormalBlending : THREE.AdditiveBlending;
+  const fire = flameQuads(quadCount(counts.fire, derived?.fire ?? 16), 'fire', uniforms, blending);
+  const smoke = flameQuads(quadCount(counts.smoke, derived?.smoke ?? 6), 'smoke', uniforms, blending);
+  const embers = flameQuads(quadCount(counts.embers, derived?.embers ?? 5), 'embers', uniforms, blending);
   const mesh = new THREE.Group();
   mesh.add(fire.mesh, smoke.mesh, embers.mesh);
   mesh.visible = false;

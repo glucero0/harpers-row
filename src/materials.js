@@ -410,13 +410,18 @@ export function createMaterials() {
     wood: sharedSurface(woodMap, 0xb08968, 0.94, 0.04),
     cave: sharedSurface(rockMap, 0x6e6a66, 0.96, 0.02, rockBump),
   };
+  const ceilings = {
+    stone: applyRuinShader(sharedSurface(stoneMap, 0x4e4a44, 0.98, 0.02, stoneHeight), ruin),
+    wood: sharedSurface(woodMap, 0x6a4530, 0.96, 0.03),
+    cave: sharedSurface(rockMap, 0x2e2c2a, 0.98, 0.02, rockBump),
+  };
   const plank = sharedSurface(woodMap, 0xc09060, 0.75, 0.04);
   const dirt = sharedSurface(dirtMap, 0x8a6a48, 1, 0);
-  const ceiling = applyRuinShader(sharedSurface(stoneMap, 0x4e4a44, 0.98, 0.02, stoneHeight), ruin);
+  const ceiling = ceilings.stone;
+  const ceilingCave = ceilings.cave;
   wall.stone.bumpMap = null;
   floor.stone.bumpMap = null;
-  ceiling.bumpMap = null;
-  const ceilingCave = share(new THREE.MeshStandardMaterial({ color: 0x16181c, roughness: 1 }));
+  ceilings.stone.bumpMap = null;
   const brazier = share(new THREE.MeshStandardMaterial({ color: 0x4a463f, roughness: 0.9 }));
   const bowl = share(new THREE.MeshStandardMaterial({ color: 0x2c2a28, roughness: 0.6, metalness: 0.4 }));
   const core = share(new THREE.MeshBasicMaterial({ color: 0xfff1c4 }));
@@ -427,6 +432,10 @@ export function createMaterials() {
 
   function floorMaterial(theme) {
     return floor[theme] || floor.stone;
+  }
+
+  function ceilingMaterial(theme) {
+    return ceilings[theme] || ceilings.stone;
   }
 
   function share(material) {
@@ -553,7 +562,8 @@ export function createMaterials() {
   const ownedMaterials = [
     wall.stone, wall.wood, wall.cave,
     floor.stone, floor.wood, floor.cave,
-    plank, dirt, ceiling, ceilingCave, brazier, bowl, core,
+    ceilings.stone, ceilings.wood, ceilings.cave,
+    plank, dirt, brazier, bowl, core,
     metal, armor, leather, chain, iron, gold, ember, rust, flame, eye, socket,
     bone, boneHot, boneFlash,
   ];
@@ -563,6 +573,7 @@ export function createMaterials() {
     fadeVariant,
     surface,
     floor: floorMaterial,
+    ceilingFor: ceilingMaterial,
     plank,
     dirt,
     ceiling,
