@@ -118,4 +118,84 @@ describe('createSkeletons', () => {
     expect(target.z).toBe(target.spawnZ);
     expect(target.aggro).toBe(false);
   });
+
+  it('lands bone debris on the skeleton floor and keeps it under the ceiling', () => {
+    const rect = { x: 0, z: 0, w: 16, d: 12 };
+    const polygon = [
+      [rect.x, rect.z],
+      [rect.x + rect.w, rect.z],
+      [rect.x + rect.w, rect.z + rect.d],
+      [rect.x, rect.z + rect.d],
+    ];
+    const room = (id, y) => ({
+      id,
+      index: y / 10,
+      kind: 'chamber',
+      name: id,
+      theme: 'stone',
+      lighting: 'underground',
+      spawns: [[8, 6]],
+      rocks: [],
+      polygon,
+      rect,
+      floor: y / 10,
+      y,
+      storyHeight: 10,
+    });
+    const stackedLayout = {
+      areaName: 'The Ancient Ruins',
+      requirements: ['torch', 'mace'],
+      lastRoomId: 'upper',
+      zoneLabels: {
+        'worn-trail': 'Worn Trail',
+        'ancient-ruins': 'The Ancient Ruins',
+        'world-hub': 'Mountain Pass',
+      },
+      rooms: [room('lower', 0), room('upper', 10)],
+      doors: [],
+    };
+    const stacked = createDungeon(scene, testMaterials.materials, stackedLayout);
+    try {
+      const skeletons = createSkeletons(stacked.group, stacked, testMaterials.materials);
+      const lower = skeletons.list.find((skeleton) => skeleton.room.id === 'lower');
+      const upper = skeletons.list.find((skeleton) => skeleton.room.id === 'upper');
+      lower.y = lower.room.y + lower.room.storyHeight;
+      upper.y = upper.room.y + upper.room.storyHeight;
+
+      skeletons.damage(lower, 1000, 1, 0);
+      skeletons.damage(upper, 1000, 0, 1);
+
+      expect(lower.debris.floorY).toBeCloseTo(0, 5);
+      expect(lower.debris.ceilingY).toBeCloseTo(10, 5);
+      expect(upper.debris.floorY).toBeCloseTo(10, 5);
+      expect(upper.debris.ceilingY).toBeCloseTo(20, 5);
+
+      for (const piece of lower.debris.pieces) {
+        if (!piece.node.userData.fragment) continue;
+        expect(piece.node.position.y).toBeGreaterThan(2.3);
+        expect(piece.node.position.y).toBeLessThan(5);
+      }
+      for (const piece of upper.debris.pieces) {
+        if (!piece.node.userData.fragment) continue;
+        expect(piece.node.position.y).toBeGreaterThan(12.3);
+        expect(piece.node.position.y).toBeLessThan(15);
+      }
+
+      for (let frame = 0; frame < 200; frame += 1) {
+        skeletons.update(1 / 30, stubPlayer(), () => 'hit', 0.5, false);
+      }
+
+      for (const skeleton of [lower, upper]) {
+        const floor = skeleton.debris.floorY;
+        const ceiling = skeleton.debris.ceilingY;
+        for (const piece of skeleton.debris.pieces) {
+          expect(piece.node.position.y).toBeGreaterThan(floor - 0.25);
+          expect(piece.node.position.y).toBeLessThan(floor + 3);
+          expect(piece.node.position.y).toBeLessThan(ceiling - 0.5);
+        }
+      }
+    } finally {
+      stacked.dispose();
+    }
+  });
 });

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
-import warriorDef from '../skeletelWarrior.json';
+import warriorDef from './skeletelWarrior.json';
 import {
   attackRecover,
   attackWindup,

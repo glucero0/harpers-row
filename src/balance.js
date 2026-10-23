@@ -1,4 +1,4 @@
-import warriorDef from '../skeletelWarrior.json';
+import warriorDef from './skeletelWarrior.json';
 
 export const ROOM_COUNT = 6;
 

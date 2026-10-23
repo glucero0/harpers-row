@@ -311,3 +311,83 @@ describe('createDungeon', () => {
     });
   });
 });
+
+function polygon(rect) {
+  return [
+    [rect.x, rect.z],
+    [rect.x + rect.w, rect.z],
+    [rect.x + rect.w, rect.z + rect.d],
+    [rect.x, rect.z + rect.d],
+  ];
+}
+
+describe('stacked floors', () => {
+  function twoStoryLayout() {
+    const lower = { x: 0, z: 0, w: 16, d: 12 };
+    const shaft = { x: 4, z: -16, w: 12, d: 16 };
+    const upper = { x: 0, z: 0, w: 16, d: 12 };
+    const room = (fields, rect) => ({
+      kind: 'chamber',
+      theme: 'stone',
+      lighting: 'underground',
+      spawns: [],
+      rocks: [],
+      polygon: polygon(rect),
+      rect,
+      ...fields,
+    });
+    return {
+      areaName: 'The Ancient Ruins',
+      requirements: ['torch', 'mace'],
+      lastRoomId: 'space-2',
+      zoneLabels: {
+        'worn-trail': 'Worn Trail',
+        'ancient-ruins': 'The Ancient Ruins',
+        'world-hub': 'Mountain Pass',
+      },
+      rooms: [
+        room({ id: 'space-0', index: 0, name: 'Antechamber', role: 'antechamber', floor: 0, y: 0, storyHeight: 10 }, lower),
+        room({
+          id: 'space-1',
+          index: 1,
+          name: 'Stairwell',
+          kind: 'stairwell',
+          block: 'stairwell',
+          floor: 0,
+          y: 0,
+          storyHeight: 20,
+          stair: { axis: 'z', fromY: 0, toY: 10, low: [10, -1], high: [10, -15] },
+        }, shaft),
+        room({ id: 'space-2', index: 2, name: 'Upper Hall', floor: 1, y: 10, storyHeight: 10 }, upper),
+      ],
+      doors: [
+        {
+          a: [6, 0], b: [12, 0], width: 6, height: 7, openingWidth: 6,
+          mouthA: [6, 0], mouthB: [12, 0], from: 'space-0', to: 'space-1', y: 0,
+        },
+        {
+          a: [6, -16], b: [12, -16], width: 6, height: 7, openingWidth: 6,
+          mouthA: [6, -16], mouthB: [12, -16], from: 'space-1', to: 'space-2', y: 10,
+        },
+      ],
+    };
+  }
+
+  it('roomAt keeps overlapping footprints on their own story', () => {
+    const scene = new THREE.Scene();
+    const layout = twoStoryLayout();
+    const dungeon = createDungeon(scene, testMaterials.materials, layout);
+
+    expect(dungeon.roomAt(8, 6, null, 0).id).toBe('space-0');
+    expect(dungeon.roomAt(8, 6, null, 10).id).toBe('space-2');
+    expect(dungeon.floorY(layout.rooms[1], 10, -1)).toBeCloseTo(0, 5);
+    expect(dungeon.floorY(layout.rooms[1], 10, -15)).toBeCloseTo(10, 5);
+
+    dungeon.update(0, 1 / 60, 'stone', 8, 6, false, new THREE.PerspectiveCamera(), 0);
+    expect(dungeon.activeRooms.has('space-0')).toBe(true);
+    expect(dungeon.activeRooms.has('space-1')).toBe(true);
+    expect(dungeon.activeRooms.has('space-2')).toBe(false);
+
+    dungeon.dispose();
+  });
+});

@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createDungeon } from './dungeon.js';
 import { createInput } from './input.js';
 import { createPlayer } from './player.js';
+import { floorHeight } from './geometry.js';
 import { createSkeletons } from './skeleton.js';
 import { generateLayout } from './rooms.js';
 import { withTestMaterials } from './test-utils/testMaterials.js';
@@ -144,5 +145,30 @@ describe('createPlayer', () => {
       player.update(1 / 60, frame, dungeon, skeletons, 0.5, true, { realDt: 1 / 60 });
     }).not.toThrow();
     expect(player.state.room).toBeTruthy();
+  });
+
+  it('follows a stairwell from the lower sill up to the upper sill', () => {
+    const stair = {
+      id: 'stair',
+      theme: 'stone',
+      kind: 'stairwell',
+      y: 0,
+      storyHeight: 20,
+      stair: { fromY: 0, toY: 10, low: [0, 0], high: [0, -16] },
+    };
+    const world = {
+      colliders: [],
+      gateInward: { x: 0, z: -1 },
+      nearGate() { return false; },
+      containsInterior() { return false; },
+      roomAt() { return stair; },
+      floorY(room, x, z) { return floorHeight(room, x, z); },
+    };
+    const player = createPlayer(camera, testMaterials.materials, { x: 0, z: 0, yaw: 0, y: 0 });
+    player.equip();
+    player.state.x = 0;
+    player.state.z = -16;
+    player.update(1 / 60, input.poll(), world, null, 0.5, true, { realDt: 1 / 60 });
+    expect(player.state.y).toBeCloseTo(10, 5);
   });
 });

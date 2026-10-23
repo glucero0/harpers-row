@@ -42,7 +42,7 @@ let layout = ancientRuinsLayout();
 let dungeon = createDungeon(scene, materials, layout, renderer);
 let skeletons = createSkeletons(dungeon.group, dungeon, materials);
 const player = createPlayer(camera, materials, layout.start);
-player.state.room = dungeon.roomAt(layout.start.x, layout.start.z, null);
+player.state.room = dungeon.roomAt(layout.start.x, layout.start.z, null, player.state.y || 0);
 
 let started = false;
 let manualPause = false;
@@ -61,7 +61,7 @@ function beginRun() {
   skeletons = createSkeletons(dungeon.group, dungeon, materials);
   player.reset(layout.start);
   player.reconcileXp(ui.experience());
-  player.state.room = dungeon.roomAt(layout.start.x, layout.start.z, null);
+  player.state.room = dungeon.roomAt(layout.start.x, layout.start.z, null, player.state.y || 0);
   transitions.setRun(layout.transitions, layout.zoneLabels, 'worn-trail');
   victory = false;
   manualPause = false;
@@ -80,10 +80,10 @@ const transitions = createZoneTransitions({
   },
   onCommit(config) {
     const spawn = config.targetSpawnPoint;
-    player.placeAt(spawn.x, spawn.z, spawn.rotationY);
+    player.placeAt(spawn.x, spawn.z, spawn.rotationY, spawn.y || 0);
     dungeon.showZone(config.targetZoneId);
     dungeon.applyEnvironment(config.environmentalPreset);
-    player.state.room = dungeon.roomAt(player.state.x, player.state.z, null);
+    player.state.room = dungeon.roomAt(player.state.x, player.state.z, null, player.state.y || 0);
   },
 });
 
@@ -151,7 +151,7 @@ function frame(now) {
     transitions.update(time.realDt, player.state.x, player.state.z);
     dungeon.tickEnvironment(time.realDt);
     const theme = player.state.room?.theme || 'outdoor';
-    dungeon.update(now / 1000, time.dt, theme, player.state.x, player.state.z, player.state.moving, camera);
+    dungeon.update(now / 1000, time.dt, theme, player.state.x, player.state.z, player.state.moving, camera, player.state.y || 0);
     const torchPower = player.state.equipped ? 1 : 0;
     materials.ruin.sync({
       x: player.state.guardX,
@@ -161,7 +161,7 @@ function frame(now) {
       fogLift: theme === 'outdoor' ? 1.35 : 1.05,
     });
     setDustLight(player.state.guardX, player.state.guardY, player.state.guardZ, torchPower);
-    audio.setListener(player.state.x, 5.5, player.state.z, player.state.yaw);
+    audio.setListener(player.state.x, 5.5 + (player.state.y || 0), player.state.z, player.state.yaw);
     audio.ambience(theme !== 'outdoor');
     const enemyTotal = skeletons.list.length;
     ui.sync({
