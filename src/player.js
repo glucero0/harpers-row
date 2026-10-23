@@ -447,6 +447,7 @@ export function createPlayer(camera, materials, start) {
 
   const state = {
     x: start.x,
+    y: start.y || 0,
     z: start.z,
     yaw: start.yaw,
     pitch: -0.08,
@@ -547,7 +548,7 @@ export function createPlayer(camera, materials, start) {
   camera.rotation.order = 'YXZ';
 
   function placeCamera() {
-    rig.position.set(state.x, state.gait * (state.blocking ? 0.03 : 0.07), state.z);
+    rig.position.set(state.x, (state.y || 0) + state.gait * (state.blocking ? 0.03 : 0.07), state.z);
     rig.rotation.set(0, state.yaw, state.gait * 0.035);
     camera.rotation.set(state.pitch, 0, 0);
     camera.rotation.x = Math.max(-PITCH_DOWN, Math.min(PITCH_UP, camera.rotation.x));
@@ -815,12 +816,14 @@ export function createPlayer(camera, materials, start) {
       moveAmount = speed / PLAYER_SPEED;
       state.x += (mx / length) * speed * dt;
       state.z += (mz / length) * speed * dt;
-      const resolved = resolveBody(state.x, state.z, PLAYER_RADIUS, world.colliders);
+      const resolved = resolveBody(state.x, state.z, PLAYER_RADIUS, world.colliders, state.y || 0);
       state.x = resolved.x;
       state.z = resolved.z;
     }
     state.denyCooldown = Math.max(0, state.denyCooldown - dt);
-    if (!state.equipped && world.containsInterior(state.x, state.z)) {
+    state.room = world.roomAt(state.x, state.z, state.room?.id, state.y || 0);
+    if (world.floorY) state.y = world.floorY(state.room, state.x, state.z);
+    if (!state.equipped && world.containsInterior(state.x, state.z, state.y || 0)) {
       const spot = world.threshold();
       state.x = spot.x;
       state.z = spot.z;
@@ -829,7 +832,8 @@ export function createPlayer(camera, materials, start) {
       const press = (mx / length) * world.gateInward.x + (mz / length) * world.gateInward.z;
       if (press > 0.35) denyEntry();
     }
-    state.room = world.roomAt(state.x, state.z, state.room?.id);
+    state.room = world.roomAt(state.x, state.z, state.room?.id, state.y || 0);
+    if (world.floorY) state.y = world.floorY(state.room, state.x, state.z);
 
     if (state.equipped && input.attack && state.attackWait <= 0 && state.swing <= 0) {
       state.attackWait = state.attackInterval;
@@ -853,7 +857,8 @@ export function createPlayer(camera, materials, start) {
         const dist = Math.hypot(dx, dz);
         const angle = Math.atan2(forwardX * dz - forwardZ * dx, forwardX * dx + forwardZ * dz);
         const inArc = dist <= SWORD_RANGE && Math.abs(angle) <= SWORD_ARC;
-        const seen = inArc && lineOfSight(state.x, state.z, skeleton.x, skeleton.z, world.colliders);
+        const dy = Math.abs((skeleton.y || 0) - (state.y || 0));
+        const seen = dy < 4 && inArc && lineOfSight(state.x, state.z, skeleton.x, skeleton.z, world.colliders, state.y || 0);
         if (seen) state.aiming = true;
         if (striking && seen && !state.struck.has(skeleton.id)) {
           state.struck.add(skeleton.id);
@@ -866,7 +871,7 @@ export function createPlayer(camera, materials, start) {
     state.usePressed = !!input.use;
     state.swinging = striking;
     if (striking && world.openChestAt) {
-      const gold = world.openChestAt(state.x, state.z, forwardX, forwardZ);
+      const gold = world.openChestAt(state.x, state.z, forwardX, forwardZ, state.y || 0);
       if (gold > 0) {
         state.gold += gold;
         connected = true;
@@ -919,6 +924,7 @@ export function createPlayer(camera, materials, start) {
 
   function reset(nextStart) {
     state.x = nextStart.x;
+    state.y = nextStart.y || 0;
     state.z = nextStart.z;
     state.yaw = nextStart.yaw;
     state.pitch = -0.08;
@@ -990,8 +996,9 @@ export function createPlayer(camera, materials, start) {
     return true;
   }
 
-  function placeAt(x, z, yaw) {
+  function placeAt(x, z, yaw, y = 0) {
     state.x = x;
+    state.y = y || 0;
     state.z = z;
     state.yaw = yaw;
     state.prevYaw = yaw;

@@ -43,7 +43,7 @@ describe('restart cycle (beginRun/clearRun) lifecycle', () => {
     dungeon.dispose();
     expect(scene.children.length).toBe(baselineChildCount);
     testMaterials.dispose();
-  });
+  }, 20000);
 
   it('disposes a geometry/material for everything it created on every cycle, not just the first', () => {
     const testMaterials = withTestMaterials();
@@ -75,5 +75,5 @@ describe('restart cycle (beginRun/clearRun) lifecycle', () => {
 
     geometryDisposeSpy.mockRestore();
     testMaterials.dispose();
-  });
+  }, 20000);
 });

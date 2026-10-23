@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { SKELETON_NAME, SWORD_ARC, SWORD_RANGE } from './balance.js';
 import { clearDustField, createDustField } from './dust.js';
-import { clearance, closestOnSegment, lineOfSight, pointInPolygon } from './geometry.js';
+import { clearance, closestOnSegment, floorHeight, lineOfSight, pointInPolygon } from './geometry.js';
 import { audio } from './audio.js';
 import ancientRuinsData from './ancientRuinsData.json';
 import { DEAD_TREE_VARIANTS, ENVIRONMENT_PRESETS, trailBlocksProp } from './rooms.js';
@@ -180,6 +180,8 @@ function addWall(scene, ax, az, bx, bz, theme, materials, colliders, height, y0,
       maxX: Math.max(faceAx, faceBx),
       minZ: Math.min(faceAz, faceBz),
       maxZ: Math.max(faceAz, faceBz),
+      y0,
+      y1: y0 + height,
     });
   }
 }
@@ -201,6 +203,8 @@ function disposeTree(node) {
 function buildWalls(root, materials, colliders, rooms, doors, batch) {
   const groups = new Map();
   for (const room of rooms) {
+    const y0 = room.y || 0;
+    const y1 = y0 + (room.storyHeight || WALL_HEIGHT);
     const polygon = room.polygon;
     for (let i = 0; i < polygon.length; i += 1) {
       const a = polygon[i];
@@ -214,7 +218,13 @@ function buildWalls(root, materials, colliders, rooms, doors, batch) {
       }
       const t1 = a[0] * group.dx + a[1] * group.dz;
       const t2 = b[0] * group.dx + b[1] * group.dz;
-      group.covers.push({ t0: Math.min(t1, t2), t1: Math.max(t1, t2), room });
+      group.covers.push({
+        t0: Math.min(t1, t2),
+        t1: Math.max(t1, t2),
+        y0,
+        y1,
+        room,
+      });
     }
   }
 
@@ -226,53 +236,89 @@ function buildWalls(root, materials, colliders, rooms, doors, batch) {
       if (distA > 0.4 || distB > 0.4) continue;
       const tA = door.a[0] * group.dx + door.a[1] * group.dz;
       const tB = door.b[0] * group.dx + door.b[1] * group.dz;
+      const base = door.y || 0;
+      const rise = Math.max(6.2, door.height || DOOR_HEIGHT);
       gaps.push({
         t0: Math.min(tA, tB),
         t1: Math.max(tA, tB),
-        height: door.height || DOOR_HEIGHT,
+        y0: base,
+        y1: base + rise,
       });
     }
-    const coverSpans = group.covers.map((cover) => [cover.t0, cover.t1]);
-    for (const [t0, t1] of subtractIntervals(coverSpans, gaps.map((gap) => [gap.t0, gap.t1]))) {
-      const [ax, az] = pointAt(group, t0);
-      const [bx, bz] = pointAt(group, t1);
+    const marks = [];
+    for (const cover of group.covers) marks.push(cover.t0, cover.t1);
+    for (const gap of gaps) marks.push(gap.t0, gap.t1);
+    marks.sort((a, b) => a - b);
+    const unique = [];
+    for (const mark of marks) {
+      if (!unique.length || mark - unique[unique.length - 1] > 0.02) unique.push(mark);
+    }
+    // Collinear pieces of one story become a single wall. A door's sill cuts that run
+    // where the opening is, and the lintel above it stays its own span.
+    const runs = [];
+    for (let index = 0; index < unique.length - 1; index += 1) {
+      const t0 = unique[index];
+      const t1 = unique[index + 1];
+      if (t1 - t0 < 0.2) continue;
+      const mid = (t0 + t1) / 2;
+      const covers = group.covers.filter((cover) => mid >= cover.t0 - 0.02 && mid <= cover.t1 + 0.02);
+      if (!covers.length) continue;
+      let bands = mergeIntervals(covers.map((cover) => [cover.y0, cover.y1]));
+      for (const gap of gaps) {
+        if (gap.t1 < t0 + 0.02 || gap.t0 > t1 - 0.02) continue;
+        bands = subtractIntervals(bands, [[gap.y0, gap.y1]]);
+      }
+      bands = bands.filter((band) => band[1] - band[0] >= 0.15);
+      if (!bands.length) continue;
+      const theme = themeAt(covers, mid);
+      const signature = `${theme}|${bands.map((band) => band.join(',')).join(';')}`;
       const roomIds = [];
-      for (const cover of group.covers) {
-        if (cover.t1 < t0 - 0.02 || cover.t0 > t1 + 0.02) continue;
+      for (const cover of covers) {
         if (!roomIds.includes(cover.room.id)) roomIds.push(cover.room.id);
       }
-      addWall(root, ax, az, bx, bz, themeAt(group.covers, (t0 + t1) / 2), materials, colliders, WALL_HEIGHT, 0, true, batch, roomIds);
+      const last = runs.at(-1);
+      if (last && last.signature === signature && t0 - last.t1 < 0.05) {
+        last.t1 = t1;
+        for (const id of roomIds) if (!last.roomIds.includes(id)) last.roomIds.push(id);
+      } else {
+        runs.push({ t0, t1, bands, signature, theme, roomIds });
+      }
     }
-    for (const gap of gaps) {
-      const mid = (gap.t0 + gap.t1) / 2;
-      const onWall = group.covers.some((cover) => mid >= cover.t0 - 0.05 && mid <= cover.t1 + 0.05);
-      if (!onWall || gap.t1 - gap.t0 < 0.5) continue;
-      const [ax, az] = pointAt(group, gap.t0);
-      const [bx, bz] = pointAt(group, gap.t1);
-      const sill = Math.min(WALL_HEIGHT - 1.2, Math.max(6.2, gap.height));
-      addWall(
-        root,
-        ax,
-        az,
-        bx,
-        bz,
-        themeAt(group.covers, mid),
-        materials,
-        colliders,
-        WALL_HEIGHT - sill,
-        sill,
-        false,
-        batch,
-        group.covers.map((cover) => cover.room.id).filter((id, index, list) => list.indexOf(id) === index),
-      );
+    for (const run of runs) {
+      const [ax, az] = pointAt(group, run.t0);
+      const [bx, bz] = pointAt(group, run.t1);
+      for (const [bandY0, bandY1] of run.bands) {
+        const roomIds = [];
+        for (const cover of group.covers) {
+          const overlap = Math.min(cover.t1, run.t1) - Math.max(cover.t0, run.t0);
+          if (overlap < 0.2) continue;
+          if (cover.y1 < bandY0 + 0.02 || cover.y0 > bandY1 - 0.02) continue;
+          if (!roomIds.includes(cover.room.id)) roomIds.push(cover.room.id);
+        }
+        addWall(
+          root,
+          ax,
+          az,
+          bx,
+          bz,
+          run.theme,
+          materials,
+          colliders,
+          bandY1 - bandY0,
+          bandY0,
+          true,
+          batch,
+          roomIds.length ? roomIds : run.roomIds,
+        );
+      }
     }
   }
 }
 
-function addRock(scene, materials, x, z) {
+function addRock(scene, materials, x, z, y = 0) {
   const rock = settle(new THREE.Mesh(new THREE.DodecahedronGeometry(0.9, 0), materials.surface('cave')));
   rock.scale.set(1.15, 1.55, 1.05);
-  rock.position.set(x, 0.7, z);
+  rock.position.set(x, y + 0.7, z);
   rock.rotation.y = x * 0.2;
   rock.updateMatrix();
   scene.add(rock);
@@ -291,6 +337,34 @@ function segmentCollider(ax, az, bx, bz, nx, nz) {
     minZ: Math.min(az, bz),
     maxZ: Math.max(az, bz),
   };
+}
+
+function addStairs(root, room, materials, batch) {
+  const stair = room.stair;
+  if (!stair?.low || !stair.high) return;
+  const dx = stair.high[0] - stair.low[0];
+  const dz = stair.high[1] - stair.low[1];
+  const length = Math.hypot(dx, dz);
+  if (length < 0.5) return;
+  const steps = 8;
+  const rise = (stair.toY - stair.fromY) / steps;
+  const run = length / steps;
+  const rotY = Math.atan2(-dz, dx);
+  const material = materials.surface(room.theme || 'stone');
+  for (let step = 0; step < steps; step += 1) {
+    const t = (step + 0.5) / steps;
+    const geometry = new THREE.BoxGeometry(Math.max(0.4, run), Math.max(0.2, rise), 4.2);
+    batch.place(
+      material,
+      geometry,
+      stair.low[0] + dx * t,
+      stair.fromY + rise * (step + 0.5),
+      stair.low[1] + dz * t,
+      rotY,
+      [room.id],
+      true,
+    );
+  }
 }
 
 function addSlab(parent, rect, y, material, facingUp, batch, roomId) {
@@ -1141,25 +1215,29 @@ export function createDungeon(scene, materials, layout = ancientRuinsLayout(), r
   for (const room of rooms) {
     const floorMaterial = materials.floor(room.theme);
     const ceilingMaterial = room.theme === 'cave' ? materials.ceilingCave : materials.ceiling;
+    const baseY = room.y || 0;
+    const topY = baseY + (room.storyHeight || WALL_HEIGHT);
     if (room.rect) {
-      addSlab(root, room.rect, 0, floorMaterial, true, batch, room.id);
-      addSlab(root, room.rect, WALL_HEIGHT, ceilingMaterial, false, batch, room.id);
+      addSlab(root, room.rect, baseY, floorMaterial, true, batch, room.id);
+      addSlab(root, room.rect, topY, ceilingMaterial, false, batch, room.id);
     } else {
-      batch.place(floorMaterial, polygonGeometry(room.polygon, 0, true), 0, 0, 0, 0, [room.id], false);
-      batch.place(ceilingMaterial, polygonGeometry(room.polygon, WALL_HEIGHT, false), 0, 0, 0, 0, [room.id], false);
+      batch.place(floorMaterial, polygonGeometry(room.polygon, baseY, true), 0, 0, 0, 0, [room.id], false);
+      batch.place(ceilingMaterial, polygonGeometry(room.polygon, topY, false), 0, 0, 0, 0, [room.id], false);
     }
+    if (room.stair) addStairs(root, room, materials, batch);
     if (room.sconce && room.chest) {
-      const built = createWallSconce(materials, room.sconce);
+      const built = createWallSconce(materials, { ...room.sconce, y: baseY });
       built.interactable.roomId = room.id;
       root.add(built.group);
       built.group.visible = false;
       const chestMesh = createChest(materials);
-      chestMesh.group.position.set(room.chest.x, 0, room.chest.z);
+      chestMesh.group.position.set(room.chest.x, baseY, room.chest.z);
       chestMesh.group.rotation.y = Math.atan2(room.sconce.nx, room.sconce.nz);
       chestMesh.group.visible = false;
       root.add(chestMesh.group);
       const chest = {
         x: room.chest.x,
+        y: baseY,
         z: room.chest.z,
         nx: room.sconce.nx,
         nz: room.sconce.nz,
@@ -1171,7 +1249,7 @@ export function createDungeon(scene, materials, layout = ancientRuinsLayout(), r
         lidAge: 0,
       };
       chests.push(chest);
-      colliders.push({ x: chest.x, z: chest.z, radius: 1.7 });
+      colliders.push({ x: chest.x, z: chest.z, radius: 1.7, y0: baseY, y1: baseY + 2 });
       sconces.push({
         roomId: room.id,
         x: built.interactable.x,
@@ -1182,9 +1260,9 @@ export function createDungeon(scene, materials, layout = ancientRuinsLayout(), r
         chest,
       });
     }
-    for (const [x, z] of room.rocks) {
-      addRock(root, materials, x, z);
-      colliders.push({ x, z, radius: 1.05 });
+    for (const [x, z] of room.rocks || []) {
+      addRock(root, materials, x, z, baseY);
+      colliders.push({ x, z, radius: 1.05, y0: baseY, y1: baseY + 2 });
     }
   }
 
@@ -1331,25 +1409,34 @@ export function createDungeon(scene, materials, layout = ancientRuinsLayout(), r
     outdoorGroup.visible = nextZone !== 'ancient-ruins';
   }
 
-  function roomAt(x, z, previousId) {
-    if (hubRoom.polygon.length > 2 && pointInPolygon(x, z, hubRoom.polygon)) return hubRoom;
-    if (vestibulePoly.length > 2 && pointInPolygon(x, z, vestibulePoly)) {
+  function spansY(room, y) {
+    const y0 = room.y || 0;
+    const y1 = y0 + (room.storyHeight || WALL_HEIGHT);
+    return y >= y0 - 0.2 && y < y1 - 0.02;
+  }
+
+  function roomAt(x, z, previousId, y = 0) {
+    const grounded = y < 5;
+    if (grounded && hubRoom.polygon.length > 2 && pointInPolygon(x, z, hubRoom.polygon)) return hubRoom;
+    if (grounded && vestibulePoly.length > 2 && pointInPolygon(x, z, vestibulePoly)) {
       const previous = rooms.find((room) => room.id === previousId);
       if (previous && previous.theme !== 'outdoor') return previous;
       return outdoors;
     }
-    if (outdoors.polygon.length > 2 && pointInPolygon(x, z, outdoors.polygon)) return outdoors;
-    const inside = rooms.filter((room) => pointInPolygon(x, z, room.polygon));
+    if (grounded && outdoors.polygon.length > 2 && pointInPolygon(x, z, outdoors.polygon)) return outdoors;
+    const inside = rooms.filter((room) => spansY(room, y) && pointInPolygon(x, z, room.polygon));
     if (inside.length === 1) return inside[0];
     if (inside.length > 1) return inside.find((room) => room.id === previousId) || inside[0];
     if (previousId) {
       const previous = rooms.find((room) => room.id === previousId);
-      if (previous && clearance(x, z, previous.polygon) > -0.8) return previous;
+      if (previous && spansY(previous, y) && clearance(x, z, previous.polygon) > -0.8) return previous;
     }
-    return rooms.reduce((nearest, room) => {
+    const pool = rooms.filter((room) => spansY(room, y));
+    const source = pool.length ? pool : rooms;
+    return source.reduce((nearest, room) => {
       const dist = Math.abs(clearance(x, z, room.polygon));
       return dist < nearest.dist ? { room, dist } : nearest;
-    }, { room: rooms[0], dist: Infinity }).room;
+    }, { room: source[0], dist: Infinity }).room;
   }
 
   const coinMouth = new THREE.Vector3();
@@ -1398,7 +1485,7 @@ export function createDungeon(scene, materials, layout = ancientRuinsLayout(), r
     if (!state.equipped) return false;
     for (const sconce of sconces) {
       if (sconce.interactable.lit) continue;
-      if (!lineOfSight(state.x, state.z, sconce.x, sconce.z, colliders)) continue;
+      if (!lineOfSight(state.x, state.z, sconce.x, sconce.z, colliders, state.y || 0)) continue;
       const lit = sconce.interactable.tryIgnite({
         x: state.x,
         z: state.z,
@@ -1416,7 +1503,7 @@ export function createDungeon(scene, materials, layout = ancientRuinsLayout(), r
     return false;
   }
 
-  function openChestAt(x, z, forwardX, forwardZ) {
+  function openChestAt(x, z, forwardX, forwardZ, y = 0) {
     for (const chest of chests) {
       if (chest.opened) continue;
       const dx = chest.x - x;
@@ -1424,7 +1511,7 @@ export function createDungeon(scene, materials, layout = ancientRuinsLayout(), r
       const dist = Math.hypot(dx, dz);
       const angle = Math.atan2(forwardX * dz - forwardZ * dx, forwardX * dx + forwardZ * dz);
       if (dist > SWORD_RANGE || Math.abs(angle) > SWORD_ARC) continue;
-      if (!lineOfSight(x, z, chest.x, chest.z, colliders)) continue;
+      if (!lineOfSight(x, z, chest.x, chest.z, colliders, y)) continue;
       chest.opened = true;
       spawnLoot(chest);
       return CHEST_GOLD;
@@ -1450,8 +1537,11 @@ export function createDungeon(scene, materials, layout = ancientRuinsLayout(), r
       return this.activeRooms.has(id);
     },
     roomAt,
-    containsInterior(x, z) {
-      return rooms.some((room) => pointInPolygon(x, z, room.polygon));
+    floorY(room, x, z) {
+      return floorHeight(room, x, z);
+    },
+    containsInterior(x, z, y = 0) {
+      return rooms.some((room) => spansY(room, y) && pointInPolygon(x, z, room.polygon));
     },
     threshold() {
       return { x: approach.midX, z: approach.southZ + 2.2 };
@@ -1501,17 +1591,24 @@ export function createDungeon(scene, materials, layout = ancientRuinsLayout(), r
       scene.remove(sky);
       scene.remove(fill);
     },
-    update(time, dt, theme, x, z, moving, camera) {
-      const here = roomAt(x, z, null);
+    update(time, dt, theme, x, z, moving, camera, y = 0) {
+      const here = roomAt(x, z, null, y);
       const inInteriorRoom = !!(here && here.theme !== 'outdoor');
       const indoors = zoneId === 'ancient-ruins' || inInteriorRoom;
       outdoorGroup.visible = !indoors;
       if (indoors) this.intruded = true;
       activeList.length = 0;
       if (indoors) {
-        for (const room of rooms) {
-          if (Math.abs(room.index - here.index) <= 1) activeList.push(room.id);
+        const focus = here && here.theme !== 'outdoor' ? here : rooms[0];
+        const linked = new Set(focus ? [focus.id] : []);
+        if (focus) {
+          for (const door of doors) {
+            if (door.from !== focus.id && door.to !== focus.id) continue;
+            if (door.from) linked.add(door.from);
+            if (door.to) linked.add(door.to);
+          }
         }
+        for (const id of linked) activeList.push(id);
       }
       batch.showRooms(activeList);
       this.activeRooms.clear();
@@ -1547,8 +1644,8 @@ export function createDungeon(scene, materials, layout = ancientRuinsLayout(), r
             coin.rotation.x += dt * coin.userData.spin.x;
             coin.rotation.y += dt * coin.userData.spin.y;
             coin.rotation.z += dt * coin.userData.spin.z;
-            if (coin.position.y < 0.12) {
-              coin.position.y = 0.12;
+            if (coin.position.y < (chest.y || 0) + 0.12) {
+              coin.position.y = (chest.y || 0) + 0.12;
               if (vel.y < -1.2) vel.y *= -0.28;
               else vel.y = 0;
               vel.x *= 0.45;
@@ -1573,7 +1670,7 @@ export function createDungeon(scene, materials, layout = ancientRuinsLayout(), r
         const dz = sconce.z - z;
         const hidden = !shown || !sconce.interactable.lit
           || dx * dx + dz * dz > SCONCE_LIGHT_CULL_DISTANCE_SQ
-          || !lineOfSight(x, z, sconce.x, sconce.z, colliders);
+          || !lineOfSight(x, z, sconce.x, sconce.z, colliders, y);
         sconce.interactable.cullLight(hidden);
         sconce.interactable.update(dt, time);
       }
