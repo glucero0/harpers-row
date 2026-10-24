@@ -1,0 +1,19 @@
+{
+  "name": "Brown Wolf",
+  "species": "wolf",
+  "plan": "quadruped",
+  "scale": 1,
+  "color": "#684831",
+  "stats": {
+    "health": 27,
+    "damage": 12,
+    "moveSpeed": 5.58,
+    "wanderFactor": 0.5,
+    "radius": 0.65,
+    "sightRange": 28,
+    "windup": 0.4,
+    "recover": 0.65,
+    "minWindup": 0.14,
+    "minRecover": 0.18
+  }
+}

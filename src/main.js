@@ -112,7 +112,7 @@ function beginWorld(plan) {
   places.show('hub');
   adopt(places.dungeon(), places.skeletons(), plan.hub.respawn, 'hub');
   dungeon.applyEnvironment(null);
-  ui.setLocation({ areaName: plan.hub.areaName });
+  ui.setLocation({ areaName: plan.hub.areaName, enemyName: dungeon.enemyName });
 }
 
 const transitions = createZoneTransitions({
@@ -141,6 +141,7 @@ const transitions = createZoneTransitions({
     dungeon.showZone(config.targetZoneId);
     dungeon.applyEnvironment(config.environmentalPreset);
     player.state.room = dungeon.roomAt(player.state.x, player.state.z, null, player.state.y);
+    ui.setLocation({ areaName: dungeon.placeName, enemyName: dungeon.enemyName });
   },
 });
 

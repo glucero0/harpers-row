@@ -1,0 +1,19 @@
+{
+  "name": "Brown Deer",
+  "species": "deer",
+  "plan": "quadruped",
+  "scale": 1,
+  "color": "#62442e",
+  "stats": {
+    "health": 23,
+    "damage": 5,
+    "moveSpeed": 6.36,
+    "wanderFactor": 0.55,
+    "radius": 0.7,
+    "sightRange": 30,
+    "windup": 0.4,
+    "recover": 0.7,
+    "minWindup": 0.14,
+    "minRecover": 0.18
+  }
+}

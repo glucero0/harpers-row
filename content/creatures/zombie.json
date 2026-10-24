@@ -1,0 +1,37 @@
+{
+  "name": "Sage Long-haired Zombie",
+  "species": "zombie",
+  "plan": "humanoid",
+  "scale": 1,
+  "color": "#7d8a72",
+  "stats": {
+    "health": 44,
+    "damage": 11,
+    "moveSpeed": 2.06,
+    "wanderFactor": 0.6,
+    "radius": 0.72,
+    "sightRange": 14,
+    "windup": 0.95,
+    "recover": 1.4,
+    "minWindup": 0.3,
+    "minRecover": 0.35
+  },
+  "weapons": [
+    {
+      "id": "sword",
+      "range": 4.4
+    },
+    {
+      "id": "mace",
+      "range": 3.35
+    },
+    {
+      "id": "hammer",
+      "range": 3.8
+    },
+    {
+      "id": "bow",
+      "range": 26
+    }
+  ]
+}

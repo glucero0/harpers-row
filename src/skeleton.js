@@ -2,22 +2,13 @@ import * as THREE from 'three';
 import {
   GUARD_RADIUS,
   inGuardArc,
-  SKELETON_DAMAGE,
-  SKELETON_HP,
-  SKELETON_MOVE_SPEED,
-  SKELETON_RADIUS,
-  SKELETON_RECOVER,
-  SKELETON_SIGHT_RANGE,
-  SKELETON_WANDER_FACTOR,
-  SKELETON_WINDUP,
   attackRecover,
   attackWindup,
   paceMultiplier,
-  skeletonAttackRange,
-  skeletonWeapon,
 } from './balance.js';
 import { STORY_HEIGHT, closestApproach3, closestOnSegment, lineOfSight, pointInPolygon, randomPointInPolygon, resolveBody } from './geometry.js';
 import { audio } from './audio.js';
+import { creatureAttackRange, creatureWeapon, defaultCreature } from './creatures.js';
 import { TriggerDustFall } from './dust.js';
 
 function longBone(length, radius) {
@@ -420,8 +411,7 @@ function nasalCavityGeometry() {
   return geometry;
 }
 
-function buildSkull(materials) {
-  const bone = materials.bone;
+function buildSkull(materials, bone) {
   const cavity = materials.socket;
   const cranium = new THREE.Group();
   const vault = new THREE.IcosahedronGeometry(0.25, 0);
@@ -485,8 +475,8 @@ function pieceOf(node, ball = 0) {
   };
 }
 
-function buildMesh(materials, weapon) {
-  const bone = materials.bone;
+function buildMesh(materials, weapon, creature, body) {
+  const bone = body;
   const root = new THREE.Group();
   const fall = new THREE.Group();
   root.add(fall);
@@ -506,7 +496,7 @@ function buildMesh(materials, weapon) {
   skull.position.set(0, SKULL_REST_Y, 0.03);
   spine.add(skull);
   addPart(spine, new THREE.CapsuleGeometry(0.07, 0.28, 2, 5), bone, 0, 0.98, 0.03, true);
-  const { cranium, jaw, eyeL, eyeR } = buildSkull(materials);
+  const { cranium, jaw, eyeL, eyeR } = buildSkull(materials, bone);
   skull.add(cranium, jaw);
 
   function limb(side) {
@@ -555,7 +545,7 @@ function buildMesh(materials, weapon) {
     armR.elbow.rotation.x = BOW_CARRY.ex;
     armL.shoulder.rotation.set(DRAW_CARRY.sx, DRAW_CARRY.sy, DRAW_CARRY.sz);
     armL.elbow.rotation.x = DRAW_CARRY.ex;
-  } else {
+  } else if (weapon) {
     addMelee(armR.socket, materials, weapon);
     held = armR.socket.getObjectByName('weapon');
     armR.shoulder.rotation.set(MELEE_READY.sx, MELEE_READY.sy, MELEE_READY.sz);
@@ -563,7 +553,13 @@ function buildMesh(materials, weapon) {
     armR.wrist.rotation.x = MELEE_READY.wx;
     armL.shoulder.rotation.set(OFFHAND_IDLE.sx, OFFHAND_IDLE.sy, OFFHAND_IDLE.sz);
     armL.elbow.rotation.x = OFFHAND_IDLE.ex;
+  } else {
+    armR.shoulder.rotation.set(OFFHAND_IDLE.sx, OFFHAND_IDLE.sy, OFFHAND_IDLE.sz);
+    armR.elbow.rotation.x = OFFHAND_IDLE.ex;
+    armL.shoulder.rotation.set(OFFHAND_IDLE.sx, OFFHAND_IDLE.sy, OFFHAND_IDLE.sz);
+    armL.elbow.rotation.x = OFFHAND_IDLE.ex;
   }
+  root.scale.setScalar(creature.scale);
 
   // Every distinct bone, plus whatever is held, can come apart on death.
   const pieces = [
@@ -599,11 +595,27 @@ export { weaponGripOffset };
 export function createSkeletons(parent, dungeon, materials) {
   const list = [];
   const arrows = [];
+  const creature = dungeon.creature || defaultCreature();
+  const stats = creature.stats;
+  const bodies = new Map();
+  function bodyMaterial() {
+    if (!creature.color) return materials.bone;
+    let material = bodies.get(creature.id);
+    if (!material) {
+      material = materials.bone.clone();
+      material.color.set(creature.color);
+      material.userData.shared = false;
+      material.userData.keepMaps = true;
+      bodies.set(creature.id, material);
+    }
+    return material;
+  }
+  const body = bodyMaterial();
   let spawnId = 0;
   for (const room of dungeon.rooms) {
     room.spawns.forEach((spawn, slot) => {
-      const weapon = skeletonWeapon(spawnId);
-      const mesh = buildMesh(materials, weapon);
+      const weapon = creatureWeapon(creature, spawnId);
+      const mesh = buildMesh(materials, weapon, creature, body);
       const floorY = dungeon.floorY ? dungeon.floorY(spawn[0], spawn[1], room) : 0;
       mesh.root.position.set(spawn[0], floorY, spawn[1]);
       parent.add(mesh.root);
@@ -620,7 +632,19 @@ export function createSkeletons(parent, dungeon, materials) {
         y: floorY,
         z: spawn[1],
         yaw: Math.random() * Math.PI * 2,
-        hp: SKELETON_HP,
+        hp: stats.health,
+        maxHp: stats.health,
+        damage: stats.damage,
+        moveSpeed: stats.moveSpeed,
+        wanderFactor: stats.wanderFactor,
+        radius: stats.radius,
+        sightRange2: stats.sightRange * stats.sightRange,
+        windup: stats.windup,
+        recover: stats.recover,
+        minWindup: stats.minWindup,
+        minRecover: stats.minRecover,
+        attackRange: creatureAttackRange(creature, weapon),
+        bodyMaterial: body,
         dead: false,
         aggro: false,
         state: 'wander',
@@ -630,7 +654,7 @@ export function createSkeletons(parent, dungeon, materials) {
         phase: Math.random() * Math.PI * 2,
         flashFrames: 0,
         tint: 0,
-        paint: materials.bone,
+        paint: body,
         knockX: 0,
         knockZ: 0,
         dustWait: 0,
@@ -641,8 +665,8 @@ export function createSkeletons(parent, dungeon, materials) {
         vel: zeroVelocity(),
         poseL: makePose(restPoseL(weapon)),
         velL: zeroVelocity(),
-        windupTotal: SKELETON_WINDUP,
-        recoverTotal: SKELETON_RECOVER,
+        windupTotal: stats.windup,
+        recoverTotal: stats.recover,
         windupFrom: makePose(restPose(weapon)),
         windupFromL: makePose(restPoseL(weapon)),
         nocked: false,
@@ -727,6 +751,7 @@ export function createSkeletons(parent, dungeon, materials) {
       age: 0,
       // Pivot-to-head distance, used to seat the head on whatever it strikes.
       half: nocked.length / 2 + 0.14,
+      damage: skeleton.damage,
       bounced: false,
       // The arrow is spent when it drops to the floor it was shot over.
       floor: skeleton.y + 0.1,
@@ -793,7 +818,7 @@ export function createSkeletons(parent, dungeon, materials) {
         const closest = closestOnSegment(player.x, player.z, arrow.x, arrow.z, nextX, nextZ);
         const level = Math.abs(arrow.y - ((player.y || 0) + ARROW_AIM_HEIGHT)) < SAME_LEVEL;
         if (level && Math.hypot(player.x - closest.x, player.z - closest.z) < 0.9) {
-          if (hurt(SKELETON_DAMAGE, { kind: 'arrow', x: arrow.x, z: arrow.z }) === 'hit') audio.hurt();
+          if (hurt(arrow.damage, { kind: 'arrow', x: arrow.x, z: arrow.z }) === 'hit') audio.hurt();
           removeArrow(index);
           continue;
         }
@@ -903,7 +928,7 @@ export function createSkeletons(parent, dungeon, materials) {
     });
     const kinds = ['femur', 'femur', 'rib', 'rib', 'rib', 'skull', 'skull'];
     for (const kind of kinds) {
-      const meshBit = looseFragment(kind, materials.bone);
+      const meshBit = looseFragment(kind, skeleton.bodyMaterial);
       meshBit.position.set(
         skeleton.x + (Math.random() - 0.5) * 0.8,
         support.floor + 2.4 + Math.random() * 2.2,
@@ -1216,7 +1241,7 @@ export function createSkeletons(parent, dungeon, materials) {
     skeleton.z += skeleton.knockZ * dt;
     const knockedX = skeleton.x;
     const knockedZ = skeleton.z;
-    const resolved = resolveBody(skeleton.x, skeleton.z, SKELETON_RADIUS, dungeon.colliders, skeleton.y);
+    const resolved = resolveBody(skeleton.x, skeleton.z, skeleton.radius, dungeon.colliders, skeleton.y);
     skeleton.x = resolved.x;
     skeleton.z = resolved.z;
     if (Math.hypot(resolved.x - knockedX, resolved.z - knockedZ) > 0.12) {
@@ -1236,7 +1261,7 @@ export function createSkeletons(parent, dungeon, materials) {
     const debris = skeleton.debris;
     // Once the bones are strewn the paint follows them; once they fade, the fade owns the materials.
     if (skeleton.dead && (!debris || debris.fade)) return;
-    let wanted = materials.bone;
+    let wanted = skeleton.bodyMaterial;
     if (skeleton.flashFrames > 0) {
       wanted = materials.boneFlash;
       skeleton.flashFrames -= 1;
@@ -1364,7 +1389,7 @@ export function createSkeletons(parent, dungeon, materials) {
         const sameRoom = player.room && player.room.id === skeleton.room.id;
         const dx = player.x - skeleton.x;
         const dz = player.z - skeleton.z;
-        if (sameRoom || (level && dx * dx + dz * dz < SKELETON_SIGHT_RANGE ** 2
+        if (sameRoom || (level && dx * dx + dz * dz < skeleton.sightRange2
           && lineOfSight(skeleton.x, skeleton.z, player.x, player.z, dungeon.colliders, skeleton.y))) {
           skeleton.aggro = true;
         }
@@ -1408,7 +1433,7 @@ export function createSkeletons(parent, dungeon, materials) {
         const dist = Math.hypot(player.x - skeleton.x, player.z - skeleton.z);
         const seen = level && lineOfSight(skeleton.x, skeleton.z, player.x, player.z, dungeon.colliders, skeleton.y);
         watching = seen;
-        const range = skeletonAttackRange(skeleton.weapon);
+        const range = skeleton.attackRange;
         if (skeleton.state === 'windup') {
           skeleton.timer -= dt;
           moving = dist > range * 1.15;
@@ -1418,7 +1443,7 @@ export function createSkeletons(parent, dungeon, materials) {
             if (seen && dist <= range + 0.35) {
               if (skeleton.weapon === 'bow') looseArrow(skeleton, player);
               else {
-                const result = hurt(SKELETON_DAMAGE, { x: skeleton.x, z: skeleton.z });
+                const result = hurt(skeleton.damage, { x: skeleton.x, z: skeleton.z });
                 if (result === 'hit') audio.hurt();
                 else if (result === 'blocked') {
                   rebound(skeleton, player);
@@ -1428,7 +1453,7 @@ export function createSkeletons(parent, dungeon, materials) {
               }
             }
             skeleton.state = 'recover';
-            skeleton.recoverTotal = attackRecover(pace);
+            skeleton.recoverTotal = attackRecover(pace, skeleton);
             skeleton.timer = skeleton.recoverTotal;
           }
         } else if (skeleton.state === 'recover') {
@@ -1436,7 +1461,7 @@ export function createSkeletons(parent, dungeon, materials) {
           if (skeleton.timer <= 0) skeleton.state = 'chase';
         } else if (dist <= range && seen) {
           skeleton.state = 'windup';
-          skeleton.windupTotal = attackWindup(pace);
+          skeleton.windupTotal = attackWindup(pace, skeleton);
           skeleton.timer = skeleton.windupTotal;
           skeleton.guardMix = 0;
           Object.assign(skeleton.contact, MELEE_CONTACT);
@@ -1449,12 +1474,12 @@ export function createSkeletons(parent, dungeon, materials) {
       }
 
       const speedScale = skeleton.state === 'windup' ? 0.25 : skeleton.state === 'recover' ? 0.12 : 1;
-      const wanderScale = skeleton.aggro ? 1 : SKELETON_WANDER_FACTOR;
+      const wanderScale = skeleton.aggro ? 1 : skeleton.wanderFactor;
       if (moving && running) {
         const dx = target.x - skeleton.x;
         const dz = target.z - skeleton.z;
         const dist = Math.hypot(dx, dz) || 1;
-        const step = SKELETON_MOVE_SPEED * pace * speedScale * wanderScale * dt;
+        const step = skeleton.moveSpeed * pace * speedScale * wanderScale * dt;
         skeleton.x += (dx / dist) * step;
         skeleton.z += (dz / dist) * step;
       }
@@ -1472,7 +1497,7 @@ export function createSkeletons(parent, dungeon, materials) {
         }
         const intendedX = skeleton.x;
         const intendedZ = skeleton.z;
-        const resolved = resolveBody(skeleton.x, skeleton.z, SKELETON_RADIUS, dungeon.colliders, skeleton.y);
+        const resolved = resolveBody(skeleton.x, skeleton.z, skeleton.radius, dungeon.colliders, skeleton.y);
         skeleton.x = resolved.x;
         skeleton.z = resolved.z;
         if (Math.hypot(resolved.x - intendedX, resolved.z - intendedZ) > 0.1) {
@@ -1577,7 +1602,7 @@ export function createSkeletons(parent, dungeon, materials) {
       skeleton.x = skeleton.spawnX;
       skeleton.y = skeleton.spawnY;
       skeleton.z = skeleton.spawnZ;
-      skeleton.hp = SKELETON_HP;
+      skeleton.hp = skeleton.maxHp;
       skeleton.dead = false;
       skeleton.aggro = false;
       skeleton.at = skeleton.room;
@@ -1623,8 +1648,8 @@ export function createSkeletons(parent, dungeon, materials) {
       mesh.fall.position.set(0, 0, 0);
       mesh.fall.rotation.set(0, 0, 0);
       mesh.root.position.set(skeleton.x, skeleton.y, skeleton.z);
-      paintBones(mesh.root, materials.bone);
-      skeleton.paint = materials.bone;
+      paintBones(mesh.root, skeleton.bodyMaterial);
+      skeleton.paint = skeleton.bodyMaterial;
     }
   }
 

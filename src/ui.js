@@ -157,6 +157,7 @@ export function createUI({ onRestart, onEquip, areaName }) {
     // The place being played changed: show its name.
     setLocation(next) {
       if (areaLabel && next.areaName) areaLabel.textContent = next.areaName;
+      if (enemyName && next.enemyName) enemyName.textContent = next.enemyName;
     },
     // Plain text only: the message may quote a short label from the file, never markup.
     pace() {

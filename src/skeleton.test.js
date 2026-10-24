@@ -41,6 +41,22 @@ afterEach(() => {
 });
 
 describe('createSkeletons', () => {
+  it('spawns the creature named by the location, at that creature size', () => {
+    const goblinLayout = generateLayout(4);
+    goblinLayout.options = { theme: 'wood', creature: 'goblin' };
+    goblinLayout.enemyName = 'Goblin';
+    const goblinScene = new THREE.Scene();
+    const goblinDungeon = createDungeon(goblinScene, testMaterials.materials, goblinLayout);
+    const skeletons = createSkeletons(goblinDungeon.group, goblinDungeon, testMaterials.materials);
+    expect(goblinDungeon.enemyName).toBe('Goblin');
+    expect(goblinLayout.rooms.every((room) => room.theme === 'wood')).toBe(true);
+    expect(skeletons.list.length).toBeGreaterThan(0);
+    expect(skeletons.list[0].hp).toBe(17);
+    expect(skeletons.list[0].mesh.root.scale.x).toBeCloseTo(0.72);
+    expect(skeletons.list[0].bodyMaterial.color.getHexString()).toBe('8faf62');
+    goblinDungeon.dispose();
+  });
+
   it('spawns exactly one skeleton per spawn point defined by the layout', () => {
     const skeletons = createSkeletons(dungeon.group, dungeon, testMaterials.materials);
     const expectedCount = layout.rooms.reduce((sum, room) => sum + room.spawns.length, 0);

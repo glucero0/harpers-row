@@ -1,0 +1,37 @@
+{
+  "name": "Slate Long-haired Orc",
+  "species": "orc",
+  "plan": "humanoid",
+  "scale": 1.2,
+  "color": "#6e7c74",
+  "stats": {
+    "health": 73,
+    "damage": 18,
+    "moveSpeed": 3.15,
+    "wanderFactor": 0.3,
+    "radius": 0.9,
+    "sightRange": 22,
+    "windup": 0.85,
+    "recover": 1.2,
+    "minWindup": 0.24,
+    "minRecover": 0.3
+  },
+  "weapons": [
+    {
+      "id": "sword",
+      "range": 4.4
+    },
+    {
+      "id": "mace",
+      "range": 3.35
+    },
+    {
+      "id": "hammer",
+      "range": 3.8
+    },
+    {
+      "id": "bow",
+      "range": 26
+    }
+  ]
+}

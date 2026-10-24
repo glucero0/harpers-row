@@ -28,8 +28,8 @@ test('the torch tip carries the shared campfire flame', () => {
   assert.equal(tip.type, 'group');
   assert.equal(tip.position[1], 0.6144);
   assert.equal(tip.fire.preset, 'campfire_flames');
-  assert.equal(tip.fire.light.color, '#ff7a18');
-  assert.equal(tip.fire.light.intensity, 2.5);
+  assert.equal(tip.fire.light.color, '#e4e7ea');
+  assert.equal(tip.fire.light.intensity, 3.2);
   assert.equal(tip.fire.light.distance, 8);
   assert.deepEqual(tip.fire.quads, { fire: 27, smoke: 10, embers: 8 });
   assert.equal(torchDescription.combat, null);

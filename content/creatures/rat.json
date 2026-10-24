@@ -1,0 +1,19 @@
+{
+  "name": "Brown Rat",
+  "species": "rat",
+  "plan": "quadruped",
+  "scale": 1,
+  "color": "#765237",
+  "stats": {
+    "health": 5,
+    "damage": 3,
+    "moveSpeed": 4.72,
+    "wanderFactor": 0.7,
+    "radius": 0.3,
+    "sightRange": 10,
+    "windup": 0.3,
+    "recover": 0.45,
+    "minWindup": 0.1,
+    "minRecover": 0.12
+  }
+}

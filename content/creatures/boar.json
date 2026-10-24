@@ -1,0 +1,19 @@
+{
+  "name": "Black Boar",
+  "species": "boar",
+  "plan": "quadruped",
+  "scale": 1,
+  "color": "#2d2a27",
+  "stats": {
+    "health": 37,
+    "damage": 14,
+    "moveSpeed": 4.69,
+    "wanderFactor": 0.45,
+    "radius": 0.7,
+    "sightRange": 16,
+    "windup": 0.5,
+    "recover": 0.85,
+    "minWindup": 0.16,
+    "minRecover": 0.22
+  }
+}

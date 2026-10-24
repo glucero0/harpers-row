@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import ancientRuinsData from './ancientRuinsData.json';
+import { SKELETON_NAME } from './balance.js';
 import { STORY_HEIGHT } from './geometry.js';
 import {
   LocationError,
@@ -62,6 +63,43 @@ describe('prepareLocation: the generator file format', () => {
     expect(layout.floors).toBe(1);
     expect(layout.rooms.every((candidate) => candidate.y === 0 && candidate.props.length === 0)).toBe(true);
     expect(layout.scenery).toEqual([]);
+    expect(layout.creatureId).toBe('skeleton');
+    expect(layout.enemyName).toBe(SKELETON_NAME);
+  });
+
+  it('dresses every room in options.theme and spawns options.creature', () => {
+    const layout = prepareLocation(tiny({
+      options: { theme: 'wood', creature: 'goblin' },
+      enemyName: 'Goblin',
+      rooms: [
+        room('a', 0, 0, { theme: 'stone', rocks: [[1, 1]] }),
+        room('b', 10, 0, { theme: 'cave', rocks: [[12, 2]] }),
+      ],
+    }));
+    expect(layout.rooms.every((candidate) => candidate.theme === 'wood' && candidate.rocks.length === 0)).toBe(true);
+    expect(layout.creatureId).toBe('goblin');
+    expect(layout.enemyName).toBe('Goblin');
+    expect(layout.creature.stats.health).toBe(17);
+  });
+
+  it('leaves mixed themes and the skeletal warrior when theme and creature are null', () => {
+    const layout = prepareLocation(tiny({
+      options: { theme: null, creature: null },
+      rooms: [
+        room('a', 0, 0, { theme: 'wood' }),
+        room('b', 10, 0, { theme: 'cave', rocks: [[12, 2]] }),
+      ],
+    }));
+    expect(layout.rooms[0].theme).toBe('wood');
+    expect(layout.rooms[1].theme).toBe('cave');
+    expect(layout.rooms[1].rocks).toHaveLength(1);
+    expect(layout.creatureId).toBe('skeleton');
+    expect(layout.enemyName).toBe(SKELETON_NAME);
+  });
+
+  it('rejects an unknown theme or creature', () => {
+    expect(() => prepareLocation(tiny({ options: { theme: 'marble' } }))).toThrow(LocationError);
+    expect(() => prepareLocation(tiny({ options: { creature: 'dragon' } }))).toThrow(LocationError);
   });
 
   it('is idempotent: preparing twice changes nothing the second time', () => {
