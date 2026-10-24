@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-const RUIN_KEY = 'ruin-masonry-1';
+const RUIN_KEY = 'ruin-masonry-2';
 
 const VERTEX_PRELUDE = `#include <common>
 varying vec3 vRuinWorld;
@@ -99,15 +99,31 @@ float roughnessFactor = roughness;
 roughnessFactor = clamp(roughnessFactor + (ruinNoise(vRuinWorld * 0.2) - 0.5) * 0.1, 0.55, 1.0);
 `;
 
+const MAP_CHUNK = `
+#ifdef USE_MAP
+  vec3 ruinMapBlend = pow(abs(vRuinNormal), vec3(4.0));
+  ruinMapBlend /= max(0.0001, ruinMapBlend.x + ruinMapBlend.y + ruinMapBlend.z);
+  vec3 ruinMapPos = vRuinWorld * ruinScale;
+  vec4 sampledDiffuseColor = texture2D(map, ruinMapPos.zy) * ruinMapBlend.x
+    + texture2D(map, ruinMapPos.xz) * ruinMapBlend.y
+    + texture2D(map, ruinMapPos.xy) * ruinMapBlend.z;
+  #ifdef DECODE_VIDEO_TEXTURE
+    sampledDiffuseColor = sRGBTransferEOTF(sampledDiffuseColor);
+  #endif
+  diffuseColor *= sampledDiffuseColor;
+#endif
+`;
+
 const NORMAL_CHUNK = `#include <normal_fragment_begin>
 {
   vec3 ruinPos = vRuinWorld * ruinScale;
   float h0 = ruinTriHeight(ruinPos, vRuinNormal);
-  float hx = ruinTriHeight(ruinPos + vec3(0.04, 0.0, 0.0), vRuinNormal);
-  float hy = ruinTriHeight(ruinPos + vec3(0.0, 0.04, 0.0), vRuinNormal);
-  float hz = ruinTriHeight(ruinPos + vec3(0.0, 0.0, 0.04), vRuinNormal);
+  float ruinStep = 0.008;
+  float hx = ruinTriHeight(ruinPos + vec3(ruinStep, 0.0, 0.0), vRuinNormal);
+  float hy = ruinTriHeight(ruinPos + vec3(0.0, ruinStep, 0.0), vRuinNormal);
+  float hz = ruinTriHeight(ruinPos + vec3(0.0, 0.0, ruinStep), vRuinNormal);
   vec3 ruinGrad = vec3(h0 - hx, h0 - hy, h0 - hz);
-  normal = normalize(normal + ruinGrad * 1.6);
+  normal = normalize(normal + ruinGrad * 3.2);
 }
 `;
 
@@ -128,8 +144,9 @@ const FOG_CHUNK = `
 #endif
 `;
 
-export function createRuinField(heightMap) {
+export function createRuinField(heightMap, scale = 0.22) {
   const torchPos = new THREE.Vector3();
+  const safeScale = Number.isFinite(scale) && scale > 0 ? scale : 0.22;
   const uniforms = {
     ruinTorchPos: { value: torchPos },
     ruinTorchPower: { value: 0 },
@@ -138,7 +155,8 @@ export function createRuinField(heightMap) {
     ruinFloorY: { value: 0 },
     ruinChipAmp: { value: 1 },
     ruinHeight: { value: heightMap },
-    ruinScale: { value: 0.22 },
+    // One texture repeat is 1/ruinScale world units, about that many feet.
+    ruinScale: { value: safeScale },
   };
   return {
     uniforms,
@@ -172,6 +190,7 @@ export function applyRuinShader(material, field) {
       .replace('#include <begin_vertex>', VERTEX_DISPLACE);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', FRAGMENT_PRELUDE)
+      .replace('#include <map_fragment>', MAP_CHUNK)
       .replace('#include <roughnessmap_fragment>', ROUGH_CHUNK)
       .replace('#include <normal_fragment_begin>', NORMAL_CHUNK)
       .replace('#include <fog_fragment>', FOG_CHUNK);

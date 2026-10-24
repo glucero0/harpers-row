@@ -369,8 +369,8 @@ function addSlab(parent, rect, y, material, facingUp, batch, roomId) {
   const alongZ = Math.min(28, Math.max(1, Math.round(rect.d / 1.9)));
   const geometry = new THREE.PlaneGeometry(rect.w, rect.d, alongX, alongZ);
   geometry.rotateX(facingUp ? -Math.PI / 2 : Math.PI / 2);
-  // One repeat about every eight metres, same as the walls, so a stone floor reads as blocks
-  // rather than one stretched swatch.
+  // Wood and cave repeat about every eight units. Stone block size is not set
+  // here: floors, walls, and ceilings sample the large-block texture in world space.
   scaleUvs(geometry, Math.max(rect.w / 8, 0.35), Math.max(rect.d / 8, 0.35));
   if (batch && roomId != null) {
     batch.place(material, geometry, rect.x + rect.w / 2, y, rect.z + rect.d / 2, 0, [roomId], false);

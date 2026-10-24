@@ -57,77 +57,228 @@ function canvasTexture(size, draw, colorSpace) {
   return texture;
 }
 
-function blockTone(col, row) {
-  const n = hash2(col, row);
-  const base = 96 + Math.floor(n * 48);
-  return [base + 18, base + 12, base + 4];
+// One repeat of the stone texture, in world units. The dungeon is about 3.2 units
+// to the metre, so a unit is about a foot. Courses below are whole feet: blocks
+// several feet wide and high, the size that could be quarried and set before
+// anyone cut small bricks.
+export const STONE_TILE_UNITS = 22;
+const STONE_WRAP_SEED = 4;
+
+export const STONE_COURSES = [
+  {
+    span: 6 / STONE_TILE_UNITS,
+    cuts: [0, 5 / STONE_TILE_UNITS, 11 / STONE_TILE_UNITS, 17 / STONE_TILE_UNITS, 1],
+    seeds: [10, 11, 12, 13, 10],
+    joint: 5,
+  },
+  {
+    span: 7 / STONE_TILE_UNITS,
+    cuts: [0, 6 / STONE_TILE_UNITS, 11 / STONE_TILE_UNITS, 17 / STONE_TILE_UNITS, 1],
+    seeds: [20, 21, 22, 23, 20],
+    joint: 6,
+  },
+  {
+    span: 9 / STONE_TILE_UNITS,
+    cuts: [0, 8 / STONE_TILE_UNITS, 15 / STONE_TILE_UNITS, 1],
+    seeds: [30, 31, 32, 30],
+  },
+];
+
+// Integer cycles only, so a joint that leaves one edge of the tile comes back
+// on the opposite edge as the same cut.
+function jointOffset(t, seed) {
+  const rough = hash2(seed, 4) > 0.45;
+  const amp = rough ? 0.016 : 0.005;
+  const p = hash2(seed, 1) * Math.PI * 2;
+  const q = hash2(seed, 2) * Math.PI * 2;
+  const r = hash2(seed, 3) * Math.PI * 2;
+  const wave = Math.sin((t + p) * Math.PI * 2) * 0.5
+    + Math.sin((t + q) * Math.PI * 4) * 0.28
+    + Math.sin((t + r) * Math.PI * 8) * 0.22;
+  return wave * amp;
 }
 
-function stoneCourse(x, y, width, height) {
-  const cols = 4;
-  const rows = 6;
-  const brickW = width / cols;
-  const brickH = height / rows;
-  const row = Math.floor(y / brickH) % rows;
-  const stagger = (row % 2) * 0.5;
-  let along = x / brickW - stagger;
-  along = ((along % cols) + cols) % cols;
-  const col = Math.floor(along);
-  const fy = (y % brickH) / brickH;
-  return { col, row, fx: along - col, fy };
+function locateSpan(edges, t) {
+  const count = edges.length - 1;
+  const origin = edges[0];
+  const limit = edges[count];
+  let index = count - 1;
+  let start = edges[count - 1] - 1;
+  let end = origin;
+  if (t >= limit) {
+    index = 0;
+    start = limit;
+    end = edges[1] + 1;
+  } else if (t >= origin) {
+    for (let i = 0; i < count; i += 1) {
+      if (t < edges[i + 1]) {
+        index = i;
+        start = edges[i];
+        end = edges[i + 1];
+        break;
+      }
+    }
+  }
+  const span = Math.max(1e-4, end - start);
+  const local = Math.min(1, Math.max(0, (t - start) / span));
+  return { index, span, local };
+}
+
+function horizontalEdges(u) {
+  const shift = jointOffset(u, STONE_WRAP_SEED);
+  const edges = [shift];
+  let y = 0;
+  for (let i = 0; i < STONE_COURSES.length - 1; i += 1) {
+    y += STONE_COURSES[i].span;
+    edges.push(y + jointOffset(u, STONE_COURSES[i].joint));
+  }
+  edges.push(1 + shift);
+  return edges;
+}
+
+function verticalEdges(v, courseIndex) {
+  const course = STONE_COURSES[courseIndex];
+  return course.cuts.map((cut, index) => cut + jointOffset(v, course.seeds[index]));
+}
+
+// Which quarried block covers a point on the tile. `u` and `v` wrap, and a
+// step of one tile lands on the same block: the pattern meets at the edges.
+export function stoneBlockAt(u, v) {
+  const uu = u - Math.floor(u);
+  const vv = v - Math.floor(v);
+  const course = locateSpan(horizontalEdges(uu), vv);
+  const column = locateSpan(verticalEdges(vv, course.index), uu);
+  const width = column.span * STONE_TILE_UNITS;
+  const height = course.span * STONE_TILE_UNITS;
+  const rough = hash2(course.index + 3, column.index + 8) > 0.55;
+  return {
+    course: course.index,
+    column: column.index,
+    localX: column.local,
+    localY: course.local,
+    width,
+    height,
+    edgeFeet: Math.min(
+      Math.min(column.local, 1 - column.local) * width,
+      Math.min(course.local, 1 - course.local) * height,
+    ),
+    rough,
+  };
+}
+
+function edgeChip(block) {
+  const coarse = valueNoise(block.localX * 7 + block.column * 2.3, block.localY * 7 + block.course * 1.9) - 0.5;
+  const fine = valueNoise(block.localX * 19 + block.column * 4.1, block.localY * 19 + block.course * 3.4) - 0.5;
+  return (coarse * 0.75 + fine * 0.25) * (block.rough ? 0.34 : 0.07);
+}
+
+function cornerNotch(block) {
+  if (!block.rough || hash2(block.column + 6, block.course + 9) > 0.55) return 0;
+  const cornerX = hash2(block.column + 1, block.course) > 0.5 ? 0 : 1;
+  const cornerY = hash2(block.column, block.course + 1) > 0.5 ? 0 : 1;
+  const dx = (block.localX - cornerX) * block.width;
+  const dy = (block.localY - cornerY) * block.height;
+  return smoothstep(1.05, 0.28, Math.hypot(dx, dy));
+}
+
+// A split that dies out before the joints, so a rough face reads as one
+// broken stone and not as another course of blocks.
+function fissureAmount(block) {
+  if (!block.rough || hash2(block.column + 15, block.course + 4) > 0.45) return 0;
+  if (block.localY < 0.16 || block.localY > 0.84) return 0;
+  const sway = Math.sin(block.localY * Math.PI * 2) * 0.045;
+  const center = 0.38 + hash2(block.column + 4, block.course + 2) * 0.22;
+  return smoothstep(0.045, 0.004, Math.abs(block.localX - (center + sway)));
+}
+
+function stoneColor(block) {
+  const n = hash2(block.column + 2, block.course + 5);
+  const base = (block.rough ? 70 : 108) + n * (block.rough ? 38 : 36);
+  const warm = hash2(block.column + 9, block.course + 1) * (block.rough ? 22 : 12);
+  let red = base + warm;
+  let green = base + warm * 0.35;
+  let blue = base - (block.rough ? 12 : 6);
+  const grain = valueNoise(block.column * 5 + block.localX * 3.2, block.course * 5 + block.localY * 3.2) - 0.5;
+  const grit = valueNoise(block.localX * 14 + block.column * 8, block.localY * 14 + block.course * 6) - 0.5;
+  const amp = block.rough ? 34 : 14;
+  red += grain * amp + grit * (block.rough ? 18 : 8);
+  green += grain * amp * 0.9 + grit * (block.rough ? 14 : 6);
+  blue += grain * amp * 0.75 + grit * (block.rough ? 10 : 5);
+  if (block.rough) {
+    const pit = valueNoise(block.localX * 6.5 + block.column * 1.7, block.localY * 6.5 + block.course * 2.1);
+    const dent = smoothstep(0.58, 0.84, pit);
+    red = mix(red, red * 0.7, dent);
+    green = mix(green, green * 0.68, dent);
+    blue = mix(blue, blue * 0.66, dent);
+  } else {
+    const draft = smoothstep(0.55, 0.12, block.edgeFeet);
+    red += draft * 8;
+    green += draft * 7;
+    blue += draft * 5;
+  }
+  const split = fissureAmount(block);
+  red = mix(red, 36, split);
+  green = mix(green, 32, split);
+  blue = mix(blue, 28, split);
+  const gap = Math.max(
+    smoothstep(block.rough ? 0.2 : 0.11, 0.02, block.edgeFeet + edgeChip(block)),
+    cornerNotch(block),
+  );
+  const ao = smoothstep(0.55, 0.08, block.edgeFeet) * (1 - gap);
+  red = red * (1 - ao * 0.2) * (1 - gap) + 26 * gap;
+  green = green * (1 - ao * 0.2) * (1 - gap) + 23 * gap;
+  blue = blue * (1 - ao * 0.22) * (1 - gap) + 20 * gap;
+  return [red, green, blue];
+}
+
+function stoneRelief(block) {
+  let face = (block.rough ? 132 : 168) + hash2(block.column, block.course) * 36;
+  const grain = valueNoise(block.column * 4 + block.localX * 2.4, block.course * 4 + block.localY * 2.4) - 0.5;
+  face += grain * (block.rough ? 58 : 16);
+  const crown = (1 - Math.abs(block.localX - 0.5) * 2) * (1 - Math.abs(block.localY - 0.5) * 2);
+  face += crown * (block.rough ? 8 : 16);
+  face = mix(face, 48, fissureAmount(block));
+  const gap = Math.max(
+    smoothstep(block.rough ? 0.22 : 0.12, 0.02, block.edgeFeet + edgeChip(block)),
+    cornerNotch(block),
+  );
+  return face * (1 - gap) + 28 * gap;
+}
+
+export function sampleStone(u, v) {
+  const block = stoneBlockAt(u, v);
+  const color = stoneColor(block);
+  return {
+    block,
+    color: [channel(color[0]), channel(color[1]), channel(color[2])],
+    relief: channel(stoneRelief(block)),
+  };
+}
+
+function drawStoneField(ctx, width, height, relief) {
+  const image = ctx.createImageData(width, height);
+  const data = image.data;
+  for (let y = 0; y < height; y += 1) {
+    const v = (y + 0.5) / height;
+    for (let x = 0; x < width; x += 1) {
+      const sample = sampleStone((x + 0.5) / width, v);
+      const rgb = relief ? [sample.relief, sample.relief, sample.relief] : sample.color;
+      const index = (y * width + x) * 4;
+      data[index] = rgb[0];
+      data[index + 1] = rgb[1];
+      data[index + 2] = rgb[2];
+      data[index + 3] = 255;
+    }
+  }
+  ctx.putImageData(image, 0, 0);
 }
 
 function drawStone(ctx, width, height) {
-  const image = ctx.createImageData(width, height);
-  const data = image.data;
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const { col, row, fx, fy } = stoneCourse(x + 0.5, y + 0.5, width, height);
-      const edge = Math.min(fx, 1 - fx, fy, 1 - fy);
-      const mortar = Math.min(1, Math.max(0, (0.1 - edge) / 0.06));
-      const [baseR, baseG, baseB] = blockTone(col + 2, row + 3);
-      const grit = hash2(col * 17 + Math.floor(fx * 24), row * 13 + Math.floor(fy * 24)) - 0.5;
-      let red = baseR + grit * 16;
-      let green = baseG + grit * 14;
-      let blue = baseB + grit * 10;
-      const pit = hash2(col * 5 + (x % 9), row * 3 + (y % 7));
-      if (pit > 0.82 && mortar < 0.2) {
-        red *= 0.72;
-        green *= 0.7;
-        blue *= 0.68;
-      }
-      red = red * (1 - mortar) + 62 * mortar;
-      green = green * (1 - mortar) + 56 * mortar;
-      blue = blue * (1 - mortar) + 48 * mortar;
-      const index = (y * width + x) * 4;
-      data[index] = Math.max(0, Math.min(255, red));
-      data[index + 1] = Math.max(0, Math.min(255, green));
-      data[index + 2] = Math.max(0, Math.min(255, blue));
-      data[index + 3] = 255;
-    }
-  }
-  ctx.putImageData(image, 0, 0);
+  drawStoneField(ctx, width, height, false);
 }
 
 function drawStoneHeight(ctx, width, height) {
-  const image = ctx.createImageData(width, height);
-  const data = image.data;
-  for (let y = 0; y < height; y += 1) {
-    for (let x = 0; x < width; x += 1) {
-      const { col, row, fx, fy } = stoneCourse(x + 0.5, y + 0.5, width, height);
-      const edge = Math.min(fx, 1 - fx, fy, 1 - fy);
-      const mortar = Math.min(1, Math.max(0, (0.11 - edge) / 0.07));
-      const grit = (hash2(col * 17 + Math.floor(fx * 24), row * 13 + Math.floor(fy * 24)) - 0.5) * 24;
-      const block = 150 + hash2(col, row) * 36 + grit;
-      const shade = Math.max(0, Math.min(255, block * (1 - mortar) + 42 * mortar));
-      const index = (y * width + x) * 4;
-      data[index] = shade;
-      data[index + 1] = shade;
-      data[index + 2] = shade;
-      data[index + 3] = 255;
-    }
-  }
-  ctx.putImageData(image, 0, 0);
+  drawStoneField(ctx, width, height, true);
 }
 
 function drawWood(ctx, width, height) {
@@ -559,7 +710,7 @@ export const DIRT_TILE_METRES = 4;
 export function createMaterials() {
   const colorSpace = THREE.SRGBColorSpace;
   const stoneMap = canvasTexture(512, drawStone, colorSpace);
-  const stoneHeight = canvasTexture(256, drawStoneHeight, THREE.NoColorSpace);
+  const stoneHeight = canvasTexture(512, drawStoneHeight, THREE.NoColorSpace);
   const dirtSize = 512;
   const dirtField = dirtSurfaces(dirtSize);
   const dirtMap = imageTexture(dirtField.color, dirtSize, colorSpace);
@@ -575,7 +726,7 @@ export function createMaterials() {
   const boneBump = imageTexture(boneField.bump, boneSize, THREE.NoColorSpace);
   const boneAo = imageTexture(boneField.ao, boneSize, THREE.NoColorSpace);
 
-  const ruin = createRuinField(stoneHeight);
+  const ruin = createRuinField(stoneHeight, 1 / STONE_TILE_UNITS);
   const wall = {
     stone: applyRuinShader(sharedSurface(stoneMap, 0x8d877e, 0.92, 0.04, stoneHeight), ruin),
     wood: sharedSurface(woodMap, 0xd7b48a, 0.9, 0.04),
