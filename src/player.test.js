@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createDungeon } from './dungeon.js';
 import { createInput } from './input.js';
 import { createPlayer } from './player.js';
-import { floorHeight } from './geometry.js';
+import { floorHeightAt } from './location.js';
 import { createSkeletons } from './skeleton.js';
 import { generateLayout } from './rooms.js';
 import { withTestMaterials } from './test-utils/testMaterials.js';
@@ -188,7 +188,7 @@ describe('createPlayer', () => {
       nearGate() { return false; },
       containsInterior() { return false; },
       roomAt() { return stair; },
-      floorY(room, x, z) { return floorHeight(room, x, z); },
+      floorY(x, z, room) { return floorHeightAt(room, x, z); },
     };
     const player = createPlayer(camera, testMaterials.materials, { x: 0, z: 0, yaw: 0, y: 0 });
     player.equip();

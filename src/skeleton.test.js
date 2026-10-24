@@ -146,13 +146,17 @@ describe('createSkeletons', () => {
       areaName: 'The Ancient Ruins',
       requirements: ['torch', 'mace'],
       lastRoomId: 'upper',
+      start: { x: 8, z: 6, yaw: 0 },
       zoneLabels: {
         'worn-trail': 'Worn Trail',
         'ancient-ruins': 'The Ancient Ruins',
         'world-hub': 'Mountain Pass',
       },
       rooms: [room('lower', 0), room('upper', 10)],
-      doors: [],
+      doors: [{
+        a: [4, 0], b: [12, 0], width: 8, height: 7, openingWidth: 8,
+        mouthA: [4, 0], mouthB: [12, 0], from: 'lower', to: 'upper', y: 0,
+      }],
     };
     const stacked = createDungeon(scene, testMaterials.materials, stackedLayout);
     try {

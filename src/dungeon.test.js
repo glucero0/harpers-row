@@ -426,6 +426,7 @@ describe('stacked floors', () => {
       areaName: 'The Ancient Ruins',
       requirements: ['torch', 'mace'],
       lastRoomId: 'space-2',
+      start: { x: 8, z: 6, yaw: 0 },
       zoneLabels: {
         'worn-trail': 'Worn Trail',
         'ancient-ruins': 'The Ancient Ruins',
@@ -466,8 +467,8 @@ describe('stacked floors', () => {
 
     expect(dungeon.roomAt(8, 6, null, 0).id).toBe('space-0');
     expect(dungeon.roomAt(8, 6, null, 10).id).toBe('space-2');
-    expect(dungeon.floorY(layout.rooms[1], 10, -1)).toBeCloseTo(0, 5);
-    expect(dungeon.floorY(layout.rooms[1], 10, -15)).toBeCloseTo(10, 5);
+    expect(dungeon.floorY(10, -1, layout.rooms[1])).toBeCloseTo(0, 5);
+    expect(dungeon.floorY(10, -15, layout.rooms[1])).toBeCloseTo(10, 5);
 
     dungeon.update(0, 1 / 60, 'stone', 8, 6, false, new THREE.PerspectiveCamera(), 0);
     expect(dungeon.activeRooms.has('space-0')).toBe(true);
