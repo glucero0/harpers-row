@@ -1,12 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createGameState } from './game-state.js';
 import {
+  areaFileUrl,
   isLocationFileName,
   loadMasterConfig,
+  MASTER_CONFIG_URL,
   MasterConfigError,
   parseMasterConfig,
 } from './master-config.js';
-import shipped from '../public/master_config.json';
+import shipped from '../content/areas/master_config.json';
 
 const respond = (body, ok = true) => vi.fn(async () => ({ ok, text: async () => body }));
 
@@ -113,6 +115,15 @@ describe('parseMasterConfig', () => {
   });
 });
 
+describe('area file urls', () => {
+  it('loads the shipped config and location files from content/areas', () => {
+    expect(MASTER_CONFIG_URL).toBe('content/areas/master_config.json');
+    expect(areaFileUrl('campfireHub.json')).toBe('content/areas/campfireHub.json');
+    expect(areaFileUrl('smRuins.json', '/')).toBe('/content/areas/smRuins.json');
+    expect(areaFileUrl('../secret.json')).toBe('content/areas/..%2Fsecret.json');
+  });
+});
+
 describe('loadMasterConfig', () => {
   it('fetches the url from the same origin without caching and parses it', async () => {
     const fetchImpl = respond(JSON.stringify({ locations: ['dungeon1.json'] }));
@@ -130,6 +141,12 @@ describe('loadMasterConfig', () => {
     await expect(loadMasterConfig('x', respond('<!doctype html>'))).rejects.toThrow('not valid JSON');
     await expect(loadMasterConfig('x', respond(' '.repeat(70 * 1024)))).rejects.toThrow('too large');
     await expect(loadMasterConfig('x', respond('{"locations": 4}'))).rejects.toThrow(MasterConfigError);
+  });
+
+  it('defaults to the areas copy of the master config', async () => {
+    const fetchImpl = respond(JSON.stringify({ locations: [] }));
+    await loadMasterConfig(undefined, fetchImpl);
+    expect(fetchImpl).toHaveBeenCalledWith('content/areas/master_config.json', { cache: 'no-cache', credentials: 'same-origin' });
   });
 
   it('fails cleanly when fetch is unavailable', async () => {

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import * as THREE from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import maceFile from './gear/mace.json';
+import maceFile from '../content/gear/mace.json';
 import { withTestMaterials } from './test-utils/testMaterials.js';
 import { createMace } from './mace.js';
 
@@ -20,7 +20,8 @@ describe('createMace', () => {
     const head = mace.getObjectByName('head');
     expect(mace.name).toBe('mace');
     expect(head.geometry).toBeInstanceOf(THREE.SphereGeometry);
-    expect(head.geometry.parameters.radius).toBeCloseTo(0.0819);
+    const headSpec = maceFile.parts.find((part) => part.name === 'head');
+    expect(head.geometry.parameters.radius).toBeCloseTo(headSpec.geometry.radius);
     expect(head.material).toBeInstanceOf(THREE.MeshStandardMaterial);
     expect(head.material).not.toBe(materials.rust);
     expect(mace.rotation.x).toBeCloseTo(15 * Math.PI / 180);

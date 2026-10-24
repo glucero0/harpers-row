@@ -130,16 +130,6 @@ function drawStoneHeight(ctx, width, height) {
   ctx.putImageData(image, 0, 0);
 }
 
-function drawDirt(ctx, width, height) {
-  ctx.fillStyle = '#6b5136';
-  ctx.fillRect(0, 0, width, height);
-  for (let i = 0; i < 1600; i += 1) {
-    const shade = 78 + Math.random() * 55;
-    ctx.fillStyle = `rgba(${shade + 28}, ${shade + 6}, ${shade - 24}, 0.38)`;
-    ctx.fillRect(Math.random() * width, Math.random() * height, 2 + Math.random() * 5, 2 + Math.random() * 3);
-  }
-}
-
 function drawWood(ctx, width, height) {
   ctx.fillStyle = '#5c3b28';
   ctx.fillRect(0, 0, width, height);
@@ -279,6 +269,184 @@ function mix(a, b, t) {
   return a + (b - a) * t;
 }
 
+function wrapIndex(index, period) {
+  const span = period | 0;
+  return ((index % span) + span) % span;
+}
+
+function periodicValueNoise(x, y, period) {
+  const x0 = Math.floor(x);
+  const y0 = Math.floor(y);
+  const tx = fade(x - x0);
+  const ty = fade(y - y0);
+  const v00 = hash2(wrapIndex(x0, period), wrapIndex(y0, period));
+  const v10 = hash2(wrapIndex(x0 + 1, period), wrapIndex(y0, period));
+  const v01 = hash2(wrapIndex(x0, period), wrapIndex(y0 + 1, period));
+  const v11 = hash2(wrapIndex(x0 + 1, period), wrapIndex(y0 + 1, period));
+  const a = v00 + (v10 - v00) * tx;
+  const b = v01 + (v11 - v01) * tx;
+  return a + (b - a) * ty;
+}
+
+function periodicFbm(u, v, octaves, period) {
+  let value = 0;
+  let amplitude = 0.5;
+  let frequency = 1;
+  let total = 0;
+  for (let octave = 0; octave < octaves; octave += 1) {
+    const span = period * frequency;
+    value += amplitude * periodicValueNoise(u * span, v * span, span);
+    total += amplitude;
+    amplitude *= 0.5;
+    frequency *= 2;
+  }
+  return value / total;
+}
+
+function channel(value) {
+  return Math.max(0, Math.min(255, Math.round(value)));
+}
+
+const SOIL_UMBER = [92, 62, 36];
+const SOIL_TAN = [186, 142, 78];
+const SOIL_GRAY = [154, 140, 118];
+const SOIL_CLAY = [168, 72, 40];
+const PEBBLE_LIGHT = [142, 132, 116];
+const PEBBLE_WARM = [124, 108, 84];
+const PEBBLE_DARK = [72, 68, 62];
+
+// One repeat of this map is DIRT_TILE_METRES of ground. Frequencies are integer periods so the
+// tile meets itself at the edge. Stones are a light scatter of gravel, not a cobble surface.
+function dirtSurfaces(size) {
+  const color = new Uint8ClampedArray(size * size * 4);
+  const bump = new Uint8ClampedArray(size * size * 4);
+  const rough = new Uint8ClampedArray(size * size * 4);
+  const cells = 20;
+  const grid = new Array(cells * cells);
+  for (let cy = 0; cy < cells; cy += 1) {
+    for (let cx = 0; cx < cells; cx += 1) {
+      if (hash2(cx + 17, cy + 41) > 0.42) continue;
+      const jx = hash2(cx + 3, cy + 9);
+      const jy = hash2(cx + 13, cy + 27);
+      const spin = hash2(cx + 5, cy + 19) * Math.PI;
+      const tone = hash2(cx + 11, cy + 2);
+      const chip = hash2(cx + 2, cy + 6) > 0.86;
+      const radius = chip
+        ? 11 + hash2(cx + 8, cy + 23) * 7
+        : 3.5 + hash2(cx + 8, cy + 23) * 5.5;
+      const squash = 0.58 + hash2(cx + 29, cy + 4) * 0.32;
+      grid[cy * cells + cx] = {
+        x: ((cx + 0.18 + jx * 0.64) / cells) * size,
+        y: ((cy + 0.18 + jy * 0.64) / cells) * size,
+        rx: radius,
+        ry: radius * squash,
+        cos: Math.cos(spin),
+        sin: Math.sin(spin),
+        tone,
+      };
+    }
+  }
+
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const u = x / size;
+      const v = y / size;
+      const blot = smoothstep(0.22, 0.78, periodicFbm(u + 0.17, v + 0.41, 4, 5));
+      const mottling = smoothstep(0.28, 0.74, periodicFbm(u + 2.3, v + 1.05, 3, 8));
+      const clayAmt = smoothstep(0.55, 0.82, periodicFbm(u + 4.1, v + 3.2, 3, 4));
+      let red = mix(SOIL_UMBER[0], SOIL_TAN[0], blot);
+      let green = mix(SOIL_UMBER[1], SOIL_TAN[1], blot);
+      let blue = mix(SOIL_UMBER[2], SOIL_TAN[2], blot);
+      red = mix(red, SOIL_GRAY[0], mottling * 0.7);
+      green = mix(green, SOIL_GRAY[1], mottling * 0.7);
+      blue = mix(blue, SOIL_GRAY[2], mottling * 0.7);
+      red = mix(red, SOIL_CLAY[0], clayAmt * 0.62);
+      green = mix(green, SOIL_CLAY[1], clayAmt * 0.62);
+      blue = mix(blue, SOIL_CLAY[2], clayAmt * 0.62);
+      const grit = periodicValueNoise(u * 48, v * 48, 48) - 0.5;
+      const gritFine = periodicValueNoise(u * 96 + 4, v * 96 + 7, 96) - 0.5;
+      red += grit * 20 + gritFine * 9;
+      green += grit * 15 + gritFine * 7;
+      blue += grit * 9 + gritFine * 4;
+
+      let height = 0.46 + grit * 0.05 + gritFine * 0.025;
+      let roughness = 1;
+      let hitD = 1.4;
+      let hitLx = 0;
+      let hitLy = 0;
+      let hitRx = 1;
+      let hitRy = 1;
+      let hitTone = 0;
+      const cellX = Math.floor(u * cells) % cells;
+      const cellY = Math.floor(v * cells) % cells;
+      for (let oy = -1; oy <= 1; oy += 1) {
+        for (let ox = -1; ox <= 1; ox += 1) {
+          const stone = grid[((cellY + oy + cells) % cells) * cells + ((cellX + ox + cells) % cells)];
+          if (!stone) continue;
+          let dx = x + 0.5 - stone.x;
+          let dy = y + 0.5 - stone.y;
+          if (dx > size * 0.5) dx -= size;
+          else if (dx < -size * 0.5) dx += size;
+          if (dy > size * 0.5) dy -= size;
+          else if (dy < -size * 0.5) dy += size;
+          const lx = dx * stone.cos + dy * stone.sin;
+          const ly = -dx * stone.sin + dy * stone.cos;
+          const d = (lx * lx) / (stone.rx * stone.rx) + (ly * ly) / (stone.ry * stone.ry);
+          if (d < hitD) {
+            hitD = d;
+            hitLx = lx;
+            hitLy = ly;
+            hitRx = stone.rx;
+            hitRy = stone.ry;
+            hitTone = stone.tone;
+          }
+        }
+      }
+
+      if (hitD < 1.32) {
+        const nx = hitLx / hitRx;
+        const ny = hitLy / hitRy;
+        const light = Math.max(-1, Math.min(1, -(nx * 0.72 + ny * 0.56)));
+        const lump = periodicValueNoise(u * 36 + 3.1, v * 36 + 8.4, 36);
+        const edge = 0.72 + lump * 0.34;
+        if (hitD < edge) {
+          const pebble = hitTone < 0.34 ? PEBBLE_LIGHT : hitTone < 0.7 ? PEBBLE_WARM : PEBBLE_DARK;
+          const blend = 1 - smoothstep(edge * 0.72, edge, hitD);
+          red = mix(red, pebble[0] + light * 14, blend);
+          green = mix(green, pebble[1] + light * 11, blend);
+          blue = mix(blue, pebble[2] + light * 8, blend);
+          height = mix(height, 0.58 + (1 - Math.min(1, Math.sqrt(hitD / edge))) * 0.28, blend);
+          roughness = mix(roughness, 0.75, blend);
+        } else if (hitD < edge + 0.22) {
+          const away = Math.max(0, nx * 0.72 + ny * 0.56);
+          const shadow = (1 - smoothstep(edge, edge + 0.2, hitD)) * away * 0.38;
+          red *= 1 - shadow;
+          green *= 1 - shadow;
+          blue *= 1 - shadow;
+          height -= shadow * 0.08;
+        }
+      }
+
+      const index = (y * size + x) * 4;
+      color[index] = channel(red);
+      color[index + 1] = channel(green);
+      color[index + 2] = channel(blue);
+      color[index + 3] = 255;
+      const bumpByte = channel(height * 255);
+      bump[index] = bumpByte;
+      bump[index + 1] = bumpByte;
+      bump[index + 2] = bumpByte;
+      bump[index + 3] = 255;
+      const roughByte = channel(roughness * 255);
+      rough[index] = roughByte;
+      rough[index + 1] = roughByte;
+      rough[index + 2] = roughByte;
+      rough[index + 3] = 255;
+    }
+  }
+  return { color, bump, rough };
+}
+
 const BONE_PARCHMENT = [0xdc, 0xd2, 0xb8];
 const BONE_SOOT = [0xbf, 0xb5, 0x9b];
 const BONE_PIT = [0x6a, 0x61, 0x50];
@@ -384,11 +552,19 @@ function sharedSurface(map, color, roughness, metalness, bump) {
   return material;
 }
 
+// World size of one dirt-texture repeat. Ground UVs are metres divided by this.
+// Four metres keeps gravel a few centimetres across without a postage-stamp repeat underfoot.
+export const DIRT_TILE_METRES = 4;
+
 export function createMaterials() {
   const colorSpace = THREE.SRGBColorSpace;
   const stoneMap = canvasTexture(512, drawStone, colorSpace);
   const stoneHeight = canvasTexture(256, drawStoneHeight, THREE.NoColorSpace);
-  const dirtMap = canvasTexture(512, drawDirt, colorSpace);
+  const dirtSize = 512;
+  const dirtField = dirtSurfaces(dirtSize);
+  const dirtMap = imageTexture(dirtField.color, dirtSize, colorSpace);
+  const dirtBump = imageTexture(dirtField.bump, dirtSize, THREE.NoColorSpace);
+  const dirtRough = imageTexture(dirtField.rough, dirtSize, THREE.NoColorSpace);
   const woodMap = canvasTexture(512, drawWood, colorSpace);
   const rockMap = canvasTexture(512, drawRock, colorSpace);
   const rockBump = canvasTexture(512, drawRockBump, THREE.NoColorSpace);
@@ -416,7 +592,9 @@ export function createMaterials() {
     cave: sharedSurface(rockMap, 0x2e2c2a, 0.98, 0.02, rockBump),
   };
   const plank = sharedSurface(woodMap, 0xc09060, 0.75, 0.04);
-  const dirt = sharedSurface(dirtMap, 0x8a6a48, 1, 0);
+  const dirt = sharedSurface(dirtMap, 0x8a6a48, 1, 0, dirtBump);
+  dirt.bumpScale = 0.18;
+  dirt.roughnessMap = dirtRough;
   const ceiling = ceilings.stone;
   const ceilingCave = ceilings.cave;
   wall.stone.bumpMap = null;

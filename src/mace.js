@@ -1,4 +1,4 @@
-// The fighter's mace, built from src/gear/mace.json. Returns the group player.js used to parent to the
+// The fighter's mace, built from content/gear/mace.json. Returns the group player.js used to parent to the
 // right hand. New gear is built with createGear(); this wrapper remains for the mace's own tests.
 import { createGear } from './gear.js';
 import { maceDescription } from './gear-description.js';

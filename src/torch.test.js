@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import * as THREE from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import torchFile from './gear/torch.json';
+import torchFile from '../content/gear/torch.json';
 import { parseGearDescription } from './gear-description.js';
 import { withTestMaterials } from './test-utils/testMaterials.js';
 import { createHeldTorch, flickerTorch } from './torch.js';

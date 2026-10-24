@@ -1,12 +1,19 @@
 // The master config lists every location the game can offer. It is plain data read once at startup.
 // Pure logic only (no THREE, no DOM), so it is fully unit-testable.
 //
-// The file is served from the game's own origin, but it is still treated as untrusted input: it is
-// size-capped, parsed with JSON.parse only, and every entry must be a bare `.json` file name. Paths,
-// URLs and anything else are dropped, so a config can never point the game at another origin or
-// another directory.
+// The file is content/areas/master_config.json, served from this origin at content/areas/. It is
+// still treated as untrusted input: it is size-capped, parsed with JSON.parse only, and every entry
+// must be a bare `.json` file name. Paths, URLs and anything else are dropped, so a config can never
+// point the game at another origin or another directory. The content/areas/ prefix is added here,
+// not taken from the file.
 
-export const MASTER_CONFIG_URL = 'master_config.json';
+export const AREA_URL_PREFIX = 'content/areas/';
+export const MASTER_CONFIG_URL = `${AREA_URL_PREFIX}master_config.json`;
+
+// `base` is import.meta.env.BASE_URL, which already ends with a slash. `name` is a bare file name.
+export function areaFileUrl(name, base = '') {
+  return `${base}${AREA_URL_PREFIX}${encodeURIComponent(name)}`;
+}
 
 const MAX_CONFIG_BYTES = 64 * 1024;
 const MAX_LOCATIONS = 100;

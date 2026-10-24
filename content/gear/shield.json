@@ -31,9 +31,9 @@
       "geometry": {
         "type": "shield",
         "outline": "round",
-        "width": 0.6713,
-        "height": 0.6713,
-        "thickness": 0.04
+        "width": 1.3426,
+        "height": 1.3426,
+        "thickness": 0.08
       },
       "position": [
         0.0,
@@ -46,14 +46,14 @@
       "material": "ash",
       "geometry": {
         "type": "box",
-        "width": 0.047,
-        "height": 0.4699,
-        "depth": 0.008
+        "width": 0.094,
+        "height": 0.9398,
+        "depth": 0.016
       },
       "position": [
-        -0.2081,
+        -0.4162,
         0.0,
-        0.02
+        0.04
       ]
     },
     {
@@ -61,14 +61,14 @@
       "material": "ash",
       "geometry": {
         "type": "box",
-        "width": 0.047,
-        "height": 0.4699,
-        "depth": 0.008
+        "width": 0.094,
+        "height": 0.9398,
+        "depth": 0.016
       },
       "position": [
         0.0,
         0.0,
-        0.02
+        0.04
       ]
     },
     {
@@ -76,14 +76,14 @@
       "material": "ash",
       "geometry": {
         "type": "box",
-        "width": 0.047,
-        "height": 0.4699,
-        "depth": 0.008
+        "width": 0.094,
+        "height": 0.9398,
+        "depth": 0.016
       },
       "position": [
-        0.2081,
+        0.4162,
         0.0,
-        0.02
+        0.04
       ]
     },
     {
@@ -93,24 +93,24 @@
         "type": "lathe",
         "points": [
           [
-            0.012,
+            0.024,
             0.0
           ],
           [
-            0.0364,
-            0.0146
+            0.0728,
+            0.0291
           ],
           [
-            0.052,
-            0.0286
+            0.104,
+            0.0572
           ],
           [
-            0.0156,
-            0.0426
+            0.0312,
+            0.0853
           ],
           [
-            0.01,
-            0.052
+            0.02,
+            0.104
           ]
         ],
         "segments": 12
@@ -118,7 +118,7 @@
       "position": [
         0.0,
         0.0,
-        0.02
+        0.04
       ],
       "rotation": {
         "x": 90.0,
@@ -132,8 +132,8 @@
       "material": "bronze",
       "geometry": {
         "type": "torus",
-        "radius": 0.3217,
-        "tube": 0.012,
+        "radius": 0.6433,
+        "tube": 0.024,
         "radialSegments": 8,
         "tubularSegments": 24
       },
@@ -148,15 +148,15 @@
       "material": "leather",
       "geometry": {
         "type": "cylinder",
-        "radiusTop": 0.014,
-        "radiusBottom": 0.014,
-        "height": 0.2148,
+        "radiusTop": 0.028,
+        "radiusBottom": 0.028,
+        "height": 0.4296,
         "radialSegments": 8
       },
       "position": [
         0.0,
         0.0,
-        -0.038
+        -0.076
       ],
       "rotation": {
         "x": 0.0,

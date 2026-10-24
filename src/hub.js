@@ -7,7 +7,8 @@ import { ambientFill } from './balance.js';
 import { fireWobble, parseFireEmanation } from './fire-description.js';
 import { createFlamePoints, disposeFlamePoints } from './flame.js';
 import { pointInPolygon } from './geometry.js';
-import { pathGeometry } from './path-mesh.js';
+import { DIRT_TILE_METRES } from './materials.js';
+import { assignWorldGroundUvs, pathGeometry } from './path-mesh.js';
 import { createPropField } from './props.js';
 import { exitLoopHeightAt } from './world.js';
 
@@ -142,6 +143,8 @@ export function createHub(scene, materials, hub) {
   const ground = new THREE.Mesh(new THREE.CircleGeometry(Math.max(40, hub.radius * 3), 24), materials.dirt);
   ground.rotation.x = -Math.PI / 2;
   ground.position.y = -0.06;
+  ground.updateMatrix();
+  assignWorldGroundUvs(ground.geometry, DIRT_TILE_METRES, ground.matrix);
   ground.receiveShadow = true;
   root.add(ground);
 
@@ -153,6 +156,8 @@ export function createHub(scene, materials, hub) {
     const plaza = new THREE.Mesh(new THREE.ShapeGeometry(shape), materials.dirt);
     plaza.rotation.x = -Math.PI / 2;
     plaza.position.y = 0.02;
+    plaza.updateMatrix();
+    assignWorldGroundUvs(plaza.geometry, DIRT_TILE_METRES, plaza.matrix);
     plaza.receiveShadow = true;
     plaza.name = 'hub-plaza';
     root.add(plaza);

@@ -1,4 +1,4 @@
-import warriorDef from '../skeletelWarrior.json';
+import warriorDef from '../content/creatures/skeletelWarrior.json';
 import { maceDescription } from './gear-description.js';
 
 export const ROOM_COUNT = 6;
@@ -14,7 +14,7 @@ export const XP_SCALE_FAST = 0.45;
 
 export const PLAYER_BASE_HEALTH = 100;
 export const PLAYER_HEALTH_PER_LEVEL = 15;
-// Mace damage and swing speed are the unarmed baseline, read from src/gear/mace.json.
+// Mace damage and swing speed are the unarmed baseline, read from content/gear/mace.json.
 // An equipped right-hand weapon replaces the damage and the interval; level steps stay here.
 export const PLAYER_BASE_DAMAGE = maceDescription.combat.damage;
 export const PLAYER_DAMAGE_PER_LEVEL = 3;

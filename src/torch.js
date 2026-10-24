@@ -1,4 +1,4 @@
-// The held torch, built from src/gear/torch.json. `description` must be the parsed object from
+// The held torch, built from content/gear/torch.json. `description` must be the parsed object from
 // gear-description.js. The mesh, flame, and light live in gear.js; this file keeps the old entry point.
 import { fireWobble } from './fire-description.js';
 import { createGear } from './gear.js';

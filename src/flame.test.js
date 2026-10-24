@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { describe, expect, it, vi } from 'vitest';
-import enhanced from '../public/campfireHubEnhanced.json';
+import enhanced from '../content/areas/campfireHubEnhanced.json';
 import { parseFireEmanation } from './fire-description.js';
 import { createFlamePoints, disposeFlamePoints } from './flame.js';
 

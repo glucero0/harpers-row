@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createMaterials } from './materials.js';
+import * as THREE from 'three';
+import { DIRT_TILE_METRES, createMaterials } from './materials.js';
 import { installFakeCanvas } from './test-utils/fakeCanvas.js';
 
 let restoreCanvas;
@@ -30,6 +31,19 @@ describe('createMaterials', () => {
     expect(materials.ceilingFor('cave').map).toBe(materials.surface('cave').map);
     expect(materials.floor('cave').map).toBe(materials.surface('cave').map);
     expect(materials.ceilingFor('not-a-real-theme')).toBe(materials.ceilingFor('stone'));
+  });
+
+  it('builds dirt as tiling soil with bump and roughness', () => {
+    const materials = createMaterials();
+    expect(DIRT_TILE_METRES).toBe(4);
+    expect(materials.dirt.map.wrapS).toBe(THREE.RepeatWrapping);
+    expect(materials.dirt.map.wrapT).toBe(THREE.RepeatWrapping);
+    expect(materials.dirt.bumpMap).toBeTruthy();
+    expect(materials.dirt.bumpScale).toBeCloseTo(0.18);
+    expect(materials.dirt.roughnessMap).toBeTruthy();
+    expect(materials.dirt.roughness).toBe(1);
+    expect(materials.dirt.color.getHex()).toBe(0x8a6a48);
+    materials.dispose();
   });
 
   it('flags every reusable prop/surface material as shared, so per-mesh disposal skips them', () => {

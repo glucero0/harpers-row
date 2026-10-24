@@ -1,17 +1,16 @@
-// Turns the equipment files in src/gear into the plain objects the mesh builder reads.
+// Turns the equipment files in content/gear into the plain objects the mesh builder reads.
 // Pure: no THREE and no DOM. The files ship with the game, but they are still treated as data.
 // Every field is copied onto a new object, numbers have to be finite and in range, and geometry is
 // limited to a few small primitives. Nothing in these files is evaluated as code.
-// They live under src, not public: Vite refuses to import files from the public directory.
-import axeFile from './gear/axe.json';
-import bowFile from './gear/bow.json';
-import daggerFile from './gear/dagger.json';
-import hammerFile from './gear/hammer.json';
-import maceFile from './gear/mace.json';
-import shieldFile from './gear/shield.json';
-import spearFile from './gear/spear.json';
-import swordFile from './gear/sword.json';
-import torchFile from './gear/torch.json';
+import axeFile from '../content/gear/axe.json';
+import bowFile from '../content/gear/bow.json';
+import daggerFile from '../content/gear/dagger.json';
+import hammerFile from '../content/gear/hammer.json';
+import maceFile from '../content/gear/mace.json';
+import shieldFile from '../content/gear/shield.json';
+import spearFile from '../content/gear/spear.json';
+import swordFile from '../content/gear/sword.json';
+import torchFile from '../content/gear/torch.json';
 import { parseFireEmanation } from './fire-description.js';
 
 const MAX_PARTS = 24;

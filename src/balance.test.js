@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
-import maceFile from './gear/mace.json';
-import torchFile from './gear/torch.json';
-import warriorDef from '../skeletelWarrior.json';
+import maceFile from '../content/gear/mace.json';
+import torchFile from '../content/gear/torch.json';
+import warriorDef from '../content/creatures/skeletelWarrior.json';
 import {
   attackRecover,
   attackWindup,

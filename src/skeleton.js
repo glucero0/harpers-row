@@ -16,7 +16,7 @@ import {
   skeletonAttackRange,
   skeletonWeapon,
 } from './balance.js';
-import { closestApproach3, closestOnSegment, lineOfSight, pointInPolygon, randomPointInPolygon, resolveBody } from './geometry.js';
+import { STORY_HEIGHT, closestApproach3, closestOnSegment, lineOfSight, pointInPolygon, randomPointInPolygon, resolveBody } from './geometry.js';
 import { audio } from './audio.js';
 import { TriggerDustFall } from './dust.js';
 
@@ -140,6 +140,37 @@ const DEBRIS_FADE_SECONDS = 2.5;
 // Two bodies are on the same level (can see, reach and shoot each other) when their feet are within
 // this height. A stairwell slope stays inside it over a few steps; another story never does.
 const SAME_LEVEL = 4.5;
+
+function storySpan(room) {
+  const y0 = room && Number.isFinite(room.y) ? room.y : 0;
+  const height = room && Number.isFinite(room.storyHeight) && room.storyHeight > 0 ? room.storyHeight : STORY_HEIGHT;
+  return { y0, y1: y0 + height };
+}
+
+function feetOnStory(feet, span) {
+  return feet >= span.y0 - 0.05 && feet < span.y1 - 0.5;
+}
+
+// Floor the bones may land on, and the ceiling they must stay under. A value at the
+// top of the story is the slab overhead (the next floor, y + 10 on a normal room).
+function debrisSupport(skeleton) {
+  const here = storySpan(skeleton.at || skeleton.room);
+  const feet = Number.isFinite(skeleton.y) ? skeleton.y : here.y0;
+  if (feetOnStory(feet, here)) return { floor: feet, ceiling: here.y1 };
+  const home = storySpan(skeleton.room);
+  return {
+    floor: feetOnStory(feet, home) ? feet : home.y0,
+    ceiling: home.y1,
+  };
+}
+
+// Downward landing probe. It starts under the ceiling and can only return this story's floor.
+function restingFloor(sampleY, floor, ceiling) {
+  const slab = (Number.isFinite(ceiling) ? ceiling : floor + STORY_HEIGHT) - 0.05;
+  const plane = Number.isFinite(floor) ? floor : 0;
+  if (sampleY >= slab || plane >= slab) return plane < slab ? plane : slab - (STORY_HEIGHT - 0.05);
+  return plane;
+}
 
 function makePose(source) {
   return { ...source };
@@ -832,7 +863,7 @@ export function createSkeletons(parent, dungeon, materials) {
     if (mesh.bow) mesh.bow.arrow.group.visible = false;
     for (const spec of mesh.pieces) group.attach(spec.node);
 
-    const impact = new THREE.Vector3(skeleton.x - dirX * 0.6, skeleton.y + 3.6, skeleton.z - dirZ * 0.6);
+    const impact = new THREE.Vector3(skeleton.x - dirX * 0.6, support.floor + 3.6, skeleton.z - dirZ * 0.6);
     const pieces = mesh.pieces.map((spec) => {
       const node = spec.node;
       const box = localBounds(node);
@@ -875,7 +906,7 @@ export function createSkeletons(parent, dungeon, materials) {
       const meshBit = looseFragment(kind, materials.bone);
       meshBit.position.set(
         skeleton.x + (Math.random() - 0.5) * 0.8,
-        skeleton.y + 2.4 + Math.random() * 2.2,
+        support.floor + 2.4 + Math.random() * 2.2,
         skeleton.z + (Math.random() - 0.5) * 0.8,
       );
       group.add(meshBit);
@@ -903,7 +934,7 @@ export function createSkeletons(parent, dungeon, materials) {
       group,
       pieces,
       // The floor the bones land on: the one the skeleton fell over.
-      floor: skeleton.y,
+      floor: support.floor,
       age: 0,
       life: 15 + Math.random() * 5,
       resting: false,
@@ -965,7 +996,7 @@ export function createSkeletons(parent, dungeon, materials) {
     piece.node.matrixAutoUpdate = false;
   }
 
-  function stepPiece(piece, step, floor) {
+  function stepPiece(piece, step, floorY = 0, ceilingY = floorY + STORY_HEIGHT) {
     const node = piece.node;
     const ground = restingFloor(floorY, floorY, ceilingY);
     const slab = ceilingY - 0.05;
@@ -989,8 +1020,9 @@ export function createSkeletons(parent, dungeon, materials) {
 
     let grounded = false;
     const low = lowestPoint(piece);
-    if (low < floor) {
-      node.position.y += floor - low;
+    const landing = restingFloor(low, ground, ceilingY);
+    if (low < landing) {
+      node.position.y += landing - low;
       if (piece.vel.y < -DEBRIS_MIN_IMPACT && piece.bounces < DEBRIS_MAX_BOUNCES) {
         piece.vel.y *= -DEBRIS_BOUNCE;
         piece.vel.x *= 0.6;
@@ -1018,7 +1050,7 @@ export function createSkeletons(parent, dungeon, materials) {
     }
 
     if (piece.vel.x * piece.vel.x + piece.vel.z * piece.vel.z > 0.01) {
-      const resolved = resolveBody(node.position.x, node.position.z, DEBRIS_RADIUS, dungeon.colliders, floor);
+      const resolved = resolveBody(node.position.x, node.position.z, DEBRIS_RADIUS, dungeon.colliders, landing);
       if (resolved.x !== node.position.x || resolved.z !== node.position.z) {
         node.position.x = resolved.x;
         node.position.z = resolved.z;
@@ -1074,7 +1106,9 @@ export function createSkeletons(parent, dungeon, materials) {
       let moving = 0;
       for (const piece of debris.pieces) {
         if (piece.mode === 'rest') continue;
-        stepPiece(piece, step, debris.floor);
+        const floorY = Number.isFinite(debris.floorY) ? debris.floorY : 0;
+        const ceilingY = Number.isFinite(debris.ceilingY) ? debris.ceilingY : floorY + STORY_HEIGHT;
+        stepPiece(piece, step, floorY, ceilingY);
         if (piece.mode !== 'rest') moving += 1;
       }
       if (moving === 0 || debris.age > 6) {
@@ -1100,8 +1134,9 @@ export function createSkeletons(parent, dungeon, materials) {
     skeleton.knockX = (dirX / len) * 12;
     skeleton.knockZ = (dirZ / len) * 12;
     skeleton.aggro = true;
-    audio.hit({ x: skeleton.x, y: skeleton.y + 3.3, z: skeleton.z });
-    TriggerDustFall(skeleton.hp > 0 ? 1.15 : 2.5, { x: skeleton.x, y: skeleton.y + 3.4, z: skeleton.z });
+    const support = debrisSupport(skeleton);
+    audio.hit({ x: skeleton.x, y: support.floor + 3.3, z: skeleton.z });
+    TriggerDustFall(skeleton.hp > 0 ? 1.15 : 2.5, { x: skeleton.x, y: support.floor + 3.4, z: skeleton.z });
     if (skeleton.hp > 0) return false;
     skeleton.hp = 0;
     skeleton.dead = true;

@@ -44,21 +44,21 @@
           "type": "quadratic",
           "from": [
             0.0,
-            0.7629,
-            0.1832
+            1.5257,
+            0.3665
           ],
           "control": [
             0.0,
             0.0,
-            -0.1099
+            -0.2199
           ],
           "to": [
             0.0,
-            -0.7629,
-            0.1832
+            -1.5257,
+            0.3665
           ]
         },
-        "radius": 0.015,
+        "radius": 0.03,
         "tubularSegments": 20,
         "radialSegments": 8
       },
@@ -73,9 +73,9 @@
       "material": "leather",
       "geometry": {
         "type": "cylinder",
-        "radiusTop": 0.022,
-        "radiusBottom": 0.02,
-        "height": 0.14,
+        "radiusTop": 0.044,
+        "radiusBottom": 0.04,
+        "height": 0.28,
         "radialSegments": 10
       },
       "position": [
@@ -89,14 +89,14 @@
       "material": "cord",
       "geometry": {
         "type": "torus",
-        "radius": 0.028,
-        "tube": 0.004,
+        "radius": 0.056,
+        "tube": 0.008,
         "radialSegments": 6,
         "tubularSegments": 14
       },
       "position": [
         0.0,
-        0.035,
+        0.07,
         0.0
       ],
       "rotation": {
@@ -115,21 +115,21 @@
           "type": "quadratic",
           "from": [
             0.0,
-            0.7629,
-            0.1832
+            1.5257,
+            0.3665
           ],
           "control": [
             0.0,
             0.0,
-            0.1832
+            0.3665
           ],
           "to": [
             0.0,
-            -0.7629,
-            0.1832
+            -1.5257,
+            0.3665
           ]
         },
-        "radius": 0.0035,
+        "radius": 0.007,
         "tubularSegments": 8,
         "radialSegments": 5
       },
@@ -144,15 +144,15 @@
       "material": "oak",
       "geometry": {
         "type": "cylinder",
-        "radiusTop": 0.006,
-        "radiusBottom": 0.006,
-        "height": 0.58,
+        "radiusTop": 0.012,
+        "radiusBottom": 0.012,
+        "height": 1.16,
         "radialSegments": 8
       },
       "position": [
         0.0,
-        0.02,
-        -0.1068
+        0.04,
+        -0.2135
       ],
       "rotation": {
         "x": -90.0,
@@ -166,14 +166,14 @@
       "material": "steel",
       "geometry": {
         "type": "cone",
-        "radius": 0.013,
-        "height": 0.07,
+        "radius": 0.026,
+        "height": 0.14,
         "radialSegments": 6
       },
       "position": [
         0.0,
-        0.02,
-        -0.4118
+        0.04,
+        -0.8235
       ],
       "rotation": {
         "x": -90.0,
@@ -187,14 +187,14 @@
       "material": "cloth",
       "geometry": {
         "type": "box",
-        "width": 0.045,
-        "height": 0.008,
-        "depth": 0.08
+        "width": 0.09,
+        "height": 0.016,
+        "depth": 0.16
       },
       "position": [
         0.0,
-        0.02,
-        0.1332
+        0.04,
+        0.2665
       ]
     },
     {
@@ -202,14 +202,14 @@
       "material": "cloth",
       "geometry": {
         "type": "box",
-        "width": 0.008,
-        "height": 0.045,
-        "depth": 0.08
+        "width": 0.016,
+        "height": 0.09,
+        "depth": 0.16
       },
       "position": [
         0.0,
-        0.02,
-        0.1332
+        0.04,
+        0.2665
       ]
     }
   ],

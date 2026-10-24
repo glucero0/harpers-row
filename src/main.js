@@ -8,7 +8,7 @@ import { setDustLight } from './dust.js';
 import { createGameState } from './game-state.js';
 import { createInput } from './input.js';
 import { LocationError } from './location.js';
-import { MASTER_CONFIG_URL, MasterConfigError, loadMasterConfig } from './master-config.js';
+import { areaFileUrl, MASTER_CONFIG_URL, MasterConfigError, loadMasterConfig } from './master-config.js';
 import { createMaterials } from './materials.js';
 import { cappedPixelRatio } from './pixel-ratio.js';
 import { createPlaces } from './places.js';
@@ -163,7 +163,7 @@ const ui = createUI({
 const MAX_WORLD_BYTES = 8 * 1024 * 1024;
 
 async function fetchJson(name) {
-  const url = `${import.meta.env.BASE_URL}${encodeURIComponent(name)}`;
+  const url = areaFileUrl(name, import.meta.env.BASE_URL);
   let response;
   try {
     response = await fetch(url, { cache: 'no-cache', credentials: 'same-origin' });

@@ -1,6 +1,6 @@
 import { test, expect } from 'vitest';
-import enhanced from '../public/campfireHubEnhanced.json';
-import hub from '../public/campfireHub.json';
+import enhanced from '../content/areas/campfireHubEnhanced.json';
+import hub from '../content/areas/campfireHub.json';
 import { FireDescriptionError, fireWobble, parseFireEmanation } from './fire-description.js';
 
 function pit(file) {

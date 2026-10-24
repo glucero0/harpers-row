@@ -5,7 +5,8 @@ import { STORY_HEIGHT, clearance, closestOnSegment, lineOfSight, pointInPolygon,
 import { audio } from './audio.js';
 import ancientRuinsData from './ancientRuinsData.json';
 import { floorHeightAt, hasChest, measureLocation, prepareLocation } from './location.js';
-import { pathGeometry } from './path-mesh.js';
+import { DIRT_TILE_METRES } from './materials.js';
+import { assignWorldGroundUvs, pathGeometry } from './path-mesh.js';
 import { createPropField } from './props.js';
 import { DEAD_TREE_VARIANTS, ENVIRONMENT_PRESETS, trailBlocksProp } from './rooms.js';
 import { SCONCE_LIGHT_CULL_DISTANCE, createWallSconce } from './sconce.js';
@@ -236,8 +237,6 @@ function disposeTree(node) {
 function buildWalls(root, materials, colliders, rooms, doors, batch) {
   const groups = new Map();
   for (const room of rooms) {
-    const y0 = room.y || 0;
-    const y1 = y0 + (room.storyHeight || WALL_HEIGHT);
     const polygon = room.polygon;
     for (let story = room.storyFirst; story <= room.storyLast; story += 1) {
       for (let i = 0; i < polygon.length; i += 1) {
@@ -268,44 +267,19 @@ function buildWalls(root, materials, colliders, rooms, doors, batch) {
       if (distA > 0.4 || distB > 0.4) continue;
       const tA = door.a[0] * group.dx + door.a[1] * group.dz;
       const tB = door.b[0] * group.dx + door.b[1] * group.dz;
-      const base = door.y || 0;
-      const rise = Math.max(6.2, door.height || DOOR_HEIGHT);
       gaps.push({
         t0: Math.min(tA, tB),
         t1: Math.max(tA, tB),
-        y0: base,
-        y1: base + rise,
+        height: door.height || DOOR_HEIGHT,
       });
     }
-    const marks = [];
-    for (const cover of group.covers) marks.push(cover.t0, cover.t1);
-    for (const gap of gaps) marks.push(gap.t0, gap.t1);
-    marks.sort((a, b) => a - b);
-    const unique = [];
-    for (const mark of marks) {
-      if (!unique.length || mark - unique[unique.length - 1] > 0.02) unique.push(mark);
-    }
-    // Collinear pieces of one story become a single wall. A door's sill cuts that run
-    // where the opening is, and the lintel above it stays its own span.
-    const runs = [];
-    for (let index = 0; index < unique.length - 1; index += 1) {
-      const t0 = unique[index];
-      const t1 = unique[index + 1];
-      if (t1 - t0 < 0.2) continue;
-      const mid = (t0 + t1) / 2;
-      const covers = group.covers.filter((cover) => mid >= cover.t0 - 0.02 && mid <= cover.t1 + 0.02);
-      if (!covers.length) continue;
-      let bands = mergeIntervals(covers.map((cover) => [cover.y0, cover.y1]));
-      for (const gap of gaps) {
-        if (gap.t1 < t0 + 0.02 || gap.t0 > t1 - 0.02) continue;
-        bands = subtractIntervals(bands, [[gap.y0, gap.y1]]);
-      }
-      bands = bands.filter((band) => band[1] - band[0] >= 0.15);
-      if (!bands.length) continue;
-      const theme = themeAt(covers, mid);
-      const signature = `${theme}|${bands.map((band) => band.join(',')).join(';')}`;
+    const coverSpans = group.covers.map((cover) => [cover.t0, cover.t1]);
+    for (const [t0, t1] of subtractIntervals(coverSpans, gaps.map((gap) => [gap.t0, gap.t1]))) {
+      const [ax, az] = pointAt(group, t0);
+      const [bx, bz] = pointAt(group, t1);
       const roomIds = [];
-      for (const cover of covers) {
+      for (const cover of group.covers) {
+        if (cover.t1 < t0 - 0.02 || cover.t0 > t1 + 0.02) continue;
         if (!roomIds.includes(cover.room.id)) roomIds.push(cover.room.id);
       }
       addWall(root, ax, az, bx, bz, themeAt(group.covers, (t0 + t1) / 2), materials, colliders, WALL_HEIGHT, baseY, true, batch, roomIds, undefined, story);
@@ -644,6 +618,8 @@ function addDirt(parent, material, rect) {
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(rect.w, rect.d), material);
   mesh.rotation.x = -Math.PI / 2;
   mesh.position.set(rect.x + rect.w / 2, 0.02, rect.z + rect.d / 2);
+  mesh.updateMatrix();
+  assignWorldGroundUvs(mesh.geometry, DIRT_TILE_METRES, mesh.matrix);
   mesh.receiveShadow = true;
   mesh.castShadow = false;
   parent.add(mesh);
@@ -667,12 +643,10 @@ function trackMaterial(owned, material) {
 
 function ribbonGeometry(samples, y) {
   const positions = [];
-  const uvs = [];
   const indices = [];
   for (let i = 0; i < samples.length; i += 1) {
     const sample = samples[i];
     positions.push(sample.x - sample.half, y, sample.z, sample.x + sample.half, y, sample.z);
-    uvs.push(0, i * 0.22, 1, i * 0.22);
   }
   for (let i = 0; i < samples.length - 1; i += 1) {
     const a = i * 2;
@@ -680,8 +654,8 @@ function ribbonGeometry(samples, y) {
   }
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   geometry.setIndex(indices);
+  assignWorldGroundUvs(geometry, DIRT_TILE_METRES);
   geometry.computeVertexNormals();
   return geometry;
 }
@@ -838,6 +812,8 @@ function buildApproach(outdoor, threshold, materials, colliders, layout, owned) 
   ground.name = 'approach-ground';
   ground.rotation.x = -Math.PI / 2;
   ground.position.set(pad.x, -0.06, pad.z);
+  ground.updateMatrix();
+  assignWorldGroundUvs(ground.geometry, DIRT_TILE_METRES, ground.matrix);
   ground.receiveShadow = true;
   ground.castShadow = false;
   outdoor.add(ground);
@@ -859,7 +835,8 @@ function buildApproach(outdoor, threshold, materials, colliders, layout, owned) 
     outdoor.add(vistaPath);
   }
 
-  const bankMat = trackMaterial(owned, new THREE.MeshStandardMaterial({ color: 0x7a6248, roughness: 1 }));
+  const bankMat = trackMaterial(owned, materials.dirt.clone());
+  bankMat.color.set(0x7a6248);
   const bankParts = [];
   const bankBox = new THREE.BoxGeometry(1, 1, 1);
   for (let i = 0; i < samples.length - 1; i += 1) {
@@ -886,7 +863,9 @@ function buildApproach(outdoor, threshold, materials, colliders, layout, owned) 
     }
   }
   bankBox.dispose();
-  const banks = new THREE.Mesh(mergeGeometries(bankParts), bankMat);
+  const bankGeometry = mergeGeometries(bankParts);
+  assignWorldGroundUvs(bankGeometry, DIRT_TILE_METRES);
+  const banks = new THREE.Mesh(bankGeometry, bankMat);
   banks.name = 'embankments';
   banks.castShadow = false;
   banks.receiveShadow = true;
@@ -1064,6 +1043,8 @@ function buildApproach(outdoor, threshold, materials, colliders, layout, owned) 
 
   const hillMat = materials.dirt;
   const hillGeo = new THREE.SphereGeometry(1, 6, 5);
+  const hillSpread = new THREE.Matrix4().makeScale(8, 8, 8);
+  assignWorldGroundUvs(hillGeo, DIRT_TILE_METRES, hillSpread);
   const hills = new THREE.BatchedMesh(20, 8000, 12000, hillMat);
   hills.name = 'perimeter-hills';
   hills.castShadow = false;

@@ -8,10 +8,10 @@ import { resolveBody } from './geometry.js';
 import { generateLayout, ENVIRONMENT_PRESETS } from './rooms.js';
 import { withTestMaterials } from './test-utils/testMaterials.js';
 import { connectWorld } from './world.js';
-import hubFile from '../public/campfireHub.json';
-import smRuins from '../public/smRuins.json';
-import lgRuins from '../public/lgRuins.json';
-import medRuins from '../public/medRuins.json';
+import hubFile from '../content/areas/campfireHub.json';
+import smRuins from '../content/areas/smRuins.json';
+import lgRuins from '../content/areas/lgRuins.json';
+import medRuins from '../content/areas/medRuins.json';
 
 let testMaterials;
 
@@ -245,6 +245,22 @@ describe('createDungeon', () => {
     const size = new THREE.Vector3();
     ground.geometry.boundingBox.getSize(size);
     expect(Math.max(size.x, size.y)).toBeGreaterThan(160);
+    const uv = ground.geometry.attributes.uv;
+    let minU = Infinity;
+    let maxU = -Infinity;
+    let minV = Infinity;
+    let maxV = -Infinity;
+    for (let i = 0; i < uv.count; i += 1) {
+      minU = Math.min(minU, uv.getX(i));
+      maxU = Math.max(maxU, uv.getX(i));
+      minV = Math.min(minV, uv.getY(i));
+      maxV = Math.max(maxV, uv.getY(i));
+    }
+    expect(maxU - minU).toBeGreaterThan(40);
+    expect(maxV - minV).toBeGreaterThan(40);
+    const banks = dungeon.group.getObjectByName('embankments');
+    expect(banks.material.map).toBe(testMaterials.materials.dirt.map);
+    expect(banks.material.color.getHex()).toBe(0x7a6248);
     expect(dungeon.group.getObjectByName('dead-trees')).toBeTruthy();
     expect(dungeon.group.getObjectByName('approach-path')).toBeTruthy();
     expect(dungeon.group.getObjectByName('vista-path')).toBeTruthy();
@@ -410,6 +426,7 @@ describe('stacked floors', () => {
       areaName: 'The Ancient Ruins',
       requirements: ['torch', 'mace'],
       lastRoomId: 'space-2',
+      start: { x: 8, z: 6, yaw: 0 },
       zoneLabels: {
         'worn-trail': 'Worn Trail',
         'ancient-ruins': 'The Ancient Ruins',
@@ -450,8 +467,8 @@ describe('stacked floors', () => {
 
     expect(dungeon.roomAt(8, 6, null, 0).id).toBe('space-0');
     expect(dungeon.roomAt(8, 6, null, 10).id).toBe('space-2');
-    expect(dungeon.floorY(layout.rooms[1], 10, -1)).toBeCloseTo(0, 5);
-    expect(dungeon.floorY(layout.rooms[1], 10, -15)).toBeCloseTo(10, 5);
+    expect(dungeon.floorY(10, -1, layout.rooms[1])).toBeCloseTo(0, 5);
+    expect(dungeon.floorY(10, -15, layout.rooms[1])).toBeCloseTo(10, 5);
 
     dungeon.update(0, 1 / 60, 'stone', 8, 6, false, new THREE.PerspectiveCamera(), 0);
     expect(dungeon.activeRooms.has('space-0')).toBe(true);
