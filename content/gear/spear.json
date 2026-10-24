@@ -30,14 +30,14 @@
       "material": "oak",
       "geometry": {
         "type": "cylinder",
-        "radiusTop": 0.0136,
-        "radiusBottom": 0.016,
-        "height": 1.5212,
+        "radiusTop": 0.0272,
+        "radiusBottom": 0.032,
+        "height": 3.0425,
         "radialSegments": 10
       },
       "position": [
         0.0,
-        0.7606,
+        1.5212,
         0.0
       ]
     },
@@ -46,14 +46,14 @@
       "material": "leather",
       "geometry": {
         "type": "torus",
-        "radius": 0.0232,
-        "tube": 0.005,
+        "radius": 0.0464,
+        "tube": 0.01,
         "radialSegments": 6,
         "tubularSegments": 14
       },
       "position": [
         0.0,
-        0.4868,
+        0.9736,
         0.0
       ],
       "rotation": {
@@ -68,14 +68,14 @@
       "material": "bronze",
       "geometry": {
         "type": "cylinder",
-        "radiusTop": 0.0184,
-        "radiusBottom": 0.0112,
-        "height": 0.04,
+        "radiusTop": 0.0368,
+        "radiusBottom": 0.0224,
+        "height": 0.08,
         "radialSegments": 10
       },
       "position": [
         0.0,
-        0.02,
+        0.04,
         0.0
       ]
     },
@@ -84,14 +84,14 @@
       "material": "bronze",
       "geometry": {
         "type": "cylinder",
-        "radiusTop": 0.0232,
-        "radiusBottom": 0.0184,
-        "height": 0.05,
+        "radiusTop": 0.0464,
+        "radiusBottom": 0.0368,
+        "height": 0.1,
         "radialSegments": 10
       },
       "position": [
         0.0,
-        1.5012,
+        3.0025,
         0.0
       ]
     },
@@ -100,13 +100,13 @@
       "material": "bronze",
       "geometry": {
         "type": "cone",
-        "radius": 0.016,
-        "height": 0.1841,
+        "radius": 0.032,
+        "height": 0.3681,
         "radialSegments": 8
       },
       "position": [
         0.0,
-        1.5983,
+        3.1965,
         0.0
       ]
     }

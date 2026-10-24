@@ -37,24 +37,24 @@
         "type": "lathe",
         "points": [
           [
-            0.0144,
+            0.0288,
             0.0
           ],
           [
-            0.0216,
-            0.0662
+            0.0432,
+            0.1323
           ],
           [
-            0.018,
-            0.2269
+            0.036,
+            0.4537
           ],
           [
-            0.0204,
-            0.3781
+            0.0408,
+            0.7562
           ],
           [
-            0.024,
-            0.4726
+            0.048,
+            0.9453
           ]
         ],
         "segments": 12
@@ -70,30 +70,8 @@
       "material": "cord",
       "geometry": {
         "type": "torus",
-        "radius": 0.024,
-        "tube": 0.0056,
-        "radialSegments": 6,
-        "tubularSegments": 14
-      },
-      "position": [
-        0.0,
-        0.1575,
-        0.0
-      ],
-      "rotation": {
-        "x": 90.0,
-        "y": 0.0,
-        "z": 0.0,
-        "unit": "degrees"
-      }
-    },
-    {
-      "name": "wrap2",
-      "material": "cord",
-      "geometry": {
-        "type": "torus",
-        "radius": 0.024,
-        "tube": 0.0056,
+        "radius": 0.048,
+        "tube": 0.0112,
         "radialSegments": 6,
         "tubularSegments": 14
       },
@@ -110,18 +88,40 @@
       }
     },
     {
+      "name": "wrap2",
+      "material": "cord",
+      "geometry": {
+        "type": "torus",
+        "radius": 0.048,
+        "tube": 0.0112,
+        "radialSegments": 6,
+        "tubularSegments": 14
+      },
+      "position": [
+        0.0,
+        0.6302,
+        0.0
+      ],
+      "rotation": {
+        "x": 90.0,
+        "y": 0.0,
+        "z": 0.0,
+        "unit": "degrees"
+      }
+    },
+    {
       "name": "collar",
       "material": "iron",
       "geometry": {
         "type": "cylinder",
-        "radiusTop": 0.025,
-        "radiusBottom": 0.028,
-        "height": 0.0567,
+        "radiusTop": 0.05,
+        "radiusBottom": 0.056,
+        "height": 0.1134,
         "radialSegments": 12
       },
       "position": [
         0.0,
-        0.4528,
+        0.9056,
         0.0
       ]
     },
@@ -130,13 +130,13 @@
       "material": "iron",
       "geometry": {
         "type": "sphere",
-        "radius": 0.027,
+        "radius": 0.054,
         "widthSegments": 10,
         "heightSegments": 8
       },
       "position": [
         0.0,
-        -0.017,
+        -0.034,
         0.0
       ]
     },
@@ -145,13 +145,13 @@
       "material": "rust",
       "geometry": {
         "type": "sphere",
-        "radius": 0.0819,
+        "radius": 0.1637,
         "widthSegments": 12,
         "heightSegments": 10
       },
       "position": [
         0.0,
-        0.4972,
+        0.9944,
         0.0
       ]
     },
@@ -160,14 +160,14 @@
       "material": "iron",
       "geometry": {
         "type": "torus",
-        "radius": 0.0737,
-        "tube": 0.008,
+        "radius": 0.1473,
+        "tube": 0.016,
         "radialSegments": 6,
         "tubularSegments": 14
       },
       "position": [
         0.0,
-        0.4972,
+        0.9944,
         0.0
       ],
       "rotation": {

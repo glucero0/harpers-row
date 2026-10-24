@@ -5,7 +5,8 @@ import { STORY_HEIGHT, clearance, closestOnSegment, lineOfSight, pointInPolygon,
 import { audio } from './audio.js';
 import ancientRuinsData from './ancientRuinsData.json';
 import { floorHeightAt, hasChest, measureLocation, prepareLocation } from './location.js';
-import { pathGeometry } from './path-mesh.js';
+import { DIRT_TILE_METRES } from './materials.js';
+import { assignWorldGroundUvs, pathGeometry } from './path-mesh.js';
 import { createPropField } from './props.js';
 import { DEAD_TREE_VARIANTS, ENVIRONMENT_PRESETS, trailBlocksProp } from './rooms.js';
 import { SCONCE_LIGHT_CULL_DISTANCE, createWallSconce } from './sconce.js';
@@ -644,6 +645,8 @@ function addDirt(parent, material, rect) {
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(rect.w, rect.d), material);
   mesh.rotation.x = -Math.PI / 2;
   mesh.position.set(rect.x + rect.w / 2, 0.02, rect.z + rect.d / 2);
+  mesh.updateMatrix();
+  assignWorldGroundUvs(mesh.geometry, DIRT_TILE_METRES, mesh.matrix);
   mesh.receiveShadow = true;
   mesh.castShadow = false;
   parent.add(mesh);
@@ -667,12 +670,10 @@ function trackMaterial(owned, material) {
 
 function ribbonGeometry(samples, y) {
   const positions = [];
-  const uvs = [];
   const indices = [];
   for (let i = 0; i < samples.length; i += 1) {
     const sample = samples[i];
     positions.push(sample.x - sample.half, y, sample.z, sample.x + sample.half, y, sample.z);
-    uvs.push(0, i * 0.22, 1, i * 0.22);
   }
   for (let i = 0; i < samples.length - 1; i += 1) {
     const a = i * 2;
@@ -680,8 +681,8 @@ function ribbonGeometry(samples, y) {
   }
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   geometry.setIndex(indices);
+  assignWorldGroundUvs(geometry, DIRT_TILE_METRES);
   geometry.computeVertexNormals();
   return geometry;
 }
@@ -838,6 +839,8 @@ function buildApproach(outdoor, threshold, materials, colliders, layout, owned) 
   ground.name = 'approach-ground';
   ground.rotation.x = -Math.PI / 2;
   ground.position.set(pad.x, -0.06, pad.z);
+  ground.updateMatrix();
+  assignWorldGroundUvs(ground.geometry, DIRT_TILE_METRES, ground.matrix);
   ground.receiveShadow = true;
   ground.castShadow = false;
   outdoor.add(ground);
@@ -859,7 +862,8 @@ function buildApproach(outdoor, threshold, materials, colliders, layout, owned) 
     outdoor.add(vistaPath);
   }
 
-  const bankMat = trackMaterial(owned, new THREE.MeshStandardMaterial({ color: 0x7a6248, roughness: 1 }));
+  const bankMat = trackMaterial(owned, materials.dirt.clone());
+  bankMat.color.set(0x7a6248);
   const bankParts = [];
   const bankBox = new THREE.BoxGeometry(1, 1, 1);
   for (let i = 0; i < samples.length - 1; i += 1) {
@@ -886,7 +890,9 @@ function buildApproach(outdoor, threshold, materials, colliders, layout, owned) 
     }
   }
   bankBox.dispose();
-  const banks = new THREE.Mesh(mergeGeometries(bankParts), bankMat);
+  const bankGeometry = mergeGeometries(bankParts);
+  assignWorldGroundUvs(bankGeometry, DIRT_TILE_METRES);
+  const banks = new THREE.Mesh(bankGeometry, bankMat);
   banks.name = 'embankments';
   banks.castShadow = false;
   banks.receiveShadow = true;
@@ -1064,6 +1070,8 @@ function buildApproach(outdoor, threshold, materials, colliders, layout, owned) 
 
   const hillMat = materials.dirt;
   const hillGeo = new THREE.SphereGeometry(1, 6, 5);
+  const hillSpread = new THREE.Matrix4().makeScale(8, 8, 8);
+  assignWorldGroundUvs(hillGeo, DIRT_TILE_METRES, hillSpread);
   const hills = new THREE.BatchedMesh(20, 8000, 12000, hillMat);
   hills.name = 'perimeter-hills';
   hills.castShadow = false;

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import * as THREE from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import maceFile from './gear/mace.json';
+import maceFile from '../content/gear/mace.json';
 import { withTestMaterials } from './test-utils/testMaterials.js';
 import { createMace } from './mace.js';
 

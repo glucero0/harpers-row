@@ -8,10 +8,10 @@ import { resolveBody } from './geometry.js';
 import { generateLayout, ENVIRONMENT_PRESETS } from './rooms.js';
 import { withTestMaterials } from './test-utils/testMaterials.js';
 import { connectWorld } from './world.js';
-import hubFile from '../public/campfireHub.json';
-import smRuins from '../public/smRuins.json';
-import lgRuins from '../public/lgRuins.json';
-import medRuins from '../public/medRuins.json';
+import hubFile from '../content/areas/campfireHub.json';
+import smRuins from '../content/areas/smRuins.json';
+import lgRuins from '../content/areas/lgRuins.json';
+import medRuins from '../content/areas/medRuins.json';
 
 let testMaterials;
 
@@ -245,6 +245,22 @@ describe('createDungeon', () => {
     const size = new THREE.Vector3();
     ground.geometry.boundingBox.getSize(size);
     expect(Math.max(size.x, size.y)).toBeGreaterThan(160);
+    const uv = ground.geometry.attributes.uv;
+    let minU = Infinity;
+    let maxU = -Infinity;
+    let minV = Infinity;
+    let maxV = -Infinity;
+    for (let i = 0; i < uv.count; i += 1) {
+      minU = Math.min(minU, uv.getX(i));
+      maxU = Math.max(maxU, uv.getX(i));
+      minV = Math.min(minV, uv.getY(i));
+      maxV = Math.max(maxV, uv.getY(i));
+    }
+    expect(maxU - minU).toBeGreaterThan(40);
+    expect(maxV - minV).toBeGreaterThan(40);
+    const banks = dungeon.group.getObjectByName('embankments');
+    expect(banks.material.map).toBe(testMaterials.materials.dirt.map);
+    expect(banks.material.color.getHex()).toBe(0x7a6248);
     expect(dungeon.group.getObjectByName('dead-trees')).toBeTruthy();
     expect(dungeon.group.getObjectByName('approach-path')).toBeTruthy();
     expect(dungeon.group.getObjectByName('vista-path')).toBeTruthy();

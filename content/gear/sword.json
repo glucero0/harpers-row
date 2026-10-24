@@ -32,24 +32,24 @@
         "type": "lathe",
         "points": [
           [
-            0.013,
+            0.0259,
             0.0
           ],
           [
-            0.0194,
-            0.0274
+            0.0389,
+            0.0547
           ],
           [
-            0.0162,
-            0.0938
+            0.0324,
+            0.1876
           ],
           [
-            0.0184,
-            0.1564
+            0.0367,
+            0.3127
           ],
           [
-            0.0216,
-            0.1955
+            0.0432,
+            0.3909
           ]
         ],
         "segments": 12
@@ -65,14 +65,14 @@
       "material": "cord",
       "geometry": {
         "type": "torus",
-        "radius": 0.0216,
-        "tube": 0.005,
+        "radius": 0.0432,
+        "tube": 0.0101,
         "radialSegments": 6,
         "tubularSegments": 14
       },
       "position": [
         0.0,
-        0.0977,
+        0.1955,
         0.0
       ],
       "rotation": {
@@ -87,14 +87,14 @@
       "material": "iron",
       "geometry": {
         "type": "cylinder",
-        "radiusTop": 0.0225,
-        "radiusBottom": 0.0252,
-        "height": 0.0235,
+        "radiusTop": 0.045,
+        "radiusBottom": 0.0504,
+        "height": 0.0469,
         "radialSegments": 12
       },
       "position": [
         0.0,
-        0.1873,
+        0.3745,
         0.0
       ]
     },
@@ -103,13 +103,13 @@
       "material": "iron",
       "geometry": {
         "type": "sphere",
-        "radius": 0.0243,
+        "radius": 0.0486,
         "widthSegments": 10,
         "heightSegments": 8
       },
       "position": [
         0.0,
-        -0.0153,
+        -0.0306,
         0.0
       ]
     },
@@ -118,14 +118,14 @@
       "material": "iron",
       "geometry": {
         "type": "cylinder",
-        "radiusTop": 0.046,
-        "radiusBottom": 0.046,
-        "height": 0.014,
+        "radiusTop": 0.092,
+        "radiusBottom": 0.092,
+        "height": 0.028,
         "radialSegments": 14
       },
       "position": [
         0.0,
-        0.1955,
+        0.3909,
         0.0
       ]
     },
@@ -134,16 +134,16 @@
       "material": "iron",
       "geometry": {
         "type": "blade",
-        "length": 0.6601,
-        "baseWidth": 0.0564,
-        "tipWidth": 0.004,
-        "thickness": 0.016,
+        "length": 1.3201,
+        "baseWidth": 0.1128,
+        "tipWidth": 0.008,
+        "thickness": 0.032,
         "fuller": 0.0,
         "segments": 8
       },
       "position": [
         0.0,
-        0.5335,
+        1.067,
         0.0
       ]
     }

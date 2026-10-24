@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { generateLayout } from './rooms.js';
-import hubFile from '../public/campfireHub.json';
-import smRuins from '../public/smRuins.json';
-import lgRuins from '../public/lgRuins.json';
-import medRuins from '../public/medRuins.json';
+import hubFile from '../content/areas/campfireHub.json';
+import smRuins from '../content/areas/smRuins.json';
+import lgRuins from '../content/areas/lgRuins.json';
+import medRuins from '../content/areas/medRuins.json';
 import { connectWorld, exitLoopHeightAt, prepareHub, whereabouts, WorldError } from './world.js';
 
 function corridor(samples) {

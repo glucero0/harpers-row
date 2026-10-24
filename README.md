@@ -41,7 +41,7 @@ Nothing ends the run except dying. Clearing every skeleton does not finish the g
 
 ### The master config
 
-`public/master_config.json` names the central hub and lists the locations the game can offer, all as bare file names:
+`content/areas/master_config.json` names the central hub and lists the locations the game can offer, all as bare file names:
 
 ```json
 {
@@ -51,7 +51,7 @@ Nothing ends the run except dying. Clearing every skeleton does not finish the g
 }
 ```
 
-`hubLocation` is the game's central hub, a location file like the ones the block dungeon generator makes (`campfireHub.json` and others). It is where the player will start the game and where they come back after dying. It is optional, but if it is present it must be a plain `.json` file name, or the whole config is rejected. The names above are the files shipped in `public/`: the campfire hub's spokes are `smallruins`, `largeruins`, and `medruins`, in that order. A fire pit in that file can describe the flame itself: particle color, lifetime, and rate, plus a flickering point light. The campfire, the held torch, and wall sconces all burn from that same description.
+`hubLocation` is the game's central hub, a location file like the ones the block dungeon generator makes (`campfireHub.json` and others). It is where the player will start the game and where they come back after dying. It is optional, but if it is present it must be a plain `.json` file name, or the whole config is rejected. The names above are the files shipped in `content/areas/`: the campfire hub's spokes are `smallruins`, `largeruins`, and `medruins`, in that order. A fire pit in that file can describe the flame itself: particle color, lifetime, and rate, plus a flickering point light. The campfire, the held torch, and wall sconces all burn from that same description.
 
 The game reads the config once at startup. The number of names in `locations` has to equal the number of spokes (paths) in the hub file. Spoke 0 leads to the first file, spoke 1 to the second, and so on. When they match, you start on the hub's respawn point, and dying sends you back there with the locations built anew. Walk a spoke to its end to reach that ruin's trail. The header names the ruin. The line under the room name says the stone arch is the way in; the far end of the trail is the way back to the hub. Inside, the corridors are black without a torch in the left hand, and the same line says so.
 
@@ -61,11 +61,11 @@ If the counts differ, or a file will not load, the game stops and shows the reas
 
 The config is validated like any other outside file: it is capped at 64 KB, entries must be plain `.json` file names (no folders, no URLs), duplicates are dropped, and at most 100 are kept. Anything rejected is counted in `gameState.rejectedLocations`.
 
-Locations come from `public/master_config.json`. There is no file picker. Each named file is fetched, capped in size, parsed with `JSON.parse` only, and checked field by field. Counts of rooms, props, and scenery are capped, numbers are clamped to sane ranges, and unknown prop types are skipped.
+Locations come from `content/areas/master_config.json`. There is no file picker. Each named file is fetched from `content/areas/`, capped in size, parsed with `JSON.parse` only, and checked field by field. Counts of rooms, props, and scenery are capped, numbers are clamped to sane ranges, and unknown prop types are skipped.
 
 The game runs entirely in the browser. Slider values are stored locally and are ignored if they are not a number from 0 to 1.
 
-You start on a worn dirt trail in daylight: a pale sky, thin clouds, and dead trees on parched ground, with the stone arch of the ruins at the end of the path. The trail continues the other way, out of the mountain pass: scrub and dead trees follow a long dirt path that runs into a mountain range. Walking into the arch, or out through the pass, fades the screen and moves you across. Inside the ruins the sky is gone — corridors fall off into black a short way ahead, and the torch is what you see by. Daylight outside does not cast a second shadow map; dark patches on the ground follow the sun so the torch can keep the only one.
+You start on a worn dirt trail in daylight: a pale sky, thin clouds, and dead trees on parched ground of mixed soil and gravel, with the stone arch of the ruins at the end of the path. The trail continues the other way, out of the mountain pass: scrub and dead trees follow a long dirt path that runs into a mountain range. Walking into the arch, or out through the pass, fades the screen and moves you across. Inside the ruins the sky is gone — corridors fall off into black a short way ahead, and the torch is what you see by. Daylight outside does not cast a second shadow map; dark patches on the ground follow the sun so the torch can keep the only one.
 
 ## Architecture
 
@@ -73,9 +73,9 @@ The codebase is built from small `createX(...)` factory functions that return a 
 over private state — meshes, materials, vectors, flags — rather than classes. Modules are grouped by
 concern:
 
-- **Config/math** (`balance.js`, `geometry.js`, `fire-description.js`, `gear-description.js`, `skeletelWarrior.json`) — pure constants and functions, no THREE, no DOM. Skeletal warrior name, health, damage, speed, and weapons are read from `skeletelWarrior.json`. Held equipment is read from the JSON files in `src/gear/` (torch and shield on the left, sword, mace, dagger, hammer, spear, axe, and bow on the right). `fire-description.js` reads the shared flame (particles and a flickering point light) used by the campfire, the torch, and wall sconces.
-- **World generation** (`rooms.js`, `ancientRuinsData.json`) — `rooms.js` can still build a procedural layout for tests. The game loads The Ancient Ruins from `ancientRuinsData.json` as a deep copy, and does not call `generateLayout()` on startup or on another descent. The outdoor wall heights and cornice are `approach.shell` in that file. The checklist shows the area name. The enemy name comes from `skeletelWarrior.json`.
-- **Content/rendering** (`dungeon.js`, `materials.js`, `flame.js`, `gear.js`, `item-mesh.js`, `sconce.js`, `dust.js`, `player-body.js`, ...) — turns config and layout into THREE objects and owns their GPU resources. Every held item is built by `gear.js` from its file in `src/gear/`. The torch's tip, and a hub fire-pit's `vfx` and `light`, are the same flame description. Only the held torch's point light casts a shadow.
+- **Config/math** (`balance.js`, `geometry.js`, `fire-description.js`, `gear-description.js`, `content/creatures/skeletelWarrior.json`) — pure constants and functions, no THREE, no DOM. Skeletal warrior name, health, damage, speed, and weapons are read from `content/creatures/skeletelWarrior.json`. Held equipment is read from the JSON files in `content/gear/` (torch and shield on the left, sword, mace, dagger, hammer, spear, axe, and bow on the right). `fire-description.js` reads the shared flame (particles and a flickering point light) used by the campfire, the torch, and wall sconces.
+- **World generation** (`rooms.js`, `ancientRuinsData.json`) — `rooms.js` can still build a procedural layout for tests. The game loads The Ancient Ruins from `ancientRuinsData.json` as a deep copy, and does not call `generateLayout()` on startup or on another descent. The outdoor wall heights and cornice are `approach.shell` in that file. The checklist shows the area name. The enemy name comes from `content/creatures/skeletelWarrior.json`.
+- **Content/rendering** (`dungeon.js`, `materials.js`, `flame.js`, `gear.js`, `item-mesh.js`, `sconce.js`, `dust.js`, `player-body.js`, ...) — turns config and layout into THREE objects and owns their GPU resources. Every held item is built by `gear.js` from its file in `content/gear/`. The torch's tip, and a hub fire-pit's `vfx` and `light`, are the same flame description. Only the held torch's point light casts a shadow.
 - **Entities** (`player.js`, `skeleton.js`) — autonomous actors with their own state machines.
 - **Systems** (`input.js`, `audio.js`, `ui.js`, `impact.js`, `zone-transition.js`) — cross-cutting concerns not tied to one entity. Zone changes (the ruin arch, the mountain pass) share one fade, teleport, and lighting preset.
 - **Engine** (`main.js`) — the render loop, window resize, and the restart cycle that wires everything together. The renderer pixel ratio is capped at 1.5 so 2.5K/3K laptop panels stay at 60 fps on integrated GPUs. Wall sconces farther than 15 units turn their point light off and keep the flame mesh; only the held torch casts a shadow map. Repeated props (pillars, rocks, and the dead trees and scrub on the trail) belong in a shared batched mesh, the way walls and floors already do.

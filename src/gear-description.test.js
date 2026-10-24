@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'vitest';
-import swordFile from './gear/sword.json';
-import torchFile from './gear/torch.json';
+import swordFile from '../content/gear/sword.json';
+import torchFile from '../content/gear/torch.json';
 import {
   GearDescriptionError,
   gearCatalog,

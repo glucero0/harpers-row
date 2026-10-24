@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import * as THREE from 'three';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import hubFile from '../public/campfireHub.json';
+import hubFile from '../content/areas/campfireHub.json';
 import { createHub } from './hub.js';
 import { withTestMaterials } from './test-utils/testMaterials.js';
 
@@ -48,6 +48,15 @@ describe('createHub', () => {
     expect(flames.children[0].material.uniforms.uTime.value).toBe(0.4);
     expect(light.intensity).toBeGreaterThan(0);
     expect(light.intensity).not.toBeCloseTo(first);
+    const ground = hub.group.children.find((child) => child.geometry?.type === 'CircleGeometry');
+    const groundUv = ground.geometry.attributes.uv;
+    let minU = Infinity;
+    let maxU = -Infinity;
+    for (let i = 0; i < groundUv.count; i += 1) {
+      minU = Math.min(minU, groundUv.getX(i));
+      maxU = Math.max(maxU, groundUv.getX(i));
+    }
+    expect(maxU - minU).toBeGreaterThan(10);
     const geometryDispose = vi.spyOn(flames.children[0].geometry, 'dispose');
     hub.dispose();
     hub.dispose();
