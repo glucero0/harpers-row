@@ -299,7 +299,7 @@ const TRAIL_CLEARANCE = 3;
 const PATH_SAMPLES = 20;
 const CORRIDOR_HALF = (PATH_WIDTH + TRAIL_CLEARANCE) / 2;
 
-// Daylight outside the arch, and a black interior once the threshold is crossed.
+// Daylight outside the arch, and a dim gray interior once the threshold is crossed.
 // `density` selects exponential fog; a near/far pair without it selects linear fog.
 export const ENVIRONMENT_PRESETS = {
   day: {
@@ -310,7 +310,8 @@ export const ENVIRONMENT_PRESETS = {
   },
   interior: {
     clearColor: '#000000',
-    ambientLightIntensity: 0.012,
+    // Brighter than a pitch-black room, still well under daylight. This is a light, not a lighter surface.
+    ambientLightIntensity: 0.24,
     fog: { color: '#000000', near: 8, far: 20 },
     skyboxVisible: false,
   },

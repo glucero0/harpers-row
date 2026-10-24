@@ -110,6 +110,8 @@ describe('createMaterials', () => {
       };
       material.onBeforeCompile(shader);
       expect(shader.fragmentShader).toContain('ruinMapPos');
+      expect(shader.fragmentShader).toContain('ruinAlbedo * ruinShade * ruinAtten');
+      expect(shader.fragmentShader).not.toContain('vec3(1.2, 0.78, 0.42)');
       expect(shader.fragmentShader).not.toContain('#include <map_fragment>');
     }
     const woodShader = {

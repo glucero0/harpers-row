@@ -29,6 +29,8 @@ const OUTDOOR_FOG = 0xc5d0d6;
 const SUN_OUTDOOR = 2.4;
 const SKY_OUTDOOR = 1.05;
 const DAY_FILL = ENVIRONMENT_PRESETS.day.ambientLightIntensity;
+const OUTDOOR_FILL_COLOR = 0xe4d7c2;
+const INTERIOR_FILL_COLOR = 0xc8ccd1;
 const CHEST_GOLD = 100;
 // A chest or a sconce can only be reached from its own floor: less than half a story apart.
 const SAME_FLOOR = STORY_HEIGHT / 2;
@@ -1400,7 +1402,7 @@ function buildDungeon(scene, materials, layout, renderer) {
   sunTarget.position.set(approach.midX + 2, 2, approach.southZ + 18);
   sun.target = sunTarget;
   const sky = new THREE.HemisphereLight(0xe7eef3, 0xa08b6c, SKY_OUTDOOR);
-  const fill = new THREE.AmbientLight(0xe4d7c2, DAY_FILL);
+  const fill = new THREE.AmbientLight(OUTDOOR_FILL_COLOR, DAY_FILL);
   scene.add(sun, sunTarget, sky, fill);
 
   const bgColor = new THREE.Color(OUTDOOR_FOG);
@@ -1415,6 +1417,8 @@ function buildDungeon(scene, materials, layout, renderer) {
     toSky: SKY_OUTDOOR,
     fromFill: DAY_FILL,
     toFill: DAY_FILL,
+    fromFillColor: new THREE.Color(OUTDOOR_FILL_COLOR),
+    toFillColor: new THREE.Color(OUTDOOR_FILL_COLOR),
     fromDensity: THEME.outdoor.density,
     toDensity: THEME.outdoor.density,
     left: 0,
@@ -1427,6 +1431,8 @@ function buildDungeon(scene, materials, layout, renderer) {
   let zoneId = 'worn-trail';
   let ambientSlider = 0;
   let fillBase = DAY_FILL;
+  const outdoorFill = new THREE.Color(OUTDOOR_FILL_COLOR);
+  const interiorFill = new THREE.Color(INTERIOR_FILL_COLOR);
 
   function applyEnvironment(preset) {
     const source = preset || ENVIRONMENT_PRESETS.day;
@@ -1434,8 +1440,12 @@ function buildDungeon(scene, materials, layout, renderer) {
     const day = source.skyboxVisible !== false;
     sun.intensity = day ? SUN_OUTDOOR : 0;
     sky.intensity = day ? SKY_OUTDOOR : 0;
-    fillBase = source.ambientLightIntensity;
+    // Baked ruins still name a near-black fill. Indoors, use at least the shared gray level
+    // so every dungeon is a bit brighter without lightening the stone color itself.
+    const authored = Number(source.ambientLightIntensity);
+    fillBase = day ? authored : Math.max(authored || 0, ENVIRONMENT_PRESETS.interior.ambientLightIntensity);
     fill.intensity = ambientFill(fillBase, ambientSlider);
+    fill.color.copy(day ? outdoorFill : interiorFill);
     bgColor.set(source.clearColor || (fog && fog.color) || '#000000');
     scene.background = bgColor;
     if (fog && Number.isFinite(fog.density)) {
@@ -1462,7 +1472,11 @@ function buildDungeon(scene, materials, layout, renderer) {
     blend.fromSky = sky.intensity;
     blend.toSky = day ? SKY_OUTDOOR : 0;
     blend.fromFill = fill.intensity;
-    blend.toFill = ambientFill(source.ambientLightIntensity, ambientSlider);
+    const authored = Number(source.ambientLightIntensity);
+    const nextFill = day ? authored : Math.max(authored || 0, ENVIRONMENT_PRESETS.interior.ambientLightIntensity);
+    blend.toFill = ambientFill(nextFill, ambientSlider);
+    blend.fromFillColor.copy(fill.color);
+    blend.toFillColor.copy(day ? outdoorFill : interiorFill);
     blendFrom.copy(scene.fog.color);
     blendTo.set((source.fog && source.fog.color) || source.clearColor || '#000000');
     blend.fromDensity = scene.fog === expFog ? expFog.density : THEME.outdoor.density;
@@ -1480,6 +1494,7 @@ function buildDungeon(scene, materials, layout, renderer) {
     sun.intensity = blend.fromSun + (blend.toSun - blend.fromSun) * t;
     sky.intensity = blend.fromSky + (blend.toSky - blend.fromSky) * t;
     fill.intensity = blend.fromFill + (blend.toFill - blend.fromFill) * t;
+    fill.color.copy(blend.fromFillColor).lerp(blend.toFillColor, t);
     if (scene.fog === expFog) {
       expFog.color.copy(blendFrom).lerp(blendTo, t);
       expFog.density = blend.fromDensity + (blend.toDensity - blend.fromDensity) * t;
@@ -1723,7 +1738,12 @@ function buildDungeon(scene, materials, layout, renderer) {
     setAmbient(slider) {
       ambientSlider = slider;
       if (blend.left > 0) {
-        const pendingBase = blend.pending ? blend.pending.ambientLightIntensity : fillBase;
+        const source = blend.pending;
+        const day = source ? source.skyboxVisible !== false : true;
+        const authored = source ? Number(source.ambientLightIntensity) : fillBase;
+        const pendingBase = day
+          ? authored
+          : Math.max(authored || 0, ENVIRONMENT_PRESETS.interior.ambientLightIntensity);
         blend.toFill = ambientFill(pendingBase, ambientSlider);
         return;
       }

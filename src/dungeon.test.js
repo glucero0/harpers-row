@@ -282,6 +282,9 @@ describe('createDungeon', () => {
     expect(scene.fog.near).toBe(8);
     expect(scene.fog.far).toBe(20);
     expect(scene.background.getHexString()).toBe('000000');
+    const interiorFill = scene.children.find((child) => child.isAmbientLight);
+    expect(interiorFill.intensity).toBeCloseTo(ENVIRONMENT_PRESETS.interior.ambientLightIntensity, 5);
+    expect(interiorFill.color.getHex()).toBe(0xc8ccd1);
     expect(dungeon.group.getObjectByName('outdoor-zone').visible).toBe(false);
 
     dungeon.showZone('worn-trail');
@@ -307,6 +310,10 @@ describe('createDungeon', () => {
     dungeon.applyEnvironment(ENVIRONMENT_PRESETS.interior);
     const fill = scene.children.find((child) => child.isAmbientLight);
     expect(fill.intensity).toBeCloseTo(ENVIRONMENT_PRESETS.interior.ambientLightIntensity, 5);
+    expect(fill.color.getHex()).toBe(0xc8ccd1);
+    dungeon.applyEnvironment(ENVIRONMENT_PRESETS.day);
+    expect(fill.color.getHex()).toBe(0xe4d7c2);
+    dungeon.applyEnvironment(ENVIRONMENT_PRESETS.interior);
     dungeon.setAmbient(1);
     expect(fill.intensity).toBeCloseTo(AMBIENT_SLIDER_MAX, 5);
     dungeon.setAmbient(0);

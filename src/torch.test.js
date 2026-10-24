@@ -24,7 +24,8 @@ describe('createHeldTorch', () => {
     expect(shaft.castShadow).toBe(false);
     expect(torch.tip.name).toBe('TorchTipSocket');
     expect(torch.tip.position.y).toBeCloseTo(0.6144);
-    expect(torch.light.color.getHexString()).toBe('ff7a18');
+    expect(torch.light.color.getHexString()).toBe('e4e7ea');
+    expect(torch.light.intensity).toBeGreaterThan(2.5);
     expect(torch.light.distance).toBe(8);
     expect(torch.light.decay).toBe(2);
     expect(torch.light.castShadow).toBe(true);

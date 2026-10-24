@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 
-const RUIN_KEY = 'ruin-masonry-2';
+const RUIN_KEY = 'ruin-masonry-5';
 
 const VERTEX_PRELUDE = `#include <common>
 varying vec3 vRuinWorld;
@@ -138,8 +138,21 @@ const FOG_CHUNK = `
   #endif
   vec3 ruinToTorch = vRuinWorld - ruinTorchPos;
   float ruinTorchDist = length(ruinToTorch);
-  float ruinAtten = ruinTorchPower / (1.0 + 0.085 * ruinTorchDist * ruinTorchDist);
-  gl_FragColor.rgb += vec3(1.0, 0.58, 0.24) * ruinAtten * 0.55;
+  float ruinAtten = ruinTorchPower / (1.0 + 0.04 * ruinTorchDist * ruinTorchDist);
+  #ifdef USE_MAP
+    vec3 ruinLitBlend = pow(abs(vRuinNormal), vec3(4.0));
+    ruinLitBlend /= max(0.0001, ruinLitBlend.x + ruinLitBlend.y + ruinLitBlend.z);
+    vec3 ruinLitUv = vRuinWorld * ruinScale;
+    vec3 ruinAlbedo = texture2D(map, ruinLitUv.zy).rgb * ruinLitBlend.x
+      + texture2D(map, ruinLitUv.xz).rgb * ruinLitBlend.y
+      + texture2D(map, ruinLitUv.xy).rgb * ruinLitBlend.z;
+    // A flat torch color paints every surface the same tan. Multiply by the stone
+    // so joints and separate blocks stay visible inside, where this fill is the light.
+    // The wall tint is warm. Multiplying by it turned these gray blocks tan, so only
+    // its brightness is used and the color stays the stone's own gray.
+    float ruinShade = dot(diffuse, vec3(0.2126, 0.7152, 0.0722));
+    gl_FragColor.rgb += ruinAlbedo * ruinShade * ruinAtten * 18.0;
+  #endif
   gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, clamp(fogFactor, 0.0, 1.0));
 #endif
 `;
