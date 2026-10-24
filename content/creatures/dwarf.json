@@ -1,0 +1,37 @@
+{
+  "name": "Fair Short-haired Dwarf",
+  "species": "dwarf",
+  "plan": "humanoid",
+  "scale": 0.75,
+  "color": "#e6b898",
+  "stats": {
+    "health": 57,
+    "damage": 15,
+    "moveSpeed": 2.78,
+    "wanderFactor": 0.28,
+    "radius": 0.6,
+    "sightRange": 16,
+    "windup": 0.7,
+    "recover": 1,
+    "minWindup": 0.22,
+    "minRecover": 0.26
+  },
+  "weapons": [
+    {
+      "id": "sword",
+      "range": 4.4
+    },
+    {
+      "id": "mace",
+      "range": 3.35
+    },
+    {
+      "id": "hammer",
+      "range": 3.8
+    },
+    {
+      "id": "bow",
+      "range": 26
+    }
+  ]
+}

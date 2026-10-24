@@ -1,0 +1,37 @@
+{
+  "name": "Tan Long-haired Human",
+  "species": "human",
+  "plan": "humanoid",
+  "scale": 1.05,
+  "color": "#c48a62",
+  "stats": {
+    "health": 46,
+    "damage": 10,
+    "moveSpeed": 3.94,
+    "wanderFactor": 0.35,
+    "radius": 0.75,
+    "sightRange": 24,
+    "windup": 0.6,
+    "recover": 0.9,
+    "minWindup": 0.2,
+    "minRecover": 0.25
+  },
+  "weapons": [
+    {
+      "id": "sword",
+      "range": 4.4
+    },
+    {
+      "id": "mace",
+      "range": 3.35
+    },
+    {
+      "id": "hammer",
+      "range": 3.8
+    },
+    {
+      "id": "bow",
+      "range": 26
+    }
+  ]
+}

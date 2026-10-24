@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { GUARD_READY, SKELETON_NAME, SWORD_ARC, SWORD_RANGE, ambientFill } from './balance.js';
+import { GUARD_READY, SWORD_ARC, SWORD_RANGE, ambientFill } from './balance.js';
+import { defaultCreature } from './creatures.js';
 import { clearDustField, createDustField } from './dust.js';
 import { STORY_HEIGHT, clearance, closestOnSegment, lineOfSight, pointInPolygon, storyAt } from './geometry.js';
 import { audio } from './audio.js';
@@ -226,8 +227,10 @@ function disposeTree(node) {
     const list = Array.isArray(obj.material) ? obj.material : [obj.material];
     for (const material of list) {
       if (!material || material.userData.shared) continue;
-      material.map?.dispose();
-      material.bumpMap?.dispose();
+      if (!material.userData.keepMaps) {
+        material.map?.dispose();
+        material.bumpMap?.dispose();
+      }
       material.dispose();
     }
   });
@@ -1254,7 +1257,6 @@ function createBatch(root) {
 // message instead of halfway through building a level.
 export function locationLayout(data) {
   const layout = JSON.parse(JSON.stringify(data));
-  layout.enemyName = SKELETON_NAME;
   return prepareLocation(layout);
 }
 
@@ -1691,6 +1693,8 @@ function buildDungeon(scene, materials, layout, renderer) {
     transitions: layout.transitions,
     labels: layout.zoneLabels,
     placeName: layout.placeName || layout.areaName,
+    enemyName: layout.enemyName || defaultCreature().name,
+    creature: layout.creature || defaultCreature(),
     gateInward: layout.gateInward || { x: 0, z: -1 },
     intruded: false,
     activeRooms: new Set(),

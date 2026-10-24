@@ -108,14 +108,18 @@ export function skeletonAttackRange(weapon) {
   return weaponRanges.get(weapon) ?? SKELETON_ATTACK_RANGE;
 }
 
-export function attackWindup(pace) {
+export function attackWindup(pace, stats) {
   const scale = Number.isFinite(pace) && pace > 0 ? pace : 1;
-  return Math.max(SKELETON_MIN_WINDUP, SKELETON_WINDUP / scale);
+  const windup = stats && Number.isFinite(stats.windup) ? stats.windup : SKELETON_WINDUP;
+  const minWindup = stats && Number.isFinite(stats.minWindup) ? stats.minWindup : SKELETON_MIN_WINDUP;
+  return Math.max(minWindup, windup / scale);
 }
 
-export function attackRecover(pace) {
+export function attackRecover(pace, stats) {
   const scale = Number.isFinite(pace) && pace > 0 ? pace : 1;
-  return Math.max(SKELETON_MIN_RECOVER, SKELETON_RECOVER / scale);
+  const recover = stats && Number.isFinite(stats.recover) ? stats.recover : SKELETON_RECOVER;
+  const minRecover = stats && Number.isFinite(stats.minRecover) ? stats.minRecover : SKELETON_MIN_RECOVER;
+  return Math.max(minRecover, recover / scale);
 }
 
 // How close the fighter must be, and how wide the swing, to open a chest. This is not a weapon's reach.

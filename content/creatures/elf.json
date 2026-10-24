@@ -1,0 +1,37 @@
+{
+  "name": "Pallid Short-haired Elf",
+  "species": "elf",
+  "plan": "humanoid",
+  "scale": 1.08,
+  "color": "#d7d0c4",
+  "stats": {
+    "health": 34,
+    "damage": 12,
+    "moveSpeed": 4.06,
+    "wanderFactor": 0.38,
+    "radius": 0.65,
+    "sightRange": 30,
+    "windup": 0.5,
+    "recover": 0.8,
+    "minWindup": 0.18,
+    "minRecover": 0.22
+  },
+  "weapons": [
+    {
+      "id": "sword",
+      "range": 4.4
+    },
+    {
+      "id": "mace",
+      "range": 3.35
+    },
+    {
+      "id": "hammer",
+      "range": 3.8
+    },
+    {
+      "id": "bow",
+      "range": 26
+    }
+  ]
+}

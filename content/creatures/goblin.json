@@ -1,0 +1,37 @@
+{
+  "name": "Lime Short-haired Goblin",
+  "species": "goblin",
+  "plan": "humanoid",
+  "scale": 0.72,
+  "color": "#8faf62",
+  "stats": {
+    "health": 17,
+    "damage": 8,
+    "moveSpeed": 4.54,
+    "wanderFactor": 0.55,
+    "radius": 0.5,
+    "sightRange": 18,
+    "windup": 0.45,
+    "recover": 0.7,
+    "minWindup": 0.16,
+    "minRecover": 0.2
+  },
+  "weapons": [
+    {
+      "id": "sword",
+      "range": 4.4
+    },
+    {
+      "id": "mace",
+      "range": 3.35
+    },
+    {
+      "id": "hammer",
+      "range": 3.8
+    },
+    {
+      "id": "bow",
+      "range": 26
+    }
+  ]
+}

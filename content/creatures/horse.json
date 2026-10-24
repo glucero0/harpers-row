@@ -1,0 +1,19 @@
+{
+  "name": "Black Horse",
+  "species": "horse",
+  "plan": "quadruped",
+  "scale": 1,
+  "color": "#292623",
+  "stats": {
+    "health": 50,
+    "damage": 9,
+    "moveSpeed": 7.54,
+    "wanderFactor": 0.4,
+    "radius": 0.95,
+    "sightRange": 24,
+    "windup": 0.55,
+    "recover": 0.9,
+    "minWindup": 0.18,
+    "minRecover": 0.22
+  }
+}

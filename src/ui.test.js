@@ -171,6 +171,12 @@ describe('createUI', () => {
     expect(document.querySelector('#area-name').textContent).toBe('Sunken Vault');
   });
 
+  it('shows the creature named by the location', () => {
+    ui.setLocation({ areaName: 'Large Ruins', enemyName: 'Goblin' });
+    expect(document.querySelector('#area-name').textContent).toBe('Large Ruins');
+    expect(document.querySelector('#enemy-name').textContent).toBe('Goblin');
+  });
+
   it('offers every weapon at the hub, one choice per hand, and applies the radios on Exit', () => {
     ui.sync(baseState({ inHub: false }));
     document.querySelector('#equip').click();

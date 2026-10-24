@@ -10,6 +10,7 @@
 //   - how much there is to do, so progress can be reported as a percentage
 //
 // `prepareLocation` mutates the layout in place and is safe to call more than once.
+import { creatureById, defaultCreature } from './creatures.js';
 import { STORY_HEIGHT } from './geometry.js';
 
 const MAX_ROOMS = 400;
@@ -68,6 +69,7 @@ function cleanDecor(list, limit) {
   return clean;
 }
 
+const THEMES = new Set(['stone', 'wood', 'cave']);
 const MAX_LISTED = 600;
 const MAX_TRAIL = 200;
 const MAX_REQUIREMENTS = 8;
@@ -368,8 +370,34 @@ export function prepareLocation(layout) {
     { id: 'exit', type: 'chamber', roomId: exitRoom.id, transitionId: null },
   ];
 
+  applyDungeonOptions(layout);
   prepared.add(layout);
   return layout;
+}
+
+// options.theme dresses every room. options.creature is the species at every spawn.
+// A file that leaves either one unset keeps mixed room themes and the skeletal warrior.
+function applyDungeonOptions(layout) {
+  const options = layout.options && typeof layout.options === 'object' ? layout.options : {};
+  const theme = options.theme;
+  if (theme !== undefined && theme !== null) {
+    if (!THEMES.has(theme)) fail('options.theme must be stone, wood, cave, or null');
+    for (const room of layout.rooms) {
+      room.theme = theme;
+      if (theme !== 'cave') room.rocks = [];
+    }
+  }
+  const requested = options.creature;
+  let creature = defaultCreature();
+  if (requested !== undefined && requested !== null && requested !== '') {
+    if (typeof requested !== 'string') fail('options.creature must be a species id or null');
+    creature = creatureById(requested);
+    if (!creature) fail('options.creature is not a known species');
+  }
+  layout.creatureId = creature.id;
+  layout.creature = creature;
+  const named = typeof layout.enemyName === 'string' ? layout.enemyName.trim() : '';
+  layout.enemyName = named ? named.slice(0, MAX_NAME) : creature.name;
 }
 
 // ---- Floors -----------------------------------------------------------------------------------

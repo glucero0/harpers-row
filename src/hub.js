@@ -4,6 +4,7 @@
 
 import * as THREE from 'three';
 import { ambientFill } from './balance.js';
+import { defaultCreature } from './creatures.js';
 import { fireWobble, parseFireEmanation } from './fire-description.js';
 import { createFlamePoints, disposeFlamePoints } from './flame.js';
 import { pointInPolygon } from './geometry.js';
@@ -280,6 +281,8 @@ export function createHub(scene, materials, hub) {
     transitions: hub.transitions,
     labels: hub.labels,
     placeName: hub.areaName,
+    enemyName: defaultCreature().name,
+    creature: defaultCreature(),
     respawn: hub.respawn,
     depthCount: 1,
     floors: 1,

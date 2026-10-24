@@ -1,0 +1,19 @@
+{
+  "name": "Black Bear",
+  "species": "bear",
+  "plan": "quadruped",
+  "scale": 1,
+  "color": "#2f2b28",
+  "stats": {
+    "health": 87,
+    "damage": 22,
+    "moveSpeed": 3.48,
+    "wanderFactor": 0.25,
+    "radius": 1.1,
+    "sightRange": 20,
+    "windup": 0.9,
+    "recover": 1.3,
+    "minWindup": 0.28,
+    "minRecover": 0.32
+  }
+}

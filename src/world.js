@@ -6,7 +6,6 @@
 // an outdoor path from its exit door, around the outside of every room, back to the trail that leads to
 // the entrance.
 
-import { SKELETON_NAME } from './balance.js';
 import { FireDescriptionError, parseFireEmanation } from './fire-description.js';
 import { LocationError, prepareLocation } from './location.js';
 
@@ -514,7 +513,6 @@ export function connectWorld(hubData, entries) {
       const detail = error instanceof LocationError ? error.message : 'It could not be read as a location.';
       fail(`${entry.name}: ${detail}`);
     }
-    layout.enemyName = SKELETON_NAME;
     layout.placeName = placeTitle(spoke.name, entry.name);
     layout.transitions = layout.transitions.filter((item) => KEPT_TRANSITIONS.has(item.id));
     buildExitLoop(layout);
